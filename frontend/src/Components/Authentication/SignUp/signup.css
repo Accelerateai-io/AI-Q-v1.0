@@ -1,0 +1,244 @@
+/* .sign_up_form {
+  display: flex;
+  justify-content: space-between;
+} */
+
+.signupContent {
+  align-content: center;
+  align-items: center;
+  padding: 10px;
+  gap: 2em;
+  width: 100%;
+  margin: 0 auto;
+  max-width: 900px;
+}
+
+.authPage .signupContent.authContent {
+  max-width: 900px;
+}
+
+.sign_up_form_rows {
+  display: flex;
+  gap: 1em;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.sign_up_form_rows > div {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.readOnlyField {
+  background-color: #f3f4f6; /* light gray */
+  color: #6b7280; /* muted text */
+  border: 1px solid #d1d5db;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sign in link in success card: same look as login page button, inline when next to text */
+.signup_success_signin_btn {
+  width: auto;
+  display: inline-flex;
+  text-decoration: none;
+  margin: 0 0.25em 0 0;
+}
+.signup_success_signin_btn span {
+  margin: 0 0 0 5px;
+  display: flex;
+}
+
+/* Confirmation page: title and primary CTA */
+.signup_confirmation_title {
+  margin: 0;
+  font-size: 1.0625rem;
+  color: #374151;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.signup_confirmation_cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  margin-bottom: 10px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--main-auth-button-color, #2563eb);
+  border: 1px solid var(--main-auth-button-color, #2563eb);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.signup_confirmation_cta:hover {
+  opacity: 0.92;
+  color: #fff;
+}
+
+/* Signup page: match reference image – wide card, centered content, soft shadow */
+.authPage:has(.signup_page) {
+  background-color: #f8f8f8;
+}
+
+.signup_page .signup_modal_content {
+  width: 100%;
+  max-width: 900px;
+  border-radius: 10px;
+  box-shadow: none;
+  background-color: white;
+}
+
+/* Match login page gap between heading and caption (0.2em) */
+.signup_page .profile_modal_header {
+  justify-content: center;
+  border-bottom: none;
+  padding: 1.5rem 1.5rem 0.2em;
+}
+
+.signup_page .profile_modal_body {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.signup_page .settings_form_group label {
+  font-size: 0.9em;
+  color: #212529;
+}
+
+.signup_page .settings_input {
+  font-size: 1em;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+}
+
+.signup_page .settings_input:focus {
+  border-color: var(--main-auth-button-color, #4285f4);
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.signup_page .settings_input_readonly,
+.signup_page .settings_input:read-only {
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
+.signup_page .settings_password_wrap .passwordVisible {
+  color: #64748b;
+}
+
+.signup_page .settings_password_wrap .passwordVisible svg {
+  color: inherit;
+}
+
+.signup_page .settings_error {
+  font-size: 0.9em;
+}
+
+/* Button: full width of form area, centered */
+.signup_page .settings_form_actions {
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+
+.signup_page .settings_form_actions .orgCreateBtn {
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0.6rem 1.5rem;
+}
+
+/* Shared AuthShell layout (sign-up form inside wide card) */
+.signup-shell-body {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/*
+ * Rows use settings_form_row but fields use signup_form_group (not settings_form_group), so
+ * the global .settings_form_row .settings_form_group { flex: 1 } rule never applies. Scope all
+ * layout under .signup_form so modals and other settings_form_row usages are unchanged.
+ */
+.signup_form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.signup_form .settings_form_row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.signup_form .settings_form_row .signup_form_group {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.signup_form .settings_error {
+  text-align: center;
+  width: 100%;
+  margin: 0;
+}
+
+/* Override user_profile .settings_form_actions (flex-end); center full-width CTA */
+.signup_form .signup-form-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25em;
+  padding-top: 0.75em;
+  gap: 0.75rem;
+}
+
+.signup_form .signup-form-actions .login-btn.signin-submit {
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.signup-confirmation-inner .signup_confirmation_card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  border: none;
+  /* padding: 0; */
+  text-align: center;
+  opacity: 1;
+  transform: none;
+}
+
+/* Invite email (read-only): default readonly gray was too faint on this card */
+.signup-shell-body .signin-input--readonly,
+.signup-shell-body .signin-input[readonly] {
+  color: #0f172a;
+  -webkit-text-fill-color: #0f172a;
+  background-color: #e8edf3;
+}

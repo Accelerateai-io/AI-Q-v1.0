@@ -1,0 +1,674 @@
+/* Sales Enablement: layout and spacing match Attestation (sec_user_page, org_settings_page, heading_user_page, attestation_section) */
+
+.sales_enablement_page {
+  /* Uses org_settings_page from user_management.css for width/padding (1.5em 1em 0 0) */
+}
+
+.sales_enablement_select_wrapper {
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sales_enablement_loading_label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.sales_enablement_loader_inline {
+  flex-shrink: 0;
+  animation: sales_enablement_spin 0.8s linear infinite;
+}
+
+.sales_enablement_error_label {
+  display: block;
+  font-size: 0.8125rem;
+  color: #b91c1c;
+}
+
+.sales_enablement_select_wrapper .select_label {
+  display: none;
+}
+
+/* Section spacing matches Attestation (attestation_section) */
+/* .sales_enablement_section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+} */
+
+.sales_enablement_select_wrapper .select_input,
+#vendor_assessment {
+  width: 100%;
+  box-sizing: border-box;
+}
+.sales_enablement_select_wrapper .select_input {
+  min-height: 40px;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  font-size: 0.9375rem;
+}
+
+/* Chat layout: fixed height so it does not grow with messages; only inner messages area scrolls */
+.sales_enablement_chat_layout {
+  display: flex;
+  gap: 1.5rem;
+  min-height: 400px;
+  max-height: 100vh;
+  height: 80vh;
+  padding: 1em 0;
+}
+
+.sales_enablement_chat_main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* chat_message_header fixed at top – does not scroll */
+.sales_enablement_chat_header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.25rem 0;
+  /* border-bottom: 1px solid #e5e7eb; */
+  background: #fff;
+}
+
+.sales_enablement_messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Keep agent answer (SWOT, battle card) inside chat_message_body; no inner scroll */
+.sales_enablement_messages .chat_message--agent .chat_message_body {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* User messages (e.g. "Generate a SWOT analysis...") on the right per screenshot */
+.sales_enablement_messages .chat_message--user {
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.sales_enablement_messages .chat_message--user .chat_message_body {
+  background: var(--main-auth-button-color, #2463eb);
+  color: #fff;
+  padding: 0.625rem 1rem;
+  border-radius: 5px;
+}
+
+.sales_enablement_input_row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  background: #F8FAFC;
+}
+
+.sales_enablement_input_row .input_wrapper {
+  flex: 1;
+  margin: 0;
+}
+
+.sales_enablement_input_row .input_wrapper label {
+  display: none;
+}
+
+.sales_enablement_input_row .input_field,
+.sales_enablement_input_row .textarea_field {
+  width: 100%;
+  border-radius: 5px;
+  padding: 0.625rem 1rem;
+  min-height: 44px;
+  color: #374151;
+}
+
+.sales_enablement_input_row .textarea_field {
+  resize: none;
+  font-family: inherit;
+  font-size: 0.9em;
+  line-height: 1.5;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.sales_enablement_send_btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: var(--main-auth-button-color, #2463eb);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sales_enablement_send_btn:hover {
+  filter: brightness(1.05);
+  /* background-color: #111827; */
+}
+
+.sales_enablement_send_btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sales_enablement_send_loader {
+  animation: sales_enablement_spin 0.8s linear infinite;
+}
+
+@keyframes sales_enablement_spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sales_enablement_loader_wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 85%;
+  margin-bottom: 1rem;
+}
+
+.sales_enablement_loader_wrap .sales_enablement_agent_icon {
+  flex-shrink: 0;
+}
+
+.sales_enablement_loader_icon {
+  flex-shrink: 0;
+  color: var(--main-auth-button-color, #2463eb);
+  animation: sales_enablement_spin 0.8s linear infinite;
+}
+
+/* Right sidebar */
+.sales_enablement_sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sales_enablement_sidebar_card {
+  background: #fff;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.sales_enablement_sidebar_title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem;
+}
+
+.sales_enablement_quick_action_btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sales_enablement_quick_action_btn:last-child {
+  margin-bottom: 0;
+}
+
+.sales_enablement_quick_action_btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  
+}
+
+.sales_enablement_quick_action_btn:disabled,
+.sales_enablement_quick_action_btn.disabled_css {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f9fafb;
+}
+
+.sales_enablement_quick_action_btn:disabled:hover {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  /* padding: 1em; */
+}
+
+/* Chat footer action buttons (SWOT Analysis, Battle Card) */
+.sales_enablement_chat_actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 1.25rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.sales_enablement_chat_action_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  /* border: 1px solid #e5e7eb; */
+  border-radius: 5px;
+  /* background: #fff; */
+  font-size: 0.8125rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.sales_enablement_chat_action_btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.sales_enablement_chat_action_btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Agent message intro above SWOT/Battle card – same background as .bot_answer_sec */
+.sales_enablement_agent_intro {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #FBFCFD;
+  border-radius: 6px;
+  display: flex;
+  gap: 0.5em;
+  color: black;
+}
+
+/* SWOT section as a whole – same background as .bot_answer_sec */
+.sales_enablement_swot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  /* margin: 0.5rem 0 0; */
+  padding: 1rem;
+  background: #FBFCFD;
+  border-radius: 6px;
+}
+
+.sales_enablement_swot_block {
+  border-radius: 6px;
+  padding: 1rem;
+  /* border: 1px solid #e5e7eb; */
+}
+
+.sales_enablement_swot_title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.sales_enablement_swot_title span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sales_enablement_swot_block ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  /* color: #374151; */
+}
+
+.sales_enablement_swot_block ul li {
+  margin-bottom: 0.35rem;
+  font-size: 0.9em;
+}
+
+.sales_enablement_swot_block ul li:last-child {
+  margin-bottom: 0;
+}
+
+.sales_enablement_swot--strengths {
+   padding: 0.75rem;              /* p-3 */
+  background-color: #ecfdf5;     /* emerald-50 */
+  border-radius: 0.5rem;         /* rounded-lg */
+  color: #064e3b;
+}
+
+/* .sales_enablement_swot--strengths .sales_enablement_swot_title {
+  color: #064e3b;
+} */
+
+.sales_enablement_swot--weaknesses {
+  padding: 0.75rem;              /* p-3 */
+  background-color: #fffbeb;     /* amber-50 */
+  border-radius: 0.5rem; 
+  color: #c2410c;   
+}
+
+.sales_enablement_swot--weaknesses .sales_enablement_swot_title {
+  color: #c2410c;
+}
+
+.sales_enablement_swot--opportunities {
+  padding: 0.75rem;              /* p-3 */
+  background-color: #eff6ff;     /* blue-50 */
+  border-radius: 0.5rem;   
+  color: #1d4ed8;
+}
+
+/* .sales_enablement_swot--opportunities .sales_enablement_swot_title {
+  color: #1d4ed8;
+} */
+
+.sales_enablement_swot--threats {
+ padding: 0.75rem;              /* p-3 */
+  background-color: #fef2f2;     /* red-50 */
+  border-radius: 0.5rem;  
+   color: #b91c1c;
+}
+
+/* .sales_enablement_swot--threats .sales_enablement_swot_title {
+  color: #b91c1c;
+} */
+
+/* Battle card block (dummy UI) – matches screenshot layout */
+.sales_enablement_battle_card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #f9fafb;
+  margin-top: 0.5rem;
+}
+
+.sales_enablement_battle_card_title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem;
+}
+
+.sales_enablement_battle_card_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sales_enablement_battle_card_section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sales_enablement_battle_card_section.sales_enablement_battle_card--objection {
+  grid-column: 1 / -1;
+}
+
+.sales_enablement_battle_card_section_header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.sales_enablement_battle_card_section_icon {
+  flex-shrink: 0;
+}
+
+.sales_enablement_battle_card_icon--blue {
+  color: #2563eb;
+}
+
+.sales_enablement_battle_card_icon--green {
+  color: #16a34a;
+}
+
+.sales_enablement_battle_card_icon--orange {
+  color: #ea580c;
+}
+
+.sales_enablement_battle_card_section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.sales_enablement_battle_card_section ul li {
+  margin-bottom: 0.35rem;
+}
+
+.sales_enablement_battle_card_highlights {
+  list-style: none;
+  padding-left: 0;
+}
+
+.sales_enablement_battle_card_highlights li {
+  background: #f1f5f9;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.sales_enablement_battle_card_highlights li:last-child {
+  margin-bottom: 0;
+}
+
+.sales_enablement_battle_card_qa {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.sales_enablement_battle_card_q {
+  margin: 0 0 0.5rem;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.sales_enablement_battle_card_a {
+  margin: 0;
+  color: #374151;
+}
+
+/* Q&A and Ideal Customer Profile cards – light grey rounded blocks */
+.sales_enablement_battle_card_qa_blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.sales_enablement_battle_card_qa_card {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sales_enablement_battle_card_qa_card .sales_enablement_battle_card_q {
+  margin-bottom: 0.35rem;
+}
+
+.sales_enablement_battle_card_icp {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.sales_enablement_battle_card_icp_title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.35rem;
+}
+
+.sales_enablement_battle_card_icp p {
+  margin: 0;
+}
+
+/* Legacy bullets */
+.sales_enablement_battle_card ul:not(.sales_enablement_battle_card_highlights) {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.sales_enablement_battle_card ul li {
+  margin-bottom: 0.35rem;
+}
+
+.sales_enablement_example_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sales_enablement_example_list li {
+  margin-bottom: 0.5rem;
+}
+
+.sales_enablement_example_list li:last-child {
+  margin-bottom: 0;
+}
+
+.sales_enablement_example_btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 0.8125rem;
+  color: #4b5563;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.sales_enablement_example_btn:hover {
+  color: #111827;
+  background: #f3f4f6;
+  padding: 0.5em;
+}
+
+.sales_enablement_example_btn svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+  color: #9ca3af;
+}
+
+.sales_enablement_example_btn .click_tooltip_wrapper {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.sales_enablement_example_btn .click_tooltip_trigger {
+  display: block;
+  padding: 0;
+  border-radius: 0;
+  width: 100%;
+  text-align: left;
+  cursor: inherit;
+}
+
+.sales_enablement_example_btn .click_tooltip_trigger:hover {
+  background: transparent;
+}
+
+.sales_enablement_example_btn_text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: black;
+}
+
+/* Wrapper: icon outside, background block next to it */
+.sales_enablement_agent_answer_wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 85%;
+}
+
+.sales_enablement_agent_icon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* Agent answer block (intro + SWOT) – background only on this section, icon stays outside */
+.bot_answer_sec {
+  display: flex;
+  gap: 0.5em;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: #FBFCFD;
+  /* padding: 1rem; */
+  border-radius: 6px;
+}
+
+/* Greeting message: same look as bot_answer_sec, icon + text in a row */
+.sales_enablement_greeting_sec {
+  flex-direction: row;
+  align-items: flex-start;
+  max-width: 85%;
+}
+
+.swot_title_icons {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: block;
+}

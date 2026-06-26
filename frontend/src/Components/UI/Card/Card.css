@@ -1,0 +1,121 @@
+/* Base reusable card */
+.cards {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card--compact {
+  padding: 1rem 1.25rem;
+}
+
+/* KPI card (value + label, optional variant for value color) */
+.card--kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.card__value--trust,
+.card__value--mitigation,
+.card__value--residual {
+  color: #16a34a;
+}
+
+.card__value--inherent {
+  color: #ea580c;
+}
+
+.card__label {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* Risk card (category + pill) */
+.card--risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Low and very low: border matches governance section buttons */
+.card--risk.card--risk--low-border {
+  border-color: #d1d5db;
+}
+
+.card__category {
+  color: #374151;
+}
+
+.card__pill {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.card__pill--very_low {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.card__pill--low {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.card__pill--medium {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.card__pill--high {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Metric card (icon, title, value, description) */
+.card--metric {
+  position: relative;
+}
+
+.card__icon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: #9ca3af;
+}
+
+.card__metric-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card__metric-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.card__metric-desc {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+}

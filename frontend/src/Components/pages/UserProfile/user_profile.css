@@ -1,0 +1,412 @@
+/* Wrapper popup - above top nav and page content so it is not covered */
+.user_popup {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  width: 220px;
+  background: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 12px 0;
+  z-index: 10002;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.userhelptext {
+  font-size: 12px;
+  color: gray;
+}
+
+/* Account header: icon + title, same spacing as list items for consistency */
+.user_popup_account_header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.user_popup_account_icon {
+  color: var(--main-dark-color, #2463eb);
+  flex-shrink: 0;
+}
+
+.user_popup_account_title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Role row - same style as profile/list items in user_popup */
+/* .user_popup_role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #444;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafbfc;
+}
+
+.user_popup_role svg {
+  color: var(--main-dark-color, #2463eb);
+  flex-shrink: 0;
+}
+
+.user_popup_role_label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.user_popup_role_value {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--main-dark-color, #2463eb);
+} */
+
+/* Same as .user_popup ul li (Profile row) */
+.user_popup_role {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 0px 16px;
+  cursor: default;
+  color: #444;
+  font-size: 14px;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.user_popup_role:hover {
+  background-color: #f5f7fa;
+}
+
+.user_popup_role span:first-of-type {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user_popup_role svg {
+  width: 18px;
+  height: 18px;
+  color: #555;
+}
+
+.user_popup_role_label {
+  color: #444;
+}
+
+.user_popup_role_value {
+  margin-left: auto;
+  font-weight: 500;
+  color: #444;
+}
+
+/* List reset */
+.user_popup ul {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+/* List items */
+.user_popup ul li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: #444;
+  font-size: 14px;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Hover effect */
+.user_popup ul li:hover {
+  background-color: #f5f7fa;
+  color: #000;
+}
+
+/* Icon wrapper */
+.user_popup ul li span:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Lucide icon sizing */
+.user_popup svg {
+  width: 18px;
+  height: 18px;
+  color: #555;
+}
+
+.logout_btn {
+  color: white;
+  background-color: #d00000;
+  width: 91%;
+  font-size: 14px;
+  /* font-weight: 600; */
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  /* justify-content: center; */
+  align-content: center;
+  /* align-items: center;  */
+  gap: 11px;
+  /* border: 1px solid var(--main-auth-button-color); */
+  padding: 8px;
+  color: white;
+  margin: 0px 9px 10px 9px;
+  border: none;
+}
+
+.logout_btn:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.logout_btn.auth_btn_loading .auth_spinner {
+  animation: auth-spin 0.8s linear infinite;
+}
+
+/* User Settings modal */
+.settings_modal_content {
+  max-width: 520px;
+}
+
+.settings_form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings_form_row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.settings_form_row .settings_form_group {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings_form_group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings_form_group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.settings_form_group label svg {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+
+.settings_password_wrap {
+  position: relative;
+}
+
+.settings_password_wrap .settings_input {
+  padding-right: 2.5rem;
+}
+
+/* Same as sign-in page: eye icon inside password field */
+.settings_password_wrap .passwordVisible {
+  margin: 0;
+  display: inline;
+  position: absolute;
+  top: 50%;
+  right: 2%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.settings_input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.settings_input:focus {
+  outline: none;
+  border-color: var(--main-auth-button-color, #2463eb);
+  box-shadow: 0 0 0 2px rgba(36, 99, 235, 0.15);
+}
+
+.settings_input_cursor_pointer {
+  cursor: pointer;
+}
+
+select.settings_input:not([disabled]) {
+  background-color: white;
+}
+
+.settings_input::placeholder {
+  color: #94a3b8;
+}
+
+.settings_input_readonly,
+.settings_input:read-only {
+  background-color: #f1f5f9;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.settings_input_hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--light-gray-color, #64748b);
+  margin: 0.25rem 0 0 0;
+}
+
+/* Same style as attestation/assessments header_cots icon (light blue box, brand-color icon) */
+.settings_input_hint_icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e9f2ff;
+  padding: 0.35em;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.settings_input_hint_icon svg {
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+.settings_error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.settings_form_actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.settings_form_actions .orgCancelBtn,
+.settings_form_actions .orgCreateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.settings_form_actions .auth_spinner {
+  animation: auth-spin 0.8s linear infinite;
+}
+
+.my_account_onboarding_sections {
+  margin-top: 1.25rem;
+}
+
+.my_account_onboarding_notice {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+/* Profile modal: label + input sections */
+.profile_form_sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.profile_form_section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile_form_section .vendor_preview_card_title {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Profile modal: same two-column row layout as settings */
+.profile_modal_preview .settings_form_row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.profile_modal_preview .settings_form_row .settings_form_group {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Profile modal content width when using row layout */
+.profile_modal_content:has(.profile_modal_preview) {
+  max-width: 520px;
+}
+
+/* Profile modal footer: Close button centered at the end */
+.profile_modal_footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.profile_modal_footer_center {
+  display: flex;
+  justify-content: center;
+}
+
+/* Profile footer Close: same height and width as Settings Cancel (orgCancelBtn) */
+.profile_modal_footer_center .orgCancelBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 10px;
+  min-width: 7rem;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+/* Logout emphasis */
+/* .user_popup ul li:last-child {
+  color: #d9534f;
+}
+
+.user_popup ul li:last-child svg {
+  color: #d9534f;
+} */
+

@@ -1,0 +1,99 @@
+/* Single source of truth for layout widths: change here to resize sidebar and top nav */
+:root {
+  --top-nav-height: 64px;
+  --side-nav-width: 240px;       /* sidebar width - adjust as needed */
+  --top-nav-left: var(--side-nav-width); /* start after sidebar so top nav only spans main content */
+  --top-nav-width: calc(100% - var(--side-nav-width));
+  /* --main-dark-color: #2463eb; */
+  --main-dark-color: #014aad;
+  --grey-color: #4b5563;
+}
+
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top_nav {
+  width: var(--top-nav-width);
+  min-height: var(--top-nav-height);
+  flex-shrink: 0;
+  padding: 0 0.1em;
+  border-bottom: 0.5px solid #dadce0;
+  /* background-color: #f5f7fa; */
+  background-color: #efefef;
+  position: fixed;
+  top: 0;
+  left: var(--top-nav-left);
+  right: 0;
+  z-index: 900;
+  /* z-index: 10001; */
+  display: flex;
+  align-items: center;
+}
+
+.wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  /* No padding-top here so sidebar runs full height from top; main content has its own padding */
+}
+
+/* Sidebar on the left - dark navy theme, full height */
+.side_nav {
+  width: var(--side-nav-width);
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #014aad;
+  overflow-y: auto;
+}
+
+/* Main content fills remaining space; padding-top so content starts below the top nav bar */
+.main_container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--top-nav-height) 0 0 1em;
+  /* background: #f6f9fb; */
+  background: #f5f7fa;
+  /* Edge/Chromium: reserve width when scrollbar shows/hides so content doesn’t shift horizontally */
+  scrollbar-gutter: stable;
+}
+
+/* css onboarding layout starts here */
+
+.layout_onBoarrding {
+  background-color: var(--bg-colour-main);
+  /* background-color: var(--background-color-onboarding); */
+  min-height: 100vh; /* ensures it fills full height */
+  display: flex;
+  flex-direction: column;
+}
+.header_onboarding {
+  text-align: center;
+  padding: 20px 20px 0 20px;
+}
+
+.onboarding-header-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.container_onBoarding {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.main_onBoarding {
+  display: flex;
+  flex-direction: column;
+
+  /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
+  margin-top: 10px;
+}

@@ -1,0 +1,141 @@
+/* Reusable popover panel (dropdown content) */
+.popover_panel {
+  background: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 12px 16px;
+  z-index: 10000;
+  min-width: 220px;
+  max-width: 320px;
+  font-size: 0.875rem;
+}
+
+/* Profile detail popover content (used in user dropdown and in profile modal) */
+.profile_detail_popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile_detail_popover_row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile_detail_popover_label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile_detail_popover_label svg {
+  flex-shrink: 0;
+  color: var(--main-dark-color, #2463eb);
+}
+
+.profile_detail_popover_value {
+  font-size: 0.875rem;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.profile_detail_popover_value--email {
+  font-size: 0.8125rem;
+  color: var(--main-dark-color, #2463eb);
+}
+
+/* Profile detail popover: label + input (read-only) */
+.profile_detail_popover_input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-sizing: border-box;
+  cursor: not-allowed;
+  word-break: break-word;
+}
+
+.profile_detail_popover_input--email {
+  font-size: 0.8125rem;
+  color: var(--main-dark-color, #2463eb);
+}
+
+/* Notifications popover */
+.notifications_popover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.notifications_popover_icon {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.notifications_popover_message {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Profile modal overlay (when opening profile from dropdown) */
+.profile_modal_overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  padding: 1rem;
+}
+
+.profile_modal_content {
+  background: #fff;
+  border-radius: 5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 340px;
+  max-height: 90vh;
+  overflow: auto;
+  position: relative;
+}
+
+.profile_modal_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.profile_modal_title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.profile_modal_body {
+  padding: 1rem 1.25rem;
+}
+
+/* Profile modal with preview-style cards (vendor_preview) */
+.profile_modal_preview .vendor_preview_sections {
+  gap: 1rem;
+}
+
+.profile_modal_content:has(.profile_modal_preview) {
+  max-width: 420px;
+}

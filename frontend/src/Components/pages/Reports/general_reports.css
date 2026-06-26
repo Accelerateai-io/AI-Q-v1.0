@@ -1,0 +1,1104 @@
+/* 4 cards per row; responsive: 2 on medium screens, 1 on small */
+.general_rpr_cards_sec {
+  display: grid;
+  /* grid-template-columns: repeat(4, 1fr); */
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+@media (max-width: 1200px) {
+  .general_rpr_cards_sec {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .general_rpr_cards_sec {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* General reports css */
+
+.gen_reports_assessment_select {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4em;
+}
+/* Label on top so dropdown starts at same left edge as content below (no label indent) */
+.gen_reports_assessment_select .select_label {
+  width: 100%;
+  margin: 0;
+}
+.gen_reports_assessment_select .select_input,
+#vendor_assessment {
+  width: 100%;
+  box-sizing: border-box;
+}
+.gen_reports_search_wrap {
+  width: 50%;
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 0.4em;
+}
+.gen_reports_search_wrap input,
+.gen_reports_search_wrap select {
+  width: 100%;
+}
+
+.search_align_right {
+  display: flex;
+  justify-content: end;
+  margin: 1em 0 0 0;
+}
+
+/* General Reports – report type modal: equal gaps, accent colors per option */
+.general_reports_types_popup_options {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.report_type_option_wrap {
+  min-width: 0;
+  width: 100%;
+}
+
+.general_reports_types_popup_options .radio-box {
+  margin: 0;
+}
+
+.general_reports_types_popup_options .radio-content {
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.general_reports_types_popup_options .radio-content .icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.general_reports_types_popup_options .radio-content .text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  font-size: 0.9375rem;
+}
+
+/* Accent variables per report type */
+.general_reports_types_popup_options [data-accent="sales"] .radio-content {
+  --report-option-color: #2563eb;
+}
+.general_reports_types_popup_options [data-accent="exec"] .radio-content {
+  --report-option-color: #7c3aed;
+}
+.general_reports_types_popup_options [data-accent="risk"] .radio-content {
+  --report-option-color: #059669;
+}
+.general_reports_types_popup_options [data-accent="roadmap"] .radio-content {
+  --report-option-color: #be123c;
+}
+
+/* Initial / hover / checked: plain hex (no color-mix) so html2canvas / PDF export can parse colors */
+.general_reports_types_popup_options [data-accent="sales"] .radio-content {
+  border-color: #8faceb;
+  color: #2a5bc5;
+}
+.general_reports_types_popup_options [data-accent="sales"] .radio-content:hover {
+  border-color: #7298eb;
+  color: #285ed4;
+}
+.general_reports_types_popup_options
+  [data-accent="sales"]
+  .radio-box
+  input:checked
+  + .radio-content {
+  border-color: var(--report-option-color);
+  background-color: #e5ecfd;
+  color: var(--report-option-color);
+  font-weight: 600;
+}
+
+.general_reports_types_popup_options [data-accent="exec"] .radio-content {
+  border-color: #b699ec;
+  color: #6b3cc6;
+}
+.general_reports_types_popup_options [data-accent="exec"] .radio-content:hover {
+  border-color: #a67fec;
+  color: #723bd6;
+}
+.general_reports_types_popup_options
+  [data-accent="exec"]
+  .radio-box
+  input:checked
+  + .radio-content {
+  border-color: var(--report-option-color);
+  background-color: #efe7fd;
+  color: var(--report-option-color);
+  font-weight: 600;
+}
+
+.general_reports_types_popup_options [data-accent="risk"] .radio-content {
+  border-color: #80c3b1;
+  color: #128163;
+}
+.general_reports_types_popup_options [data-accent="risk"] .radio-content:hover {
+  border-color: #5fb69d;
+  color: #0d8965;
+}
+.general_reports_types_popup_options
+  [data-accent="risk"]
+  .radio-box
+  input:checked
+  + .radio-content {
+  border-color: var(--report-option-color);
+  background-color: #e1f2ed;
+  color: var(--report-option-color);
+  font-weight: 600;
+}
+
+.general_reports_types_popup_options [data-accent="roadmap"] .radio-content {
+  border-color: #d3879c;
+  color: #9c1e41;
+}
+.general_reports_types_popup_options [data-accent="roadmap"] .radio-content:hover {
+  border-color: #ce6782;
+  color: #aa193f;
+}
+.general_reports_types_popup_options
+  [data-accent="roadmap"]
+  .radio-box
+  input:checked
+  + .radio-content {
+  border-color: var(--report-option-color);
+  background-color: #f7e3e8;
+  color: var(--report-option-color);
+  font-weight: 600;
+}
+
+.general_reports_types_popup_options [data-accent] .radio-content .icon {
+  color: inherit;
+}
+
+.general_reports_types_popup_options [data-accent] .radio-content:hover .icon {
+  color: inherit;
+}
+
+.general_reports_types_popup_options
+  [data-accent]
+  .radio-box
+  input:checked
+  + .radio-content
+  .icon {
+  color: var(--report-option-color);
+  opacity: 1;
+}
+
+@media (max-width: 480px) {
+  .general_reports_types_popup_options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Popup footer: consistent gap above buttons, equal spacing between Cancel and Generate */
+.report_types_popup_actions {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.report_types_popup_actions .orgCancelBtn,
+.report_types_popup_actions .orgCreateBtn {
+  min-width: 8rem;
+  width: auto;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.report_types_popup_actions .orgCancelBtn {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
+/* .report_types_popup_actions .orgCancelBtn:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+  cursor: pointer;
+} */
+
+.report_types_popup_actions .orgCreateBtn {
+  background-color: var(--main-auth-button-color, #2563eb);
+  color: #fff;
+  border: 1px solid var(--main-auth-button-color, #2563eb);
+}
+
+.report_types_popup_actions .orgCreateBtn:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.general_reports_types_popup_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.general_reports_types_popup_title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.general_reports_types_popup_body {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.general_reports_types_popup_body p {
+  margin: 0;
+}
+.error_text_sec_rpr {
+  display: flex;
+  align-items: center;
+  padding: 0.2em 0 0 0;
+  gap: 0.4em;
+}
+.general_reports_types_popup_error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--vendor-error-color);
+  /* font-weight: 500; */
+}
+
+.error_text_sec_rpr svg {
+  color: var(--vendor-error-color);
+}
+
+.error_text_sec_rpr span {
+  display: flex;
+}
+
+.general_reports_page_error {
+  margin: 0.5rem 0 1rem 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--vendor-error-color);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+}
+
+.status-options {
+  display: flex;
+  gap: 12px;
+}
+
+.radio-box {
+  position: relative;
+  cursor: pointer;
+  width: 100%;
+}
+
+.radio-box input {
+  display: none;
+}
+
+/* Main box */
+.radio-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--light-gray-color);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  color: var(--light-gray-color);
+  width: 100%;
+}
+
+/* Selected state */
+.radio-box input:checked + .radio-content {
+  border-color: #1d6ad4;
+  background-color: #c9d6f5;
+  color: #2c7ef1;
+  font-weight: 500;
+}
+
+/* Optional icon styling */
+.radio-content .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.generate_rpr_btn {
+  border: 1px solid var(--main-auth-button-color);
+  padding: 10px;
+  background-color: var(--main-auth-button-color);
+  color: white;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1em;
+  justify-content: center;
+  gap: 0.5em;
+}
+.generate_rpr_btn span {
+  display: flex;
+}
+
+.view_rpr {
+  /* border: 1px solid var(--main-auth-button-color); */
+  /* background-color: white; */
+  /* width: 100%; */
+  /* padding: 0.5rem 1.25rem; */
+  border: none;
+  color: var(--main-auth-button-color);
+  background: none;
+  font-weight: 500;
+  /* cursor: pointer; */
+}
+
+/* View Report modal */
+.general_reports_view_modal {
+  max-width: 24em;
+}
+
+.general_reports_view_modal_content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.general_reports_view_modal_title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.general_reports_view_modal_meta {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.general_reports_view_modal_report_type_loop {
+  margin: 0.5rem 0 0 0;
+}
+
+.general_reports_view_modal_label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 0.35rem 0;
+}
+
+.general_reports_view_modal_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.general_reports_view_modal_list li {
+  font-size: 0.9375rem;
+  color: #111827;
+  padding: 0.35rem 0;
+}
+
+.general_reports_view_modal_close_btn {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.product_profile_product_card_report_type {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.close_btn_rpr_sec {
+  display: flex;
+  justify-content: end;
+  margin: 1.5em 0 0 0;
+  width: 100%;
+  gap: 1em;
+}
+.close_btn_rpr {
+  background-color: crimson;
+  color: white;
+  border: 1px solid crimson;
+  padding: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  gap: 0.4em;
+}
+.close_btn_rpr_sec span {
+  display: flex;
+}
+
+.general_rpr_sec {
+  display: flex;
+  gap: 0.9em;
+}
+.icon_rpr_sec {
+  align-content: center;
+  /* height: 40px; */
+  border-radius: 5px;
+  /* background: #ede9fe; */
+  color: #7c3aed;
+}
+
+.general_report_card_title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  min-width: 0;
+}
+.calendra_icon {
+  display: flex;
+}
+
+.date_sec {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+}
+
+/* Card footer: Generated + Expiry (short labels, no calendar icon) */
+.general_rpr_card_dates {
+  display: flex;
+  /* flex-direction: column; */
+  gap:0.9em;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-size: 0.65em;
+}
+
+.general_rpr_card_date_row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  margin: 15px 0 0 0;
+}
+
+.general_rpr_card_date_label {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.general_rpr_card_date_label_expiry {
+  color: lightslategray;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.general_rpr_card_date_value {
+  color: #374151;
+}
+.general_rpr_card_date_value_expiry {
+  color: lightslategray;
+}
+
+/* Archived tab: time-based expiry → "Expired" (stronger). User-only archive → "Archived" (neutral). */
+.general_rpr_card_status_expired {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  background: tomato;
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+}
+
+.general_rpr_card_status_archived {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  background: #6b7280;
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+}
+
+.general_rpr_card_archived {
+  opacity: 0.85;
+}
+
+.general_rpr_card_archived .view_rpr_btn {
+  /* cursor: not-allowed; */
+  /* opacity: 0.8; */
+}
+
+/* Allow tooltips to extend outside the card (avoid clipping) */
+.general_rpr_card.vendor_directory_card {
+  overflow: visible;
+}
+
+/* Keep Expires on and View Report at same level across all cards: title area grows, footer pinned to bottom */
+.general_rpr_card .general_report_card_header {
+  flex-shrink: 0;
+}
+.general_rpr_card .general_rpr_title {
+  flex: 1 1 auto; 
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.general_rpr_card .general_rpr_card_footer {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+/* General report card: title two lines + ellipsis, hover tooltip shows full name */
+.general_rpr_card .general_rpr_card_title_wrap {
+  display: block;
+  min-width: 0;
+  cursor: default;
+}
+
+/*
+ * Complete report cards — grid + dimensions (UX)
+ * Width: columns min ~360px (readable title block); card max 400px (avoids overly long lines in wide cells).
+ * Height: min 272px / 17rem — fits header + 2-line title + model + risk + footer; rows align in grid; grows with content.
+ */
+.general_rpr_cards_sec.vendor_directory_grid.complete_rpr_cards_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 2em;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .general_rpr_cards_sec.vendor_directory_grid.complete_rpr_cards_grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Complete report cards — reference layout: left-aligned copy, badge top-left, doc icon top-right, thin green bottom accent */
+.complete_rpr_card_design {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  /* border-bottom: 3px solid #4ade80; */
+  border-bottom: 3px solid #10b981;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Archived: keep bottom accent gray (not green) to match muted archived chrome */
+.complete_rpr_card_design.general_rpr_card_archived {
+  border-bottom: 3px solid #9ca3af;
+}
+
+.vendor_directory_card.complete_rpr_card_design {
+  border-radius: 5px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 400px;
+  margin-inline: auto;
+  min-height: 272px;
+}
+
+.complete_rpr_card_design .general_report_card_header.complete_rpr_card_top {
+  padding: 0.75rem 1.25rem 0.625rem;
+  align-items: center;
+}
+
+.complete_rpr_card_top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.complete_rpr_card_status_badge {
+  display: inline-block;
+  padding: 0.3em 0.5rem;
+  border-radius: 5px;
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  /* background: #d1fae0;
+  color: #166534; */
+  /* color: #047857; */
+  /* background: #d1fae5; */
+
+  color: #10b981;
+  background-color: #d1fae5;
+}
+
+.complete_rpr_card_status_badge_archived {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.complete_rpr_card_status_badge_expired {
+  background: tomato;
+  color: #fff;
+}
+
+.complete_rpr_card_header_actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.complete_rpr_card_header_doc_icon {
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Download: same blue as View Report; background = light tint of that blue */
+.complete_rpr_card_design .general_rpr_card_download_btn {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.complete_rpr_card_design .general_rpr_card_download_btn:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.complete_rpr_card_design .general_rpr_card_download_btn svg {
+  color: inherit;
+}
+
+/* Title + model: flush left; reference ~20px horizontal inset (1.25rem) */
+.complete_rpr_card_design.general_rpr_card .general_rpr_title.complete_rpr_card_title_block {
+  text-align: left;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 0.375rem 1.25rem 0;
+}
+
+.complete_rpr_card_title_block .vendor_directory_card_header_text {
+  width: 100%;
+}
+
+/*
+ * Reference rhythm: small gap title↔model; much larger gap model↔risk block.
+ */
+.complete_rpr_card_title_model_group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.complete_rpr_card_design .complete_rpr_card_title_model_group .click_tooltip_wrapper,
+.complete_rpr_card_design .complete_rpr_card_title_model_group .click_tooltip_trigger,
+.complete_rpr_card_design .complete_rpr_card_title_model_group .general_rpr_card_title_wrap {
+  text-align: left;
+  width: 100%;
+}
+
+.complete_rpr_card_title_model_group .complete_rpr_card_model {
+  margin: 0;
+}
+
+.complete_rpr_card_model {
+  margin: 0.375rem 0 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #4b5563;
+  text-align: left;
+}
+
+.complete_rpr_card_design .complete_rpr_card_model {
+  text-align: left;
+  align-self: stretch;
+  width: 100%;
+}
+
+/* Large top padding = whitespace between model line and RISK SCORE (reference) */
+.complete_rpr_card_risk_block {
+  padding: 1.75rem 1.25rem 1.125rem;
+}
+
+.complete_rpr_card_risk_row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.complete_rpr_card_risk_label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.complete_rpr_card_risk_value_wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+  text-align: right;
+  max-width: 70%;
+  flex-shrink: 0;
+}
+
+.complete_rpr_card_risk_value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+
+.complete_rpr_card_risk_subtitle {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  color: #6b7280;
+  text-align: right;
+  max-width: 100%;
+}
+
+.general_rpr_card_archived .complete_rpr_card_risk_value,
+.general_rpr_card_archived .complete_rpr_card_risk_subtitle {
+  color: #6b7280;
+}
+
+.complete_rpr_card_risk_track {
+  height: 6px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+.complete_rpr_card_risk_fill {
+  height: 100%;
+  border-radius: 999px;
+  /* Longhand so inline `backgroundColor` from React reliably overrides */
+  background-color: #d1d5db;
+  background-image: none;
+
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.general_rpr_card_archived .complete_rpr_card_risk_fill {
+  background-color: #9ca3af;
+  background-image: none;
+}
+
+.complete_rpr_card_design .general_rpr_card_footer.complete_rpr_card_footer {
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 1.25rem;
+  gap: 0.75rem 1rem;
+  flex-wrap: nowrap;
+  margin-top: auto;
+}
+
+.complete_rpr_card_footer {
+  flex-wrap: nowrap;
+  border-top: 1px solid #f1f5f9;
+}
+
+.complete_rpr_card_expiry_col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.complete_rpr_card_expiry_label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.complete_rpr_card_expiry_value {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000000;
+}
+
+.complete_rpr_card_view_btn {
+  margin-top: 0;
+  flex-shrink: 0;
+  align-self: flex-end;
+  color: #2563eb;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.complete_rpr_card_view_btn:hover {
+  color: #1d4ed8;
+}
+
+.complete_rpr_card_view_btn svg {
+  color: #2563eb;
+}
+
+.complete_rpr_card_view_btn:hover svg {
+  color: #1d4ed8;
+}
+
+.general_rpr_card .general_rpr_card_title_clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.3;
+  word-break: break-word;
+  font-size: 1.125em;
+  font-weight: 700;
+}
+
+/* Complete report reference: large bold black title (overrides line above) */
+.complete_rpr_card_design.general_rpr_card .general_rpr_card_title_clamp {
+  font-size: 1.125em;
+  font-weight: 700;
+  color: #000000;
+  line-height: 1.35;
+  text-align: left;
+  margin-bottom: 0;
+}
+
+.general_rpr_card .click_tooltip_wrapper {
+  display: block;
+  min-width: 0;
+}
+
+.general_rpr_card .click_tooltip_trigger {
+  display: block;
+  min-width: 0;
+  cursor: default;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+/* Download icon button – compact, top-right of card header */
+.general_rpr_card_download_wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.general_rpr_card .general_rpr_card_download_wrap .click_tooltip_trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.general_rpr_card_download_btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  /* background: transparent; */
+  color: #2563eb;
+  background: #eff6ff;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.general_rpr_card_download_btn:hover {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.general_rpr_card_download_btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.general_rpr_card_download_btn svg {
+  flex-shrink: 0;
+}
+
+/* Report type with icon in card (subtitle row) */
+.general_rpr_card_report_type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+.general_rpr_card_report_type_icon {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+/* Header icon (FileText) – single colour, not report-type accent */
+.general_rpr_card .general_rpr_card_type_icon {
+  color: #6366f1;
+}
+
+/* Card accent colors – report type text + small icon only (not header icon) */
+.general_rpr_card[data-accent="sales"] .general_rpr_card_report_type,
+.general_rpr_card[data-accent="sales"] .general_rpr_card_report_type_icon {
+  /* color: #2563eb; */
+  color: #9DB9F6;
+}
+
+.general_rpr_card[data-accent="exec"] .general_rpr_card_report_type,
+.general_rpr_card[data-accent="exec"] .general_rpr_card_report_type_icon {
+  /* color: #7c3aed; */
+  color: #C4A6F7;
+}
+
+.general_rpr_card[data-accent="risk"] .general_rpr_card_report_type,
+.general_rpr_card[data-accent="risk"] .general_rpr_card_report_type_icon {
+  /* color: #059669; */
+  color: #8FD0BC;
+}
+
+.general_rpr_card[data-accent="roadmap"] .general_rpr_card_report_type,
+.general_rpr_card[data-accent="roadmap"] .general_rpr_card_report_type_icon {
+  /* color: #be123c; */
+  color: #E294A7;
+}
+
+.reports_type_popup {
+  max-width: 50em;
+}
+
+.general_report_card_header {
+  padding: 1.25em 1em 1.25em;
+  display: flex;
+  justify-content: space-between;
+}
+
+.general_rpr_card_report_type_icon svg {
+  display: flex;
+}
+.general_rpr_title {
+  text-align: center;
+  padding: 1em  0;
+  /* background-color: #111827; */
+}
+
+.general_rpr_irs {
+  text-align: center;
+  margin: -0.5rem 0 0;
+  padding: 0 1rem 0.75rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.general_rpr_irs strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Complete report cards: same copy/layout style as full report approval banner (no letter grade). */
+.general_rpr_approval_banner {
+  margin: -0.25rem 0.75rem 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1px solid #bbf7d0;
+  text-align: left;
+}
+
+.general_rpr_approval_banner_title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #14532d;
+  line-height: 1.25;
+}
+
+.general_rpr_approval_banner_sub {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #166534;
+  line-height: 1.4;
+}
+
+.view_rpr_btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.8em;
+  font-weight: 600;
+  margin: 15px 0 0 0;
+}
+
+/* Complete report card: override generic .view_rpr_btn (comes after — wins on tie) */
+.complete_rpr_card_design .view_rpr_btn.complete_rpr_card_view_btn {
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.general_rpr_card_footer{
+    display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.25em 1em 1.25em;
+  /* border-top: 1px solid #f3f4f6; */
+  /* margin-top: auto; */
+}
+
+/* .icon_rpr_sec{
+  background-color: #ede9fe;
+} */

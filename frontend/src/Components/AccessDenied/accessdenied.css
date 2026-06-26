@@ -1,0 +1,33 @@
+.access-denied {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  /* width: 90%; */
+  /* max-width: 500px; */
+}
+
+.access-denied-message {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.access-denied .goBack {
+  margin-top: 15px;
+  font-size: 1.2em;
+}
+
+.access-denied .goBack a {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px solid #2563eb;
+  border-radius: 0 !important;
+  margin-left: 5px;
+}
+
+.access-denied .goBack a:hover {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+}

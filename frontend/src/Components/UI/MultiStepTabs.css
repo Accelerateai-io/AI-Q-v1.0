@@ -1,0 +1,146 @@
+.multi_step_tabs {
+  width: 100%;
+}
+
+/* Top row: left "Step X of Y", right percentage */
+.multi_step_tabs_progress_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.multi_step_tabs_step_label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--light-gray-color);
+}
+
+.multi_step_tabs_percent {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color:var(--light-gray-color);
+}
+
+/* Progress bar */
+.multi_step_tabs_progress_bar {
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.multi_step_tabs_progress_fill {
+  height: 100%;
+  background-color: var(--main-auth-button-color);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Wrapper: prev icon | tab list | next icon */
+.multi_step_tabs_nav_wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.multi_step_tabs_nav_btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--main-auth-button-color, #2463eb);
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: color 0.2s, opacity 0.2s;
+}
+
+.multi_step_tabs_nav_btn:hover:not(:disabled) {
+  color: #1d4ed8;
+  opacity: 0.9;
+}
+
+.multi_step_tabs_nav_btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Tab list: single horizontal line, scroll when overflow, scrollbar hidden */
+.multi_step_tabs_list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.multi_step_tabs_list::-webkit-scrollbar {
+  display: none;
+}
+
+.multi_step_tabs_tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  background: var(--bg-main, var(--bg-colour-main, #f6f8fb));
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+/* .multi_step_tabs_tab:hover:not(.multi_step_tabs_tab--disabled) {
+  background: #e2e8f0;
+  color: #475569;
+} */
+
+.multi_step_tabs_tab--active {
+  background: var(--main-auth-button-color);
+  color: #fff;
+  border-color: var(--main-auth-button-color);
+}
+
+.multi_step_tabs_tab--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.multi_step_tabs_tab--completed:not(.multi_step_tabs_tab--active) {
+  color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+.multi_step_tabs_tab_icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+.multi_step_tabs_tab--active .multi_step_tabs_tab_icon {
+  color: #fff;
+}
+
+/* Tab panel (step content) */
+.multi_step_tabs_panel {
+  min-height: 120px;
+}

@@ -1,0 +1,369 @@
+.acrd_container {
+  width: 100%;
+}
+
+.card {
+  /* width: 650px; */
+  /* max-width: 900px; */
+  /* min-height: 500px; */
+  /* max-height: 900px; */
+  /* background-color: var(--bg-colour-main); */
+  /* padding: 1em; */
+}
+
+.card_section {
+  display: flex;
+  /* justify-content: space-between; */
+  align-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.card_vendor {
+  display: flex;
+  flex-direction: column;
+  /* padding: 1em 2em; */
+  /* padding: 0 6em 3em 6em; */
+  /* background-color: white; */
+  /* border-radius: 10px; */
+  /* justify-content: space-between; */
+  /* align-content: center; */
+  /* align-items: center; */
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* Multi-step form header: single source of truth for page header alignment */
+.header_for_vendor {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+  margin: 0.9em 0 0 0;
+  border-bottom: 1px solid #00000012;
+  padding: 0 0 0.8em 0;
+}
+
+/* Reuse same alignment on any page header (Dashboard, Vendor Directory, Assessments, User Management) */
+.page_header_align {
+  margin: 0.9em 0 1.5rem 0;
+}
+
+.page_header_row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.page_header_title_block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.page_header_title_block h1,
+.page_header_title_block .page_header_title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin: 0;
+  color: inherit;
+}
+
+.page_header_title_block .sub_title_card,
+.page_header_title_block .page_header_subtitle {
+  color: var(--light-gray-color, #64748b);
+  font-size: 0.9em;
+  font-weight: 500;
+  margin: 0;
+}
+
+.icon_size_header {
+  /* background-color: #e9f2ff; */
+  background-color: #e6edf7;
+  padding: 0.5em;
+  display: flex;
+  align-content: center;
+  align-items: center;
+  border-radius: 5px;
+}
+
+/* Same blue as assessments header (.header_cots span svg) */
+.icon_size_header svg,
+.header_title_vendor .icon_size_header svg {
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+/* .icon_size_header {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon_size_header svg,
+.header_title_vendor .icon_size_header svg {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 18px;
+  min-height: 18px;
+  flex-shrink: 0;
+  display: block;
+  vertical-align: middle;
+  color: inherit;
+  stroke: currentColor;
+} */
+
+.header_title_vendor {
+  font-weight: 500;
+  align-content: center;
+  align-items: center;
+  display: flex;
+  gap: 0.5em;
+}
+.headers_icons {
+  display: flex;
+}
+/* .sub_title_card {
+  color: var(--light-gray-color, #64748b);
+  font-size: 0.9em;
+  font-weight: 500;
+  margin: 0.25em 0 0 0;
+} */
+.confirm_onboarding {
+  padding: 1em;
+  width: 100px;
+  height: 100px;
+  background-color: #dcfce7;
+
+  color: green;
+  border-radius: 50%;
+}
+
+.onboarding_setup_card {
+  /* background-color: aliceblue; */
+  padding: 1em;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.onboarding_setup_card p {
+  text-align: center;
+  color: #4b5563;
+  line-height: 1.5em;
+}
+.onboarding_setup_card h2 {
+  font: 2.5em;
+}
+
+.onboarding_setup_card a {
+  font-weight: 500;
+  padding: 0.5em;
+  border: 1px solid var(--main-auth-button-color);
+  text-decoration: none;
+  color: white;
+  background: var(--main-auth-button-color);
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.card_confirmation_link_btn {
+  font-weight: 500;
+  padding: 0.5em;
+  border: 1px solid var(--main-auth-button-color);
+  text-decoration: none;
+  color: white;
+  background: var(--main-auth-button-color);
+  display: inline-flex;
+  align-content: center;
+  align-items: center;
+  gap: 0.5em;
+  cursor: pointer;
+  font-size: inherit;
+  border-radius: 5px;
+}
+
+.card_confirmation_link_btn:hover {
+  opacity: 0.9;
+}
+
+.signup_success_note {
+  background-color: #dcfce7;
+
+  color: green;
+  border-radius: 50%;
+}
+
+.signup_confirmation_wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1em;
+  padding: 0.5em 0;
+}
+
+.signup_confirmation_card {
+  width: 100%;
+  max-width: 920px;
+  background: #fff;
+  border-radius: 10px;
+  /* box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.08),
+    0 1px 2px -1px rgba(0, 0, 0, 0.06); */
+  border: 1px solid #e5e7eb;
+  padding: 1em 2.5em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 1rem; */
+  text-align: center;
+}
+
+.signup_confirmation_card {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.signup_confirmation_wrapper .signup_confirmation_card {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.signup_confirmation_card .confirm_onboarding {
+  flex-shrink: 0;
+}
+
+.signup_confirmation_card h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+.signup_confirmation_card p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.text_signup {
+  font-size: 0.9375rem;
+  color: #4b5563;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.signup_confirmation_card .text_signup {
+  display: flex;
+  flex-direction: column;
+}
+
+.signup_confirmation_card .onboarding_email_sent_text {
+  margin-top: 0.25rem;
+  max-width: 32em;
+}
+
+.sucess_text {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.signin_btn a {
+  font-weight: 500;
+  padding: 0.3em;
+  border: 1px solid var(--main-auth-button-color);
+  text-decoration: none;
+  color: white;
+  background: var(--main-auth-button-color);
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.small_text {
+  /* margin: 8px 0px 0px; */
+  font-size: 13px;
+  color: rgb(100, 116, 139);
+}
+.sub_title_card {
+  color: var(--light-gray-color);
+  font-size: 0.9em;
+  font-weight: 500;
+  margin: 0em 0 0 0em;
+}
+
+.card_list ul {
+  margin: 1em;
+}
+.card_list ul li {
+  list-style-type: none;
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5em;
+  padding: 0.2em 0;
+  font-size: 0.95em;
+}
+
+.card_list ul li span {
+  font-weight: normal;
+}
+
+.title_card {
+  font-size: 1.1em;
+  color: black;
+  font-weight: 600;
+  /* margin: 0.5em; */
+  padding: 0.4em 0;
+}
+
+.card_para {
+  color: #4b5563;
+  font-size: 0.95em;
+  line-height: 1.4;
+  text-align: justify;
+  margin: 1em;
+}
+
+.card_continue_btn {
+  width: 100%;
+  margin: 1em 0 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--main-auth-button-color);
+  padding: 10px;
+  background-color: var(--main-auth-button-color);
+  color: white;
+}
+.card_continue_btn span {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.card_onboarding {
+  display: flex;
+  gap: 5em;
+  margin: 1em 0;
+}
+
+/* CSS FOR CARDCONFIRMATION FOR SIGNUP */

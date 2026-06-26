@@ -1,0 +1,102 @@
+/* Product Profile summary card component */
+
+.summary_card {
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.summary_card:hover {
+  border-color: #dbeafe;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.08);
+}
+
+.summary_card_header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.summary_card_icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.summary_card_icon_default {
+  color: #6b7280;
+}
+
+.summary_card_icon_blue {
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+.summary_card_icon_green {
+  color: #16a34a;
+}
+
+.summary_card_icon_purple {
+  color: #7c3aed;
+}
+
+.summary_card_title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0;
+}
+
+.summary_card_body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.summary_card_primary {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.summary_card_primary.summary_card_primary_trust_score {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.summary_card_primary.summary_card_primary_badge_wrapper {
+  padding: 0;
+  background: none;
+}
+
+.summary_card_primary_badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.summary_card_secondary {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #64748b;
+  margin: 0.35rem 0 0;
+}

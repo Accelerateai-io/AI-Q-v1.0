@@ -1,0 +1,115 @@
+.industry-sector-dependency {
+  display: flex;
+  flex-direction: column;
+  /* gap: 0.75rem; */
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.industry-sector-dependency label {
+  display: block;
+  font-weight: 500;
+  color: var(--light-gray-color);
+}
+
+/* Center options (select + chips/checkboxes) and equal spacing */
+.industry-sector-dependency .industry-sector-category-select {
+  /* max-width: 20rem; */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.industry-sector-dependency .industry-sector-option-select {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #1f2937);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.industry-sector-dependency .industry-sector-option-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.industry-sector-dependency .chip-multi-select {
+  align-items: stretch;
+}
+
+/* Multi-column grid; items stretch so content can sit in the middle of each box */
+.industry-sector-dependency .chip-multi-select .chip-multi-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.industry-sector-dependency .public-sector-checkboxes {
+  width: 100%;
+}
+
+.industry-sector-dependency .public-sector-checkboxes .public-sector-checkboxes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  width: 100%;
+  margin: 0.5em 0 0 0;
+}
+
+/* Content in the middle of each checkbox (horizontal + vertical) */
+.industry-sector-dependency .public-sector-checkbox-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+.industry-sector-dependency .public-sector-checkbox-item .public-sector-checkbox-label {
+  text-align: center;
+}
+
+/* Chip content in the middle (horizontal + vertical) */
+.industry-sector-dependency .chip-multi-select-chip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: 2.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.industry-sector-category-select {
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #1f2937);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.industry-sector-category-select:focus {
+  outline: none;
+  /* border-color: var(--focus-ring, #3b82f6); */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.custom_css_chk{
+  padding: 0 0 0.5em 0;
+}

@@ -1,0 +1,81 @@
+.chip-multi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0.5em 0 0 0;
+}
+
+.chip-multi-select label {
+  display: block;
+  /* font-weight: 600; */
+  color: var(--text-primary, #1f2937);
+}
+
+.chip-multi-select-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.4;
+}
+
+.chip-multi-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.5rem;
+}
+
+.chip-multi-select-chip {
+  appearance: none;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  /* color: var(--chip-text, #1f2937); */
+  color: var(--light-gray-color);
+  background-color: var(--chip-bg, #ffffff);
+  /* border: 1px solid var(--chip-border, #d1d5db); */
+  border: 1px solid var(--light-gray-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+  text-align: center;
+}
+
+.chip-multi-select-chip:hover {
+  border-color: var(--chip-border-hover, #9ca3af);
+  background-color: var(--chip-bg-hover, #f9fafb);
+}
+
+.chip-multi-select-chip--selected {
+  color: #2c7ef1;
+  background-color: #e0e8f9;
+  border-color: #2c7ef1;
+}
+
+.chip-multi-select-chip--selected:hover {
+  background-color: #c9d6f5;
+  border-color: #1d6ad4;
+}
+
+.chip-multi-select-chip:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(44, 126, 241, 0.35);
+}
+
+.chip-multi-select-chip--selected:focus {
+  box-shadow: 0 0 0 2px rgba(44, 126, 241, 0.5);
+}
+
+.chip-multi-select-chip:disabled,
+.chip-multi-select-chip.chip-multi-select-chip--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chip-multi-select-chip--selected:disabled,
+.chip-multi-select-chip--selected.chip-multi-select-chip--disabled {
+  opacity: 0.55;
+}

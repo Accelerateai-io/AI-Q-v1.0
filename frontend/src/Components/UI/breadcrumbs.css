@@ -1,0 +1,48 @@
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  font-size: 1rem;
+  color: var(--breadcrumb-color, #64748b);
+  margin-bottom: 1rem;
+}
+
+.breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 1em 0 0 0;
+}
+
+
+.breadcrumb-link {
+  color: var(--main-auth-button-color, #2563eb);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  /* font: inherit; */
+}
+
+.breadcrumb-item {
+  color: inherit;
+  text-transform: capitalize;
+}
+
+.breadcrumb-separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--breadcrumb-sep-color, #94a3b8);
+  margin: 0 2px;
+}

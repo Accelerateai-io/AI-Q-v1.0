@@ -1,0 +1,81 @@
+.treedropdown {
+  position: relative;
+  /* width: 300px; */
+  font-family: Arial, sans-serif;
+}
+.tree-dropdown-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 0.5em 0 0 0;
+}
+.tree-dropdown-content {
+  /* position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0; */
+  border: 1px solid #ccc;
+  background: #fff;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 5px;
+  border-radius: 4px;
+}
+.tree-node {
+  list-style: none;
+  /* padding-left: 20px; */
+  cursor: pointer;
+}
+
+.tree_node_list {
+  /* border: 1px solid red; */
+
+  /* margin: 0.5em 0; */
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  align-items: center;
+}
+
+.tree_node_list_icons {
+  display: flex;
+}
+.tree_node_list p {
+  font-size: 1em;
+}
+
+.tree-node ul li {
+  list-style-type: none;
+}
+
+.tree-node input[type="checkbox"] {
+  transform: scale(1.25); /* 1.5x bigger */
+  margin-right: 0.5em;
+  cursor: pointer;
+  width: 2.25%;
+}
+
+.tree_node_sublist {
+  padding: 0 0 0 3em;
+}
+
+.tag {
+  font-size: 0.9em;
+  background: #dee2e6;
+  padding: 0.2em;
+  border-radius: 3px;
+  /* color: white; */
+  margin: 9px 9px 0px 0px;
+  display: inline-block;
+}
+
+.remove-tag {
+  margin: 0 0 0 4px;
+}
+/* .tree-node input{
+  width: 6%;
+  height: 10px;
+} */

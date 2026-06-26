@@ -1,0 +1,41 @@
+/**
+ * Shared page tabs – same look across Reports, Assessments, Vendor Directory,
+ * User Management, Organizations. Use classes: page_tabs, page_tab, page_tab_active.
+ */
+.page_tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.page_tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 5px 5px 0 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+/* Don’t paint active tabs dark on hover (:hover beats .page_tab_active otherwise) */
+.page_tab:hover:not(.page_tab_active) {
+  color: #64748b;
+}
+
+.page_tab_active {
+  color: var(--main-auth-button-color, #2563eb);
+  border-bottom-color: var(--main-auth-button-color, #2563eb);
+  background: #fff;
+  box-shadow: 0 1px 0 0 #fff;
+  border-radius: 0 !important;
+}

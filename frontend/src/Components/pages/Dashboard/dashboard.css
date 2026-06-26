@@ -1,0 +1,2202 @@
+/* Vendor Overview Dashboard */
+.vendor_overview_page {
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Header alignment matches multi-step form (card.css: page_header_align, page_header_row, page_header_title_block) */
+.vendor_overview_heading.page_header_align {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.vendor_overview_headers.page_header_row .page_header_title_block .page_header_title,
+.vendor_overview_headers.page_header_row .page_header_title_block .vendor_overview_subtitle {
+  color: inherit;
+}
+
+/* Completed attestations dropdown at top right of vendor dashboard – same as buyer (governance_overview_select) */
+.vendor_overview_dropdown_top_right {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 320px;
+}
+
+.vendor_overview_dropdown_top_right .select_label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.vendor_overview_dropdown_top_right .select_input {
+  width: 100%;
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+}
+
+.vendor_overview_dropdown_top_right .select_input:hover {
+  border-color: #d1d5db;
+}
+
+.vendor_overview_dropdown_top_right .select_input option {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+  background: white;
+}
+
+.vendor_overview_actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.vendor_overview_toggle_error {
+  width: 100%;
+  margin: 0.5rem 0 0 0;
+  font-size: 0.875rem;
+  color: #dc2626;
+}
+
+.vendor_overview_toggle_wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.vendor_overview_toggle {
+  width: 2.75rem;
+  height: 1.5rem;
+  border-radius: 25px;
+  background-color: #2563eb;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.vendor_overview_toggle::after {
+  content: "";
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  right: 2px;
+  transition: transform 0.2s;
+}
+
+.vendor_overview_toggle[aria-pressed="false"] {
+  background-color: #d1d5db;
+}
+
+.vendor_overview_toggle[aria-pressed="false"]::after {
+  transform: translateX(-1.25rem);
+  right: auto;
+  left: 2px;
+}
+
+.vendor_overview_upload_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.vendor_overview_upload_btn:hover {
+  opacity: 0.9;
+}
+
+/* Metrics row */
+.vendor_overview_metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+/* Trust Score card spans full width (single metric, same as Product Profile display) */
+.vendor_overview_metrics .vendor_overview_metric_card_trust_score_full {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.vendor_overview_metrics.vendor_overview_metrics_four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Buyer dashboard top metrics should be 3-up */
+.governance_overview .vendor_overview_metrics.vendor_overview_metrics_four {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .vendor_overview_metrics.vendor_overview_metrics_four {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .vendor_overview_metrics {
+    grid-template-columns: 1fr;
+  }
+  .vendor_overview_metrics.vendor_overview_metrics_four {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vendor_overview_metric_card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+.vendor_overview_metric_card_icon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: #2563eb;
+}
+
+.vendor_overview_metric_card_icon_green {
+  color: #16a34a;
+}
+
+.vendor_overview_metric_card_icon_blue {
+  color: #2563eb;
+}
+
+/* Icon in front of title (same as Product Profile Trust Score) */
+.vendor_overview_metric_card_title_row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vendor_overview_metric_card_title_row .vendor_overview_metric_title {
+  margin-bottom: 1em;
+}
+
+.vendor_overview_metric_card_icon_left {
+  position: static;
+  top: auto;
+  right: auto;
+  flex-shrink: 0;
+}
+
+.vendor_overview_metric_title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: black;
+  margin: 0 0 1em 0;
+}
+
+.vendor_overview_metric_title svg {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.vendor_overview_metric_value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.vendor_overview_metric_value_grade {
+  color: #16a34a;
+}
+
+.vendor_overview_metric_value_loading .vendor_overview_metric_loader {
+  display: inline-block;
+  animation: vendor_overview_loader_pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vendor_overview_loader_pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.vendor_overview_metric_desc {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0.3em 0 0 0;
+}
+
+.vendor_overview_progress_bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.vendor_overview_progress_fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+
+/* Section: Security & Compliance / Assessments */
+.vendor_overview_section {
+  /* background: #f9fafb; */
+  /* border: 1px solid #e5e7eb; */
+  background-color: white;
+  border-radius: 5px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.vendor_overview_section_title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.vendor_overview_section_subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+.vendor_overview_attestation_row {
+  display: flex;
+  align-items: start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.vendor_overview_attestation_row:hover {
+  background-color: white;
+}
+
+.vendor_overview_attestation_row:last-child {
+  margin-bottom: 0;
+}
+
+.vendor_overview_attestation_icon {
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+.vendor_overview_attestation_icon_check {
+  color: #16a34a;
+}
+
+.vendor_overview_attestation_icon_draft {
+  color: #6b7280;
+}
+
+.vendor_overview_attestation_content {
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor_overview_attestation_name {
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.vendor_overview_attestation_status_label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #16a34a;
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.vendor_overview_attestation_status_label_draft {
+  color: #6b7280;
+}
+
+.vendor_overview_attestation_status_label_expired {
+  color: tomato;
+}
+
+.vendor_overview_attestation_icon_expired {
+  color: tomato;
+}
+
+.vendor_overview_attestation_by {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 0.15rem 0;
+}
+
+.vendor_overview_attestation_date_row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.25rem;
+  margin: 0;
+  margin-top: 10px;
+}
+
+.vendor_overview_attestation_date_row .vendor_overview_attestation_date {
+  margin: 0;
+}
+
+/* Assessment list rows – same card look as Assessments page */
+.assessment_list_rows .vendor_overview_attestation_row {
+  display: flex;
+  align-items: start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.assessment_list_rows .vendor_overview_attestation_row:last-child {
+  margin-bottom: 0;
+}
+.assessment_list_rows .vendor_overview_attestation_icon_check {
+  color: #16a34a;
+}
+.assessment_list_rows .vendor_overview_attestation_icon_expired {
+  color: tomato;
+}
+.assessment_list_rows .vendor_overview_attestation_actions {
+  align-self: center;
+}
+
+/* View Report on dashboard: same style as View Document (override assessments page blue button) */
+.vendor_overview_page .assessment_list_rows .vendor_overview_btn_view {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  min-width: unset;
+  width: auto;
+}
+.vendor_overview_page .assessment_list_rows .vendor_overview_btn_view:hover {
+  background: #f9fafb;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.vendor_overview_attestation_date {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+  margin-top: 10px;
+}
+.vendor_overview_attestation_date.vendor_overview_attestation_date_expiry,
+.assessment_list_rows .vendor_overview_attestation_date.vendor_overview_attestation_date_expiry {
+  color: tomato;
+}
+
+.vendor_overview_attestation_date_with_icon .vendor_overview_attestation_date_icon_wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vendor_overview_attestation_date_icon_inline {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.vendor_overview_attestation_actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.vendor_overview_badge_verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vendor_overview_btn_update {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.vendor_overview_btn_update:hover {
+  background: #f9fafb;
+}
+
+.vendor_overview_btn_view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.vendor_overview_btn_view:hover {
+  background: #f9fafb;
+}
+
+/* Security & Compliance – dropdown to pick completed attestation, then documents list */
+.vendor_overview_my_attestations_dropdown {
+  margin-bottom: 1.25rem;
+  max-width: 360px;
+}
+
+.vendor_overview_my_attestations_dropdown .select_label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+/* Verified certificates – same card design as vendor attestation cards */
+.vendor_overview_certificates_wrap {
+  margin-top: 1.25rem;
+}
+
+.vendor_overview_certificates_heading {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+}
+
+.vendor_overview_certificate_cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.vendor_overview_certificate_card {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease;
+}
+
+.vendor_overview_certificate_card_header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.vendor_overview_certificate_badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vendor_overview_certificate_badge_icon {
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.vendor_overview_certificate_card_center {
+  margin-bottom: 0.5rem;
+}
+
+.vendor_overview_certificate_name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  word-break: break-word;
+}
+
+.vendor_overview_certificate_card_footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.vendor_overview_certificate_expiry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--grey-color, #4b5563);
+}
+
+.vendor_overview_certificate_date_icon {
+  flex-shrink: 0;
+  color: var(--grey-color, #4b5563);
+}
+
+.vendor_overview_empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  /* background: white; */
+  /* border: 1px dashed #e5e7eb; */
+  border-radius: 8px;
+}
+
+.vendor_overview_loading,
+.vendor_overview_error {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.vendor_overview_error {
+  color: #dc2626;
+}
+
+/* Default dashboard (non-vendor) */
+.dashboard_placeholder {
+  padding: 2rem;
+  font-size: 1.125rem;
+  color: #6b7280;
+}
+
+.vendor_overview_metric_title {
+  display: flex;
+  align-items: center;
+  align-content: center;
+  gap: 1em;
+}
+
+/* ========== Governance Overview (Buyer Dashboard) ========== */
+.governance_overview .vendor_overview_heading {
+  margin-bottom: 1.5rem;
+}
+
+.governance_overview_actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.governance_overview_select_wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.governance_overview_select {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  min-width: 200px;
+  max-width: 320px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+}
+
+.governance_overview_select:hover {
+  border-color: #d1d5db;
+}
+
+.governance_overview_chevron_select {
+  display: none;
+}
+
+.governance_overview_assessment_count {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.governance_overview_select_label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.governance_overview_chevron {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.governance_overview_btn_primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: white;
+  border: none;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.governance_overview_btn_primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.governance_overview_metrics {
+  margin-bottom: 1.5rem;
+}
+
+/* Evaluation summary card – light blue highlight for selected assessment */
+.governance_evaluation_card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.governance_evaluation_card_highlight {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.governance_evaluation_header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.governance_evaluation_title_meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.governance_evaluation_title_block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.governance_evaluation_target_icon {
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.governance_evaluation_title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.governance_evaluation_meta {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0.25rem 0 0 1.75rem;
+}
+
+.governance_evaluation_view_report {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.governance_evaluation_view_report:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.governance_evaluation_view_report_btn {
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Assessments list section */
+.governance_assessments_section {
+  margin-top: 2rem;
+}
+
+.governance_assessments_section_title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem 0;
+}
+
+.governance_assessments_empty {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin: 0;
+  padding: 1rem 0;
+}
+
+.governance_assessments_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.governance_assessment_row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.governance_assessment_row_content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.governance_assessment_row_title {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.governance_assessment_row_meta {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.governance_assessment_row_actions {
+  flex-shrink: 0;
+}
+
+.governance_assessment_link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.governance_assessment_link:hover {
+  background: #f9fafb;
+}
+
+.governance_assessment_link_icon {
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.governance_assessment_link:hover .governance_assessment_link_icon {
+  color: #1d4ed8;
+}
+
+.governance_assessment_link_table {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #2563eb;
+  vertical-align: middle;
+}
+
+.governance_assessment_link_table:hover {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.governance_assessment_link_table .governance_assessment_link_icon {
+  color: inherit;
+}
+
+.governance_assessment_link_btn {
+  border: none;
+}
+
+.governance_evaluation_body {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* KPI cards – each of the 4 is a card */
+.governance_kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .governance_kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Risk breakdown – section; each item uses RiskCard component */
+.governance_risk_breakdown {
+  width: 100%;
+}
+
+.governance_risk_breakdown_title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.75rem 0;
+}
+
+.governance_risk_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+/* Low and very low risk cards: same border as buyer dashboard buttons (View Report, Assessment) */
+.governance_risk_list .card--risk.card--risk--low-border {
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+}
+
+/* Risk breakdown pills: 4px radius in buyer dashboard */
+.governance_risk_list .card__pill {
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .governance_risk_list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Top metric cards – white background for buyer dashboard */
+.governance_overview_top_cards .card--metric {
+  background: white;
+}
+
+.governance_overview_top_cards .card__icon {
+  color: #2563eb;
+}
+
+/* ========== Bottom row: Risks by Intent, Risk Domains, Recent Assessments ========== */
+.governance_bottom_row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .governance_bottom_row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.governance_bottom_card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.governance_panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  margin-top: 1rem;
+}
+
+.governance_top_risk_grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+.governance_top_risk_rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.governance_top_risk_row_meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.governance_top_risk_track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.governance_top_risk_fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #1d4ed8;
+}
+
+.governance_domain_panel {
+  text-align: left;
+  position: relative;
+}
+
+/* Buyer dashboard: hide any floating helper/agent icon in Risk Domains card */
+.governance_domain_panel .governance_agent_icon,
+.governance_domain_panel .agent_icon,
+.governance_domain_panel .agent-fab,
+.governance_domain_panel .chat-fab,
+.governance_domain_panel > button {
+  display: none !important;
+}
+
+.governance_domain_rings {
+  width: 210px;
+  height: 210px;
+  margin: 0.25rem auto 0.85rem;
+  position: relative;
+}
+
+.governance_domain_rings_svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.governance_domain_rings .ring {
+  position: absolute;
+  border-radius: 50%;
+  border-style: solid;
+  border-color: #EDEEF0;
+}
+
+.governance_domain_rings .ring_outer {
+  inset: 0;
+  border-width: 14px;
+  border-top-color: #0049C4;
+  border-right-color: #0049C4;
+  border-bottom-color: #0049C4;
+  transform: rotate(-22deg);
+}
+
+.governance_domain_rings .ring_mid {
+  inset: 24px;
+  border-width: 11px;
+  border-top-color: #00298F;
+  border-right-color: #00298F;
+  border-left-color: #00298F;
+  transform: rotate(18deg);
+}
+
+.governance_domain_rings .ring_inner {
+  inset: 54px;
+  border-width: 10px;
+  border-right-color: #C9D3E0;
+  border-top-color: #C9D3E0;
+  border-left-color: #C9D3E0;
+  transform: rotate(36deg);
+}
+
+.governance_domain_tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.governance_domain_tile {
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #0049C4;
+  border-radius: 10px;
+  background: #f3f4f6;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.governance_domain_tiles .governance_domain_tile:nth-child(2) {
+  border-left-color: #00298F;
+}
+
+.governance_domain_tiles .governance_domain_tile:nth-child(3) {
+  border-left-color: #C9D3E0;
+}
+
+.governance_domain_tile .tile_label {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: #4b5563;
+  font-weight: 700;
+}
+
+.governance_domain_tile .tile_text {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.governance_domain_tile .tile_value {
+  margin: 0;
+  font-size: 1.9rem;
+  color: #1d4ed8;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.governance_section_title_row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.governance_chip_row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.governance_chip {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.governance_table_wrap {
+  margin-top: 0.6rem;
+  overflow-x: auto;
+}
+
+.governance_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.governance_table th,
+.governance_table td {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0.7rem 0.55rem;
+  text-align: left;
+}
+
+.governance_table th {
+  color: #6b7280;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status_ok { color: #15803d; font-weight: 600; }
+.status_warn { color: #a16207; font-weight: 600; }
+.status_bad { color: #b91c1c; font-weight: 600; }
+
+.governance_view_link {
+  font-size: 0.8rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  align-content: center;
+  align-items: center;
+  display: flex;
+  gap: 0.3em;
+}
+
+.governance_mit_chip_list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.governance_mit_chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #d9e3ff;
+  background: #eef3ff;
+  color: #324ea8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.governance_summary_block {
+  margin-top: 0.25rem;
+}
+
+.governance_summary_text {
+  margin: 0.5rem 0 0.85rem 0;
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+/* Selected assessment: same “Actions” + complete report link as Top Risk Implementations table */
+.governance_summary_actions {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 9rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.governance_summary_actions_label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.governance_summary_actions_value {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .governance_top_risk_grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.governance_completed_section {
+  margin-top: 1.25rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.governance_completed_grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.governance_completed_card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.governance_completed_card_main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .governance_completed_grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.governance_bottom_card_title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.governance_bottom_card_subtitle {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+/* Google Charts wrapper – consistent height, donut stays circular in square container */
+.governance_chart_wrapper {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.governance_chart_bar {
+  width: 100%;
+}
+
+.governance_chart_donut {
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.governance_chart_donut > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.governance_chart_donut svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Recent assessments list */
+.governance_recent_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.governance_recent_item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 5px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.governance_recent_item:hover {
+  background-color: white;
+}
+
+.governance_recent_item:last-child {
+  margin-bottom: 0;
+}
+
+.governance_recent_icon {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.governance_recent_content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.governance_recent_title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.governance_recent_date {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.governance_recent_status {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.governance_recent_status_completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.governance_recent_status_draft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.governance_recent_empty {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 0.5rem 0;
+}
+
+/* ========== AI Risk Search ========== */
+.governance_risk_search {
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.governance_risk_search_title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.governance_risk_search_subtitle {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+.governance_risk_search_suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.governance_risk_search_pill {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #374151;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.governance_risk_search_pill:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.governance_risk_search_input_row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.governance_risk_search_input {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.governance_risk_search_input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.governance_risk_search_send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.governance_risk_search_send:hover {
+  background: #1d4ed8;
+}
+
+/* ========== Vendor Portal Dashboard (governance-style layout) ========== */
+.vendor_portal_dashboard {
+  padding-bottom: 2rem;
+}
+
+.vendor_portal_section {
+  margin-bottom: 1.75rem;
+}
+
+.vendor_portal_section_heading {
+font-size: 1em;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.8em 0;
+}
+
+.vendor_portal_section_heading_inline {
+  margin: 0;
+}
+
+.vendor_portal_section_subheading {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+.vendor_portal_action_cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* Buyer dashboard quick actions should be 4-up */
+.governance_overview .vendor_portal_action_cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .vendor_portal_action_cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .vendor_portal_action_cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .vendor_portal_action_cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vendor_portal_action_card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 108px;
+  padding: 1.1rem 1.15rem;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: #1e3a8a;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.vendor_portal_action_card:hover {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+  border-color: #bfdbfe;
+  transform: translateY(-1px);
+}
+
+.vendor_portal_action_card_primary {
+  background: white;
+  border-color: #e9f2ff;
+  color: black;
+}
+
+.vendor_portal_action_card_primary:hover {
+  /* border-color: #1e40af; */
+  /* box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4); */
+  /* background-color: #e9f2ff; */
+  background-color: var(--main-auth-button-color);
+  color: white;
+}
+
+.vendor_portal_action_card_primary:hover .vendor_portal_action_icon,
+.vendor_portal_action_card_primary:hover .vendor_portal_action_icon_secondary {
+  color: white;
+}
+
+.vendor_portal_action_icon {
+  color: var(--main-auth-button-color, #2463eb);
+  flex-shrink: 0;
+}
+
+.vendor_portal_action_icon_secondary {
+  color: var(--main-auth-button-color, #2463eb);
+  flex-shrink: 0;
+}
+
+.vendor_portal_action_label {
+  font-size: 0.875em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.vendor_portal_two_column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: start;
+  background-color: white;
+  border-radius: 5px;
+  border: 1px solid #e6e9ef ;
+  padding: 10px;
+}
+
+.vendor_portal_two_column_footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
+}
+
+.vendor_portal_view_all_bottom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+
+}
+
+/* .vendor_portal_view_all_bottom:hover {
+  text-decoration: underline;
+} */
+
+@media (max-width: 1024px) {
+  .vendor_portal_two_column {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vendor_portal_compliance_attestation_block {
+  margin-bottom: 0.55rem;
+  min-height: 7em;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 7em;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #f9fafb;
+  padding: 5px;
+}
+
+.vendor_portal_compliance_attestation_block:last-child {
+  margin-bottom: 0;
+}
+
+.vendor_portal_compliance_block_product {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vendor_portal_compliance_empty_beside {
+  min-height: 6.1rem;
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  /* background: #f9fafb; */
+  /* border: 1px solid #e5e7eb; */
+  border-radius: 8px;
+  height: 100%;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+.vendor_portal_column_card {
+  /* background: #ffffff; */
+  /* border: 1px solid #e6e9ef; */
+  /* border-radius: 10px; */
+  /* padding: 1rem 1rem 0.95rem; */
+  /* box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); */
+}
+
+.vendor_portal_two_column_header_row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.vendor_portal_column_title {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  line-height: 1.08;
+}
+
+.vendor_portal_column_subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0.22rem 0 0.82rem;
+}
+
+.vendor_portal_attestation_wide_card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.55rem;
+  border: 1px solid #e6e9ef;
+  border-radius: 8px;
+  min-height: 7em;
+  background-color:#f9fafb;
+
+}
+
+.vendor_portal_attestation_wide_card:last-child {
+  margin-bottom: 0;
+}
+
+.vendor_portal_attestation_wide_left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.62rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.vendor_portal_attestation_wide_icon {
+  color: #2563eb;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vendor_portal_attestation_wide_name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #111827;
+  margin: 0 0 0.1rem 0;
+  display: flex;
+  align-content: center;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.vendor_portal_attestation_wide_desc {
+  font-size: 0.8em;
+  color: #6b7280;
+  margin: 10px 0;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.vendor_portal_attestation_wide_score {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.vendor_portal_attestation_score_num {
+  display: block;
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #16a34a;
+  line-height: 1;
+}
+
+.vendor_portal_attestation_score_label .click_tooltip_wrapper {
+  margin: 0 !important;
+}
+
+.vendor_portal_attestation_score_label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  /* max-width: 100px; */
+  margin-left: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.08rem;
+  align-content: center;
+  align-items: center;
+}
+
+.vendor_portal_attestation_score_pending {
+  font-size: 0.875em;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.vendor_portal_compliance_carousel {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.vendor_portal_compliance_nav {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.vendor_portal_compliance_nav:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.vendor_portal_compliance_nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Exactly three certificate cards per row; arrows slide horizontally (no vertical scroll) */
+.vendor_portal_compliance_track {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.35rem;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.vendor_portal_compliance_cell {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Compliance Repository card (matches screenshot style) */
+.vendor_portal_compliance_repo_card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  background: #ffffff;
+  border: 1px solid #e7ebf3;
+  border-radius: 5px;
+  box-shadow: none;
+  padding: 0.24rem 0.3rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-height: 6.1rem;
+}
+
+.vendor_portal_compliance_repo_card_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.vendor_portal_compliance_repo_card_type {
+  margin: 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12rem;
+  color: #90a0b6;
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.vendor_portal_compliance_repo_card_type span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.vendor_portal_compliance_repo_card_download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.86rem;
+  height: 0.86rem;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.vendor_portal_compliance_repo_card_body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.02rem 0.04rem 0.08rem;
+}
+
+.vendor_portal_compliance_repo_card_title {
+  margin: 0;
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.14;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.vendor_portal_compliance_repo_card_footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.vendor_portal_compliance_repo_card_expiry {
+  font-size: 0.42rem;
+  color: #98a2b3;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.vendor_portal_compliance_repo_card_view {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.08rem;
+  font: inherit;
+  color: #2563eb;
+  font-size: 0.55rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.vendor_portal_table_section {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.vendor_portal_table_header_row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.vendor_portal_view_history {
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.8em;
+}
+
+.vendor_portal_view_history:hover {
+  /* text-decoration: underline; */
+}
+
+.vendor_portal_table_wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.vendor_portal_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.vendor_portal_table th,
+.vendor_portal_table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.vendor_portal_table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+.vendor_portal_th_actions {
+  text-align: center;
+}
+
+.vendor_portal_table tbody tr:hover {
+  background: #fafafa;
+}
+
+.vendor_portal_cell_product {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.vendor_portal_cell_product_icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.vendor_portal_grade_shield {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem 0.2rem 0.35rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.vendor_portal_grade_shield_a {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vendor_portal_grade_shield_b,
+.vendor_portal_grade_shield_c {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.vendor_portal_grade_shield_d {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.vendor_portal_grade_shield_ef {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.vendor_portal_grade_na {
+  color: #9ca3af;
+}
+
+.vendor_portal_grade_cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 100px;
+}
+
+.vendor_portal_score_cell {
+  min-width: 100px;
+}
+
+.vendor_portal_score_pct {
+  display: block;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.35rem;
+}
+
+.vendor_portal_progress_track {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vendor_portal_progress_fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+.vendor_portal_table_link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.vendor_portal_table_link:hover {
+  /* text-decoration: underline; */
+}
+
+.vendor_portal_compliance_names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-width: 260px;
+}
+
+.vendor_portal_compliance_pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.14rem 0.48rem;
+  border-radius: 999px;
+  border: 1px solid #dbe5f4;
+  background: #f7faff;
+  color: #2f3f58;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

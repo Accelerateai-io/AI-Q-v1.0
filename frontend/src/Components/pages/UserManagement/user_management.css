@@ -1,0 +1,903 @@
+/* User Management Settings page layout – full width so table can use 100% screen */
+.org_settings_page {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 1.5em 1em 0 0;
+  box-sizing: border-box;
+}
+
+.org_settings_header {
+  margin-bottom: 0;
+}
+
+/* When used with page_header_align, match multi-step form header spacing */
+.org_settings_header.page_header_align {
+  margin: 0.9em 0 1.5rem 0;
+}
+
+.org_settings_headers .org_settings_title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+.org_settings_subtitle {
+  color: var(--light-gray-color, #64748b);
+  font-size: 0.9em;
+  font-weight: 500;
+  margin: 0;
+}
+
+.org_settings_tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  border-radius: 0;
+}
+
+.org_settings_tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.org_settings_tab:hover {
+  color: #334155;
+}
+
+.org_settings_tab_active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  border-radius: 0 !important;
+}
+
+.org_settings_card {
+  /* width: 50em; */
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Wide data tables (Organizations list, User Management) stay full width */
+.org_settings_card.team_members_card {
+  width: 100%;
+  max-width: 100%;
+}
+
+.org_settings_card_title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.org_settings_card_subtitle {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.team_members_card_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  /* margin-bottom: 1rem; */
+}
+
+.team_members_card_header .org_settings_card_subtitle {
+  margin-bottom: 0;
+}
+
+/* Invite button – same style as attestation primary button */
+.org_settings_page .org_invite_btn,
+.team_members_card_header .org_invite_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--main-auth-button-color, #1e3a8a);
+  background-color: var(--main-auth-button-color, #1e3a8a);
+  color: white;
+  width: auto;
+}
+
+.org_settings_page .org_invite_btn:hover,
+.team_members_card_header .org_invite_btn:hover {
+  opacity: 0.9;
+}
+
+/* Active / Inactive + search (same toolbar pattern as Organizations / Assessments; see assessments.css) */
+.user_management_ledger_toolbar.assessments_ledger_toolbar {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Portal-style search (matches Risk & Controls / Vendor Directory: icon + bordered input) */
+.user_management_search_row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.user_management_search_wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 1 20rem;
+  max-width: 100%;
+  min-width: min(100%, 240px);
+}
+
+.user_management_search_icon {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: #6b7280;
+}
+
+.user_management_search_input {
+  flex: 1;
+  min-width: 0;
+  height: 2.5rem;
+  box-sizing: border-box;
+  padding: 0 0.75rem;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-family: inherit;
+}
+
+.user_management_search_input::placeholder {
+  color: #9ca3af;
+}
+
+.user_management_search_input:hover {
+  border-color: #d1d5db;
+}
+
+.user_management_search_input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* Table uses 100% of available screen width */
+.team_members_table_wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.team_members_table_wrapper .orgDataTable {
+  width: 100% !important;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.team_members_table_wrapper .orgDataTable .rdt_TableWrapper {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.team_members_table_wrapper .orgDataTable [role="table"],
+.team_members_table_wrapper .rdt_Table {
+  width: 100% !important;
+  min-width: 0;
+}
+
+.team_members_table_wrapper .rdt_TableHeadRow {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+/* User column (col 2) – left align header and cells */
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(2),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:nth-child(2) {
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(2)
+  .tableHeader {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+
+/* Organization (col 3) and Role (col 4) – left align header and cells */
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(3),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:nth-child(3),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(4),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:nth-child(4) {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  padding-left: 12px;
+}
+
+/* Force inner cell content to stay left (override RDT defaults) */
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:nth-child(3)
+  > div,
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:nth-child(4)
+  > div {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(3)
+  .tableHeader,
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(4)
+  .tableHeader {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+
+/* Center headers for Account status, Status, Actions (cols 5–7) */
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(5),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(6),
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(7) {
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(5)
+  .tableHeader,
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(6)
+  .tableHeader,
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableHeadRow
+  .rdt_TableCol:nth-child(7)
+  .tableHeader {
+  display: block;
+  text-align: center;
+  width: 100%;
+}
+
+.team_member_user_cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.team_member_initial {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.team_member_name_email {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.team_member_name {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.team_member_email {
+  font-size: 0.8rem;
+  color: #2463eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team_member_email_link {
+  text-decoration: none;
+}
+
+/* Role and status – box style like attestation button (not pill) */
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.pill_role {
+  border-color: #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-weight: 400;
+}
+
+.pill_role_with_icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pill_role_with_icon svg {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.pill_status_active {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pill_status_pending {
+  border-color: #fde047;
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+/* Account status Invited: blue (same treatment as "invite" emphasis) */
+.pill_status_invited {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Expired and Inactive: crimson */
+.pill_status_inactive {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.team_member_org {
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.team_member_edit_link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.team_member_edit_link:hover {
+  text-decoration: underline;
+}
+
+/* Actions column: use full width, center buttons with even spacing */
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:last-child {
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-top: 0;
+}
+
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_TableBodyRow
+  .rdt_TableCell:last-child
+  > div {
+  width: 100%;
+  min-width: 0;
+  justify-content: center !important;
+}
+
+/* Rows per page: align label, select, range and nav in one row */
+.orgDataTable .rdt_Pagination,
+.team_members_table_wrapper .orgDataTable .rdt_Pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem 0;
+  margin-top: 0.5rem;
+  min-height: 2.5rem;
+  border-top: none;
+}
+
+.orgDataTable .rdt_Pagination > *,
+.team_members_table_wrapper .orgDataTable .rdt_Pagination > * {
+  display: inline-flex;
+  align-items: center;
+}
+
+.orgDataTable .rdt_Pagination select,
+.team_members_table_wrapper .orgDataTable .rdt_Pagination select {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  vertical-align: middle;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  min-height: 2rem;
+}
+
+/* Rows per page: hide library's duplicate dropdown icon so only the select's arrow shows */
+.orgDataTable .rdt_Pagination div:has(> select) > svg,
+.team_members_table_wrapper
+  .orgDataTable
+  .rdt_Pagination
+  div:has(> select)
+  > svg {
+  display: none;
+}
+
+.user_table_actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.user_table_action_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--main-auth-button-color, #2463eb);
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.user_table_action_btn:hover {
+  background: rgba(36, 99, 235, 0.08);
+}
+
+.user_table_action_btn svg {
+  flex-shrink: 0;
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+/* Icon-only action buttons: show label on hover via title tooltip */
+.user_table_action_btn_icon {
+  padding: 0.5rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  justify-content: center;
+}
+
+.user_table_action_btn_icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.resend_confirm_modal .resend_confirm_message {
+  margin: 0 0 1.25rem 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--light-gray-color, #64748b);
+}
+
+/* View User details modal */
+.user_view_modal_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.user_view_modal_title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.user_view_modal_card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.user_view_modal_row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.user_view_modal_row:last-child {
+  border-bottom: none;
+}
+
+.user_view_modal_label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.user_view_modal_value {
+  font-size: 0.9rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.user_view_modal_value_email {
+  color: #2463eb;
+}
+
+/* View modal footer: same layout as Invite User modal (fields_for_button_actions orgBtns) */
+.user_view_modal_footer {
+  margin-top: 1.25rem;
+}
+
+.fields_for_button_actions.orgBtns {
+  display: flex;
+  justify-content: end;
+  margin: 1.5em 0 0 0;
+  width: 100%;
+  gap: 1em;
+}
+
+.fields_for_button_actions.orgBtns .orgCreateBtn,
+.fields_for_button_actions.orgBtns .orgCancelBtn {
+  width: 50%;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  padding: 10px;
+}
+
+.fields_for_button_actions.orgBtns .orgCreateBtn span,
+.fields_for_button_actions.orgBtns .orgCancelBtn span {
+  display: flex;
+}
+
+.fields_for_button_actions.orgBtns .orgCreateBtn {
+  border: 1px solid var(--main-auth-button-color, #2463eb);
+  padding: 10px;
+  background-color: var(--main-auth-button-color, #2463eb);
+  color: white;
+}
+
+.fields_for_button_actions.orgBtns .orgCancelBtn {
+  background-color: crimson;
+  color: white;
+  border: 1px solid crimson;
+}
+
+/* Role Definitions – categories (System User, Vendor, Buyer) */
+.role_category_block {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.role_category_block:first-of-type {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.role_category_header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.role_category_icon_wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.role_category_block[data-category="vendor"] .role_category_icon_wrapper {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.role_category_block[data-category="buyer"] .role_category_icon_wrapper {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.role_category_title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.role_category_desc {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.role_definitions_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.role_definition_card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 1.25rem;
+  transition: box-shadow 0.15s ease;
+}
+
+.role_definition_card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.role_definition_icon {
+  /* width: 40px;
+  height: 40px; */
+   width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* margin-bottom: 0.75rem; */
+}
+
+.role_definition_title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  /* margin: 0 0 0.35rem 0; */
+}
+
+.role_definition_desc {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.org_settings_placeholder {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Legacy / shared – do not apply to page_header_row (multi-step form header alignment) */
+.headers:not(.page_header_row) h1 {
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 7px;
+}
+
+.heading_user_page {
+  display: flex;
+  justify-content: space-between;
+}
+
+.title_for_page {
+  font-size: 2em;
+  color: var(--main-dark-color);
+}
+.sub_title,
+.modal_sub_title {
+  color: #4b5563;
+  font-size: 0.7em;
+  margin: 0 0 0 3.2em;
+}
+
+.popup_fields {
+  margin: 0 0 1em 0;
+}
+
+.popup_fields label {
+  margin: 10px 0px 5px 0px;
+  font-weight: 500;
+  display: flex;
+  justify-content: start;
+  align-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.modal_sub_title {
+  margin: 0 0 1em 0;
+}
+
+.popup_fields select {
+  text-transform: capitalize;
+  width: 100%;
+}
+.popup_fields input {
+  width: 26em;
+}
+
+.popup_fields label span {
+  display: flex;
+}
+
+.label_icons {
+  width: 20px;
+  height: 24px;
+}
+
+.user_cancel_btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.header_modal {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Status badges: invited, confirmed, active, inactive */
+.statusBadge {
+  display: inline-block;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  padding: 4px 10px;
+  border-radius: 5px;
+  text-align: center;
+  text-transform: capitalize;
+  min-width: 5.5em;
+}
+
+/* Account status: invited = pending, confirmed = success */
+.statusInvited {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.statusConfirmed {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+/* User status: active = on, inactive = off */
+.statusActive {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.statusInactive {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+#edit_user_role:hover {
+  cursor: pointer;
+}
+
+#edit_user_status,
+#edit_user_status:hover {
+  cursor: pointer;
+}
+
+#edit_user_reason {
+  resize: none !important;
+}
+
+.role_heading_icon {
+  display: flex;
+  align-content: center;
+  align-items: center;
+  gap: 1em;
+  margin-bottom: 10px;
+}

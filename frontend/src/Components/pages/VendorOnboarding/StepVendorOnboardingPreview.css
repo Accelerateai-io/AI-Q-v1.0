@@ -1,0 +1,120 @@
+.vendor_preview {
+  width: 100%;
+}
+
+.vendor_preview_intro {
+  margin: 0 0 1.25rem;
+  font-size: 0.95;
+  color: #64748b;
+  line-height: 1.5;
+  text-transform: capitalize;
+}
+
+.vendor_preview_sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vendor_preview_card {
+  background: var(--bg-main, var(--bg-colour-main, #f6f8fb));
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 1.25rem 1.5rem;
+}
+
+.vendor_preview_card_title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--main-dark-color, #2463eb);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.vendor_preview_list {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vendor_preview_row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.vendor_preview_label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.vendor_preview_value {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #1e293b;
+  line-height: 1.4;
+  text-transform: capitalize;
+}
+
+.vendor_preview_na {
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.vendor_preview_link {
+  color: var(--main-dark-color, #2463eb);
+  text-decoration: none;
+  text-transform: lowercase;
+}
+
+.vendor_preview_link:hover {
+  text-decoration: underline;
+}
+
+.vendor_preview_nested_list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.vendor_preview_nested_list li {
+  margin-bottom: 0.25rem;
+}
+
+.vendor_preview_nested_label {
+  font-weight: 500;
+  color: #475569;
+}
+
+/* Completion line inside org preview cards (Organizations page) */
+.org_preview_completed_by {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.org_preview_completed_by strong {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.org_preview_completed_by svg {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.vendor_preview_not_done {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-style: italic;
+}

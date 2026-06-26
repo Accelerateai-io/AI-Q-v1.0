@@ -1,0 +1,104 @@
+/* Regulatory and Compliance Certification Material – ordered document list and actions */
+
+.compliance_cert_category_block {
+  margin-bottom: 1rem;
+}
+
+.compliance_choose_doc_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.compliance_choose_doc_btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.compliance_choose_doc_btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.compliance_doc_list {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: decimal;
+}
+
+.compliance_doc_item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.compliance_doc_item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.compliance_doc_name {
+  font-size: 0.9375rem;
+  color: #374151;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.compliance_doc_actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.compliance_doc_verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.compliance_doc_action_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #2563eb;
+  background: none;
+  border: none;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.compliance_doc_action_btn:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  text-decoration: underline;
+}
+
+.compliance_doc_action_btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

@@ -1,0 +1,89 @@
+/* MultiSelectSubCategories.css */
+
+.dropdown, .dropdown_multi_select {
+  position: relative;
+  /* width: 250px; */
+  /* font-family: Arial, sans-serif; */
+}
+
+.dropdown button,
+.dropdown_multi_select button {
+  width: 100%;
+  border: 1px solid lightgray;
+  border-radius: 4px;
+  padding: 5px;
+  font-size: 16px;
+  min-height: 40px;
+  text-align: left;
+}
+
+.dropdown button:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px; /* scrollable if too many options */
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  z-index: 10;
+  /* margin-top: 4px; */
+  display: none; /* hidden by default */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.menu.open {
+  display: block;
+}
+
+.menu div {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.menu div:last-child {
+  border-bottom: none;
+}
+
+.menu strong {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.menu label {
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 0.5em;
+  /* cursor: pointer; */
+  /* margin-bottom: 4px; */
+}
+
+.dropdown_multi_select .menu div{
+  padding:0;
+  border: none;
+  padding: 0 0 0 5px;
+
+}
+
+.menu label input {
+  margin-right: 8px;
+  width: 2%;
+}
+
+.dropdown_multi_select label[for] {
+  display: block;
+  margin-bottom: 6px;
+  /* font-weight: 500; */
+}
+
+span.mandatory {
+  color: red;
+  margin: 0px 3px 0 0;
+}

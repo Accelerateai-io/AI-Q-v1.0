@@ -1,0 +1,173 @@
+/**
+ * ClickTooltip – UX-focused tooltip aligned with app color scheme.
+ * Uses Inter-friendly contrast, clear pointer, and smooth interaction.
+ */
+
+/* Wrapper: trigger + bubble (position context) */
+.click_tooltip_wrapper {
+  margin: 1px 0 0 5px;
+  display: inline-flex;
+  position: relative;
+}
+
+/* Trigger area – larger hit target, clear focus for keyboard */
+.click_tooltip_trigger {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  color: var(--tooltip_icon_color, #6b7280);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.click_tooltip_trigger:hover {
+  color: var(--main-auth-button-color, #2463eb);
+}
+
+.click_tooltip_trigger:focus {
+  outline: none;
+}
+
+.click_tooltip_trigger:focus-visible {
+  color: var(--main-auth-button-color, #2463eb);
+  box-shadow: 0 0 0 2px rgba(36, 99, 235, 0.35);
+  border-radius: 50%;
+}
+
+/* Bubble – width sets the constraint, height grows with wrapped content */
+.click_tooltip_bubble {
+  position: absolute;
+  z-index: 50;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #f9fafb;
+  background-color: var(--tooltip_bg, #1f2937);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.15),
+    0 10px 20px -4px rgba(0, 0, 0, 0.12);
+  animation: click_tooltip_enter 0.15s ease-out;
+  overflow-wrap: break-word;
+}
+
+/* Arrow – points to trigger */
+.click_tooltip_bubble::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+}
+
+/* Position: top (bubble below icon) – arrow on top of bubble */
+.click_tooltip_wrapper[data-position="top"] .click_tooltip_bubble {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+}
+
+.click_tooltip_wrapper[data-position="top"] .click_tooltip_bubble::after {
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-top-color: var(--tooltip_bg, #1f2937);
+  border-bottom: none;
+}
+
+/* Position: bottom – arrow on bottom of bubble */
+.click_tooltip_wrapper[data-position="bottom"] .click_tooltip_bubble {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+}
+
+.click_tooltip_wrapper[data-position="bottom"] .click_tooltip_bubble::after {
+  bottom: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-bottom-color: var(--tooltip_bg, #1f2937);
+  border-top: none;
+}
+
+/* Position: left */
+.click_tooltip_wrapper[data-position="left"] .click_tooltip_bubble {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 8px;
+}
+
+.click_tooltip_wrapper[data-position="left"] .click_tooltip_bubble::after {
+  left: 100%;
+  top: 50%;
+  margin-top: -6px;
+  border-left-color: var(--tooltip_bg, #1f2937);
+  border-right: none;
+}
+
+/* Position: right */
+.click_tooltip_wrapper[data-position="right"] .click_tooltip_bubble {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+}
+
+.click_tooltip_wrapper[data-position="right"] .click_tooltip_bubble::after {
+  right: 100%;
+  top: 50%;
+  margin-top: -6px;
+  border-right-color: var(--tooltip_bg, #1f2937);
+  border-left: none;
+}
+
+@keyframes click_tooltip_enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 2px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Bottom position animation override */
+.click_tooltip_wrapper[data-position="bottom"] .click_tooltip_bubble {
+  animation-name: click_tooltip_enter_bottom;
+}
+
+@keyframes click_tooltip_enter_bottom {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -2px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Left/right: minimal vertical nudge for animation */
+.click_tooltip_wrapper[data-position="left"] .click_tooltip_bubble,
+.click_tooltip_wrapper[data-position="right"] .click_tooltip_bubble {
+  animation: click_tooltip_enter_side 0.15s ease-out;
+}
+
+@keyframes click_tooltip_enter_side {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
