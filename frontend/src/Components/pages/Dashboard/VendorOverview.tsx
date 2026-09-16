@@ -2,20 +2,19 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Bot,
+  BotIcon,
   ChevronRight,
-  ClipboardPlus,
+  ClipboardCheck,
   Download,
   Eye,
-  FilePlus,
+  FileCheck,
   FileText,
-  FileTextIcon,
-  Globe,
   Info,
-  LayoutDashboard,
-  LucideCircleChevronDown,
   Shield,
 } from "lucide-react";
 import LoadingMessage from "../../UI/LoadingMessage";
+import DashboardFeatureCard from "../../UI/DashboardFeatureCard";
+import DashboardStatCard from "../../UI/DashboardStatCard";
 import type {
   AttestationItem,
   CertificateItem,
@@ -29,7 +28,9 @@ import {
   type CompleteReportLetterGrade,
 } from "../../../utils/completeReportGrade";
 import "./dashboard.css";
+import "../UserManagement/user_management.css";
 import ClickTooltip from "../../UI/ClickTooltip";
+import DashboardTypewriterGreeting from "../../UI/DashboardTypewriterGreeting";
 
 /** Compliance carousel: how many certificate cards show beside each attestation. */
 const COMPLIANCE_CARDS_PER_VIEW = 3;
@@ -463,97 +464,121 @@ const VendorOverview = () => {
     [],
   );
 
+  const draftAttestationCount = attestations.filter(
+    (a) => (a.status ?? "").toUpperCase() === "DRAFT",
+  ).length;
+  const assessmentCount = vendorCotsAssessments.length;
+
+  if (loading) {
+    return (
+      <div className="vendor_overview_page vendor_portal_dashboard sec_user_page org_settings_page">
+        <LoadingMessage
+          message="Loading dashboard…"
+          className="loading_message_wrapper--page"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="vendor_overview_page vendor_portal_dashboard sec_user_page org_settings_page">
-      <div className="vendor_overview_heading page_header_align">
-        <div className="vendor_overview_headers page_header_row">
-          <span className="icon_size_header" aria-hidden>
-            <LayoutDashboard size={24} className="header_icon_svg" />
-          </span>
-          <div className="page_header_title_block">
-            <h1 className="page_header_title">Strategic Oversight</h1>
-            <p className="sub_title page_header_subtitle">
-              Global AI posture and multi-product governance
+      <section className="dash_hero" aria-label="Vendor dashboard overview">
+        <div className="dash_hero_bg" aria-hidden>
+          <span className="dash_hero_pill dash_hero_pill--1" />
+          <span className="dash_hero_pill dash_hero_pill--2" />
+          <span className="dash_hero_pill dash_hero_pill--3" />
+          <span className="dash_hero_pill dash_hero_pill--4" />
+          <span className="dash_hero_pill dash_hero_pill--5" />
+        </div>
+
+        <div className="dash_greeting_row dash_greeting_row--centered dash_hero_greeting">
+          <div className="page_header_row dash_greeting_heading dash_greeting_heading--pa">
+            <DashboardTypewriterGreeting
+              role="vendor"
+              className="dash_greeting_title dash_hero_title"
+            />
+            <p className="dash_greeting_subtitle dash_hero_subtitle">
+              Create an attestation or assessment to showcase your AI trust posture.
             </p>
           </div>
         </div>
-      </div>
+
+        <div
+          className="dash_feature_grid dash_feature_grid--pa_hero"
+          aria-label="Quick actions"
+        >
+          <DashboardFeatureCard
+            variant="pa"
+            to="/vendorSelfAttestation"
+            accent="violet"
+            title="Create an attestation"
+            description="Start a new vendor self-attestation for your AI product with full control."
+            icon={<FileCheck size={14} strokeWidth={2.25} />}
+          />
+          <DashboardFeatureCard
+            variant="pa"
+            to="/vendorcots"
+            accent="sky"
+            title="Create assessment"
+            description="Run a product assessment to measure trust and risk posture end to end."
+            icon={<ClipboardCheck size={14} strokeWidth={2.25} />}
+          />
+          <DashboardFeatureCard
+            variant="pa"
+            to="/salesEnablement"
+            accent="amber"
+            title="Sales agent"
+            description="Use AI-powered enablement to support buyer conversations and deals."
+            icon={<BotIcon size={14} strokeWidth={2.25} />}
+          />
+        </div>
+      </section>
 
       <section
-        className="vendor_portal_section"
-        aria-labelledby="vendor-portal-strategic-heading"
+        className="dash_section"
+        aria-labelledby="vendor-quick-glance-heading"
       >
-        <h2
-          id="vendor-portal-strategic-heading"
-          className="vendor_portal_section_heading"
-        >
-          Quick Actions
-        </h2>
-        {/* <p className="vendor_portal_section_subheading">Quick actions across attestation, assessments, and reporting.</p> */}
-        <div className="vendor_portal_action_cards">
-          <Link
-            to="/vendorSelfAttestation"
-            className="vendor_portal_action_card vendor_portal_action_card_primary"
-          >
-            <FilePlus
-              size={28}
-              className="vendor_portal_action_icon"
-              aria-hidden
-            />
-            <span className="vendor_portal_action_label">
-              Create Attestation
-            </span>
-          </Link>
-          <Link
+        <header className="dash_section_header">
+          <h2 id="vendor-quick-glance-heading" className="dash_section_title">
+            Quick Glance
+          </h2>
+          <p className="dash_section_lead">
+            A snapshot of your attestation, assessment, and report activity.
+          </p>
+        </header>
+        <div className="dash_stat_grid" aria-label="Dashboard metrics">
+          <DashboardStatCard
+            to="/attestation_details"
+            label="Attestations"
+            value={completedAttestations.length}
+            description="Completed and live"
+            icon={<FileCheck size={18} />}
+            accent="green"
+          />
+          <DashboardStatCard
             to="/vendorcots"
-            className="vendor_portal_action_card vendor_portal_action_card_primary"
-          >
-            <ClipboardPlus
-              size={26}
-              className="vendor_portal_action_icon_secondary"
-              aria-hidden
-            />
-            <span className="vendor_portal_action_label">
-              Create Assessment
-            </span>
-          </Link>
-          <Link
-            to="/salesEnablement"
-            className="vendor_portal_action_card vendor_portal_action_card_primary"
-          >
-            <Bot
-              size={26}
-              className="vendor_portal_action_icon_secondary"
-              aria-hidden
-            />
-            <span className="vendor_portal_action_label">
-              Access Sales Agent
-            </span>
-          </Link>
-          <Link
+            label="Assessments"
+            value={assessmentCount}
+            description="Product assessments"
+            icon={<ClipboardCheck size={18} />}
+            accent="orange"
+          />
+          <DashboardStatCard
+            to="/vendorSelfAttestation"
+            label="Drafts"
+            value={draftAttestationCount}
+            description="Ready to continue"
+            icon={<FileCheck size={18} />}
+            accent="rose"
+          />
+          <DashboardStatCard
             to="/reports"
-            className="vendor_portal_action_card vendor_portal_action_card_primary"
-          >
-            <FileTextIcon
-              size={26}
-              className="vendor_portal_action_icon_secondary"
-              aria-hidden
-            />
-            <span className="vendor_portal_action_label">Access Reports</span>
-          </Link>
-          <Link
-            to="/product_profile"
-            className="vendor_portal_action_card vendor_portal_action_card_primary"
-          >
-            <Globe
-              size={26}
-              className="vendor_portal_action_icon_secondary"
-              aria-hidden
-            />
-            <span className="vendor_portal_action_label">
-              Access Product Profile
-            </span>
-          </Link>
+            label="Reports"
+            value={Object.keys(reportsByAssessmentId).length}
+            description="Available to share"
+            icon={<FileText size={18} />}
+            accent="teal"
+          />
         </div>
       </section>
 
@@ -571,15 +596,13 @@ const VendorOverview = () => {
           <p className="vendor_portal_column_subtitle">
             Active products and trust posture
           </p>
-          {loading && <LoadingMessage message="Loading attestations…" />}
           {error && <div className="vendor_overview_error">{error}</div>}
-          {!loading && !error && currentAttestationCards.length === 0 && (
+          {!error && currentAttestationCards.length === 0 && (
             <div className="vendor_overview_empty">
               No completed attestations yet.
             </div>
           )}
-          {!loading &&
-            !error &&
+          {!error &&
             currentAttestationCards.map((att) => {
               const product =
                 (att.productName ?? "").trim() || "Vendor Self-Attestation";
@@ -637,7 +660,7 @@ const VendorOverview = () => {
                         <span className="vendor_portal_attestation_score_label">
                           {trustSubtitle}
                           <ClickTooltip content="Trust Score is displayed out of 100">
-                            <Info size={14} color="#6B7280" />
+                            <Info size={14} />
                           </ClickTooltip>
                         </span>
                       </>
@@ -665,14 +688,12 @@ const VendorOverview = () => {
           <p className="vendor_portal_column_subtitle">
             Certificates grouped by the attestations shown in the other panel
           </p>
-          {loading && <LoadingMessage message="Loading documents…" />}
-          {!loading && !error && currentAttestationCards.length === 0 && (
+          {!error && currentAttestationCards.length === 0 && (
             <div className="vendor_overview_empty" role="status">
               No attestations — no compliance to show
             </div>
           )}
-          {!loading &&
-            !error &&
+          {!error &&
             currentAttestationCards.map((att) => {
               const product =
                 (att.productName ?? "").trim() || "Vendor Self-Attestation";
@@ -764,8 +785,8 @@ const VendorOverview = () => {
             })}
         </section>
         <div className="vendor_portal_two_column_footer">
-          <Link to="/attestation_details" className="vendor_portal_view_all_bottom">
-            View All <ChevronRight size={14} aria-hidden />
+          <Link to="/attestation_details" className="dash_view_all_btn vendor_portal_view_all_bottom">
+            View All <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
           </Link>
         </div>
       </div>
@@ -781,12 +802,12 @@ const VendorOverview = () => {
           >
             Recent Product Assessments
           </h2>
-          <Link to="/reports" className="vendor_portal_view_history">
-            View All <ChevronRight size={14} aria-hidden />
+          <Link to="/reports" className="dash_view_all_btn vendor_portal_view_history">
+            View All <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
           </Link>
         </div>
         {assessmentsLoading && (
-          <LoadingMessage message="Loading assessments…" />
+          <LoadingMessage message="Loading assessments…" compact />
         )}
         {!assessmentsLoading && recentAssessmentsTable.length === 0 && (
           <div className="vendor_overview_empty">
@@ -836,7 +857,7 @@ const VendorOverview = () => {
                         ? "vendor_portal_grade_shield_b"
                         : vendorGrade === "D"
                           ? "vendor_portal_grade_shield_d"
-                          : vendorGrade === "E" || vendorGrade === "F" /* E = legacy stored; display normalized to F */
+                          : String(vendorGrade) === "E" || String(vendorGrade) === "F"
                             ? "vendor_portal_grade_shield_ef"
                             : "";
                   const complianceCertificates = findCertificateTypesForAssessment(
@@ -891,9 +912,11 @@ const VendorOverview = () => {
                         {reportId ? (
                           <Link
                             to={`/reports/${reportId}`}
-                            className="vendor_portal_table_link user_table_action_btn "
+                            className="user_table_action_btn user_table_action_btn_icon"
+                            title="View"
+                            aria-label="View report"
                           >
-                            <Eye width={16}/>View
+                            <Eye size={14} />
                           </Link>
                         ) : (
                           <span className="vendor_portal_grade_na">—</span>

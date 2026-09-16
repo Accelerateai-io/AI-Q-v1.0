@@ -32,7 +32,7 @@ export function mapApiCompanyProfile(api: Record<string, unknown>): AttestationC
     };
   }
   return {
-    vendorName: (api.vendorName as string) ?? "",
+    vendorName: (api.vendorName as string) ?? (api.vendor_name as string) ?? "",
     vendorType: (api.vendorType as string) ?? "",
     sector: sectorNorm,
     vendorMaturity: (api.vendorMaturity as string) ?? "",
@@ -42,6 +42,16 @@ export function mapApiCompanyProfile(api: Record<string, unknown>): AttestationC
     yearFounded: api.yearFounded != null ? Number(api.yearFounded) : "",
     headquartersLocation: (api.headquartersLocation as string) ?? "",
     operatingRegions: Array.isArray(api.operatingRegions) ? (api.operatingRegions as string[]) : [],
+    fundingStatus: (api.fundingStatus as string) ?? "",
+    financialPosition: (api.financialPosition as string) ?? "",
+    enterpriseCustomers:
+      api.enterpriseCustomers != null && api.enterpriseCustomers !== ""
+        ? String(api.enterpriseCustomers)
+        : "",
+    customerRetentionRate:
+      api.customerRetentionRate != null && api.customerRetentionRate !== ""
+        ? String(api.customerRetentionRate)
+        : "",
   };
 }
 
@@ -56,20 +66,56 @@ const emptyCompanyProfile: AttestationCompanyProfile = {
   yearFounded: "",
   headquartersLocation: "",
   operatingRegions: [],
+  fundingStatus: "",
+  financialPosition: "",
+  enterpriseCustomers: "",
+  customerRetentionRate: "",
 };
 
-export function buildFormStateFromApi(result: {
-  companyProfile?: Record<string, unknown>;
-  attestation?: Record<string, unknown>;
-}): VendorSelfAttestationFormState {
-  const companyProfile =
+function isPlaceholderVendorName(value: unknown): boolean {
+  const text = String(value ?? "").trim();
+  if (!text) return true;
+  const lower = text.toLowerCase();
+  return lower === "n/a" || lower === "na" || lower === "not specified";
+}
+
+export function withVendorNameFallback(
+  companyProfile: AttestationCompanyProfile,
+  ...fallbacks: Array<string | null | undefined>
+): AttestationCompanyProfile {
+  if (!isPlaceholderVendorName(companyProfile.vendorName)) return companyProfile;
+  for (const fallback of fallbacks) {
+    if (isPlaceholderVendorName(fallback)) continue;
+    return { ...companyProfile, vendorName: String(fallback).trim() };
+  }
+  return companyProfile;
+}
+
+export function buildFormStateFromApi(
+  result: {
+    companyProfile?: Record<string, unknown>;
+    attestation?: Record<string, unknown>;
+  },
+  vendorNameFallback?: string | null,
+): VendorSelfAttestationFormState {
+  const companyProfile = withVendorNameFallback(
     result.companyProfile && Object.keys(result.companyProfile).length > 0
       ? mapApiCompanyProfile(result.companyProfile)
-      : emptyCompanyProfile;
-  const attestation =
+      : emptyCompanyProfile,
+    vendorNameFallback,
+  );
+  const companyApi = result.companyProfile ?? {};
+  const attestation: VendorSelfAttestationPayload =
     result.attestation && Object.keys(result.attestation).length > 0
-      ? (result.attestation as VendorSelfAttestationPayload)
+      ? { ...(result.attestation as VendorSelfAttestationPayload) }
       : {};
+  if (!attestation.trust_centre_url && companyApi.trustCentreUrl)
+    attestation.trust_centre_url = String(companyApi.trustCentreUrl);
+  if (!attestation.security_incidents?.length && Array.isArray(companyApi.securityIncidents)) {
+    attestation.security_incidents = companyApi.securityIncidents as VendorSelfAttestationPayload["security_incidents"];
+    if (!attestation.has_public_security_incident && attestation.security_incidents?.length)
+      attestation.has_public_security_incident = "yes";
+  }
   const docUpload = result.attestation?.document_uploads;
   let documentUpload: DocumentUploadState = defaultDocumentUpload;
   if (docUpload && typeof docUpload === "object") {

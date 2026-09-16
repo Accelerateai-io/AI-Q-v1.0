@@ -4,6 +4,10 @@ import { db } from "../../database/db.js";
 import { createOrganization, usersTable, vendors } from "../../schema/schema.js";
 import { and, eq, sql } from "drizzle-orm";
 import { getJwtExpiry, getJwtSecret } from "../../config/auth.js";
+import {
+  normalizeVendorOnboardingBusinessFields,
+  persistVendorOnboardingBusinessFields,
+} from "../../utils/normalizeVendorOnboardingBusinessFields.js";
 
 const insertVendorOnboarding = async (req: Request, res: Response) => {
   // console.log(req.body);
@@ -11,6 +15,7 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
   try {
     const {
       vendorType,
+      vendorName,
       organization_Id: bodyOrgId,
       organizationId: bodyOrgIdCamel,
       vendorId: bodyVendorId,
@@ -72,38 +77,7 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (user.user_onboarding_completed === "true") {
-      // Return token + userDetails so frontend can set bearerToken and user can proceed to attestation
-      const [existingRow] = await db
-        .select({
-          user: usersTable,
-          organizationName: createOrganization.organizationName,
-        })
-        .from(usersTable)
-        .leftJoin(createOrganization, eq(usersTable.organization_id, createOrganization.id))
-        .where(eq(usersTable.id, user.id))
-        .limit(1);
-      const u = existingRow?.user;
-      const organizationName = existingRow?.organizationName ?? "";
-      
-      const token = jwt.sign(
-        { id: u?.id, email: u?.email, userRole: u?.role },
-        getJwtSecret(),
-        { expiresIn: getJwtExpiry() } as jwt.SignOptions,
-      );
-      const userDetails = [
-        {
-          ...u,
-          organization_name: organizationName,
-          organization_id: u?.organization_id,
-        },
-      ];
-      return res.status(200).json({
-        message: "Onboarding already completed",
-        token,
-        userDetails,
-      });
-    }
+    const alreadyCompleted = user.user_onboarding_completed === "true";
 
     const organizationIdRaw = bodyOrgId ?? bodyOrgIdCamel ?? user.organization_id;
     const organizationId = String(organizationIdRaw ?? "").trim();
@@ -131,11 +105,15 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
       Array.isArray(operatingRegions) || (operatingRegions != null && typeof operatingRegions === "object")
         ? operatingRegions
         : null;
+    const businessFields = normalizeVendorOnboardingBusinessFields(
+      req.body as Record<string, unknown>,
+    );
 
     const vendorValues = {
       userId: user.id,
       organizationId,
       vendorType: String(vendorType ?? ""),
+      vendorName: vendorName != null && String(vendorName).trim() !== "" ? String(vendorName).trim() : null,
       sector: sectorTruncated,
       vendorMaturity: vendorMaturity != null ? String(vendorMaturity) : null,
       companyWebsite: String(companyWebsite ?? ""),
@@ -148,6 +126,12 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
       yearFounded: Number.isNaN(yearFoundedNum) ? new Date().getFullYear() : yearFoundedNum,
       headquartersLocation: String(headquartersLocation ?? ""),
       operatingRegions: operatingRegionsValue,
+      fundingStatus: businessFields.fundingStatus,
+      financialPosition: businessFields.financialPosition,
+      enterpriseCustomers: businessFields.enterpriseCustomers,
+      customerRetentionRate: businessFields.customerRetentionRate,
+      trustCentreUrl: businessFields.trustCentreUrl,
+      securityIncidents: businessFields.securityIncidents,
     };
 
     const addVendor = await db
@@ -158,6 +142,7 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
         set: {
           userId: user.id,
           vendorType: vendorValues.vendorType,
+          vendorName: vendorValues.vendorName,
           sector: vendorValues.sector,
           vendorMaturity: vendorValues.vendorMaturity,
           companyWebsite: vendorValues.companyWebsite,
@@ -169,18 +154,31 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
           yearFounded: vendorValues.yearFounded,
           headquartersLocation: vendorValues.headquartersLocation,
           operatingRegions: vendorValues.operatingRegions,
+          fundingStatus: vendorValues.fundingStatus,
+          financialPosition: vendorValues.financialPosition,
+          enterpriseCustomers: vendorValues.enterpriseCustomers,
+          customerRetentionRate: vendorValues.customerRetentionRate,
+          trustCentreUrl: vendorValues.trustCentreUrl,
+          securityIncidents: vendorValues.securityIncidents,
           updatedAt: sql`now()`,
         },
       });
 
-    await db
-      .update(usersTable)
-      .set({
-        user_platform_role: "vendor",
-        user_onboarding_completed: "true",
-        onboarding_status: "completed",
-      })
-      .where(eq(usersTable.id, user.id));
+    await persistVendorOnboardingBusinessFields(
+      organizationId,
+      req.body as Record<string, unknown>,
+    );
+
+    if (!alreadyCompleted) {
+      await db
+        .update(usersTable)
+        .set({
+          user_platform_role: "vendor",
+          user_onboarding_completed: "true",
+          onboarding_status: "completed",
+        })
+        .where(eq(usersTable.id, user.id));
+    }
 
     const [updatedRow] = await db
       .select({
@@ -209,8 +207,9 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
       },
     ];
 
-    res.status(201).json({
+    res.status(alreadyCompleted ? 200 : 201).json({
       success: true,
+      message: alreadyCompleted ? "Onboarding already completed" : undefined,
       data: addVendor,
       token,
       userDetails,

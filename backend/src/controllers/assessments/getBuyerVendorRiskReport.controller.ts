@@ -11,6 +11,9 @@ import {
   regulatorySnippetFromJson,
 } from "../agents/buyerVendorRiskReportAgent.js";
 import { buildBuyerCotsFrameworkMappingRows } from "../../services/buyerCotsFrameworkMapping.js";
+import { mergeLlmModelIntoReport } from "../../utils/activeLlmModelMeta.js";
+import { findAttestationForBuyerVendorProduct } from "../../services/findAttestationForBuyerVendorProduct.js";
+import { extractVendorTrustScore } from "../../services/buyerImplementationRiskScore.js";
 
 /**
  * GET /buyerCotsAssessment/:id/vendor-risk-report
@@ -29,20 +32,30 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
       res.status(404).json({ success: false, message: "User not found" });
       return;
     }
+    const platformRole = String((user as Record<string, unknown>).user_platform_role ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ");
+    const isSystemUser =
+      platformRole === "system admin" ||
+      platformRole === "system manager" ||
+      platformRole === "system viewer";
     const organizationId = String((user as Record<string, unknown>).organization_id ?? "").trim();
     const id = typeof req.params?.id === "string" ? req.params.id.trim() : "";
-    if (!id || !organizationId) {
+    if (!id || (!isSystemUser && !organizationId)) {
       res.status(400).json({ success: false, message: "Invalid assessment id" });
       return;
     }
 
     await expireSubmittedAssessmentsAndArchiveBuyerReports(pool);
 
-    const whereBuyer = and(
-      eq(cotsBuyerAssessments.assessment_id, id),
-      eq(assessments.organization_id, organizationId),
-      eq(assessments.type, "cots_buyer"),
-    );
+    const whereBuyer = isSystemUser
+      ? and(eq(cotsBuyerAssessments.assessment_id, id), eq(assessments.type, "cots_buyer"))
+      : and(
+          eq(cotsBuyerAssessments.assessment_id, id),
+          eq(assessments.organization_id, organizationId),
+          eq(assessments.type, "cots_buyer"),
+        );
 
     const hasArchiveCol = await hasCotsBuyerArchivedReportColumn(pool);
     const [row] = hasArchiveCol
@@ -61,6 +74,8 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
             governance_maturity: cotsBuyerAssessments.governance_maturity,
             target_timeline: cotsBuyerAssessments.target_timeline,
             regulatory_requirments: cotsBuyerAssessments.regulatory_requirments,
+            llmModelId: cotsBuyerAssessments.llm_model_id,
+            llmModelLabel: cotsBuyerAssessments.llm_model_label,
           })
           .from(cotsBuyerAssessments)
           .innerJoin(assessments, eq(cotsBuyerAssessments.assessment_id, assessments.id))
@@ -80,6 +95,8 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
             governance_maturity: cotsBuyerAssessments.governance_maturity,
             target_timeline: cotsBuyerAssessments.target_timeline,
             regulatory_requirments: cotsBuyerAssessments.regulatory_requirments,
+            llmModelId: cotsBuyerAssessments.llm_model_id,
+            llmModelLabel: cotsBuyerAssessments.llm_model_label,
           })
           .from(cotsBuyerAssessments)
           .innerJoin(assessments, eq(cotsBuyerAssessments.assessment_id, assessments.id))
@@ -135,14 +152,42 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
     }
 
     const reportObj = rawReport as Record<string, unknown>;
-    const enriched = enrichStoredBuyerVendorReport(reportObj, vendorName, productName, {
-      criticality: row.criticality,
-      riskAppetite: row.risk_appetite,
-      dataSensitivity: row.data_sensitivity,
-      governanceMaturity: row.governance_maturity,
-      targetTimeline: row.target_timeline,
-      regulatorySnippet: regulatorySnippetFromJson(row.regulatory_requirments),
-    });
+    const llmModelId =
+      typeof (row as { llmModelId?: string | null }).llmModelId === "string"
+        ? String((row as { llmModelId?: string | null }).llmModelId).trim()
+        : "";
+    const llmModelLabel =
+      typeof (row as { llmModelLabel?: string | null }).llmModelLabel === "string"
+        ? String((row as { llmModelLabel?: string | null }).llmModelLabel).trim()
+        : "";
+    // Use the same product-profile VTS the Product Profile page displays.
+    let productProfileVts: number | null = null;
+    try {
+      const attestation = await findAttestationForBuyerVendorProduct(vendorName, productName);
+      if (attestation) {
+        productProfileVts = extractVendorTrustScore(attestation);
+      }
+    } catch (e) {
+      console.error("getBuyerVendorRiskReport: product-profile VTS lookup failed:", e);
+    }
+    const enriched = mergeLlmModelIntoReport(
+      enrichStoredBuyerVendorReport(
+        reportObj,
+        vendorName,
+        productName,
+        {
+          criticality: row.criticality,
+          riskAppetite: row.risk_appetite,
+          dataSensitivity: row.data_sensitivity,
+          governanceMaturity: row.governance_maturity,
+          targetTimeline: row.target_timeline,
+          regulatorySnippet: regulatorySnippetFromJson(row.regulatory_requirments),
+        },
+        productProfileVts,
+      ) as Record<string, unknown>,
+      llmModelId || null,
+      llmModelLabel || null,
+    );
     const frameworkMappingRows = buildBuyerCotsFrameworkMappingRows(
       reportObj,
       row.regulatory_requirments,
@@ -158,6 +203,8 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
       productName,
       organizationName: row.organization_name ?? "",
       report: enriched,
+      llmModelId: llmModelId || null,
+      llmModelLabel: llmModelLabel || null,
       frameworkMappingRows,
     });
   } catch (e) {

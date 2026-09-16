@@ -2,8 +2,10 @@ import type { Request, Response } from "express";
 import { db } from "../../database/db.js";
 import { usersTable } from "../../schema/schema.js";
 import { assessments } from "../../schema/assessments/assessments.js";
+import { assessmentRisks } from "../../schema/assessments/assessmentRisks.js";
 import { cotsBuyerAssessments } from "../../schema/assessments/cotsBuyerAssessments.js";
 import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssessments.js";
+import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
 import { eq, and } from "drizzle-orm";
 
 /** DELETE /assessments/:id - delete draft or expired (same org). Permanently removes assessment and its COTS row. */
@@ -56,7 +58,14 @@ const deleteAssessment = async (req: Request, res: Response) => {
         await tx.delete(cotsVendorAssessments).where(eq(cotsVendorAssessments.assessment_id, id));
       } else if (assessmentType === "cots_buyer") {
         await tx.delete(cotsBuyerAssessments).where(eq(cotsBuyerAssessments.assessment_id, id));
+      } else if (assessmentType === "vendor_self_attestation") {
+        await tx.delete(assessmentRisks).where(eq(assessmentRisks.assessment_id, id));
+        await tx
+          .update(vendorSelfAttestations)
+          .set({ assessment_id: null })
+          .where(eq(vendorSelfAttestations.assessment_id, id));
       }
+      await tx.delete(assessmentRisks).where(eq(assessmentRisks.assessment_id, id));
       await tx.delete(assessments).where(eq(assessments.id, id));
     });
     return res.status(200).json({ message: "Assessment deleted" });

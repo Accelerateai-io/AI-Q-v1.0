@@ -8,7 +8,7 @@
   /* min-height: 500px; */
   /* max-height: 900px; */
   /* background-color: var(--bg-colour-main); */
-  /* padding: 1em; */
+  /* padding: 1rem; */
 }
 
 .card_section {
@@ -22,15 +22,9 @@
 .card_vendor {
   display: flex;
   flex-direction: column;
-  /* padding: 1em 2em; */
-  /* padding: 0 6em 3em 6em; */
-  /* background-color: white; */
-  /* border-radius: 10px; */
-  /* justify-content: space-between; */
-  /* align-content: center; */
-  /* align-items: center; */
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: var(--ui-border-radius, 0);
+  border-bottom-right-radius: var(--ui-border-radius, 0);
+  background: transparent;
 }
 
 /* Multi-step form header: single source of truth for page header alignment */
@@ -38,26 +32,36 @@
   display: flex;
   justify-content: flex-start;
   flex-direction: column;
-  margin: 0.9em 0 0 0;
-  border-bottom: 1px solid #00000012;
-  padding: 0 0 0.8em 0;
+  margin: 0.35rem 0 0;
+  border-bottom: 1px solid var(--app-border-color, var(--border-subtle, #e2dcd6));
+  padding: 0 0 0.9rem;
+  gap: 0.2rem;
+}
+
+.header_for_vendor .sub_title_card {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin-top: 0.15rem;
+  color: var(--text-muted, #64748b);
 }
 
 /* Reuse same alignment on any page header (Dashboard, Vendor Directory, Assessments, User Management) */
 .page_header_align {
-  margin: 0.9em 0 1.5rem 0;
+  margin: 0.9rem 0 1.5rem 0;
 }
 
 .page_header_row {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.5rem;
 }
 
 .page_header_title_block {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .page_header_title_block h1,
@@ -65,31 +69,49 @@
   font-size: 1.25rem;
   font-weight: 500;
   margin: 0;
-  color: inherit;
+  color: var(--text-primary, #1a1f36);
 }
 
 .page_header_title_block .sub_title_card,
-.page_header_title_block .page_header_subtitle {
-  color: var(--light-gray-color, #64748b);
-  font-size: 0.9em;
-  font-weight: 500;
+.page_header_title_block .page_header_subtitle,
+.page_header_subtitle,
+.org_settings_subtitle,
+.sub_title.page_header_subtitle,
+.ai_assessments_heading .sub_title,
+.page_header_title_block .sub_title {
+  color: var(--text-muted, var(--light-gray-color, #64748b));
+  font-size: 0.65rem;
+  font-weight: 400;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.35;
 }
 
 .icon_size_header {
-  /* background-color: #e9f2ff; */
-  background-color: #e6edf7;
-  padding: 0.5em;
+  background-color: transparent;
+  padding: 0;
   display: flex;
   align-content: center;
   align-items: center;
-  border-radius: 5px;
+  border-radius: 0;
 }
 
-/* Same blue as assessments header (.header_cots span svg) */
+/* Page header icons — same blue as sidenav active */
 .icon_size_header svg,
-.header_title_vendor .icon_size_header svg {
-  color: var(--main-auth-button-color, #2463eb);
+.header_title_vendor .icon_size_header svg,
+.icon_size_header .header_icon_svg {
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--nav-active, #225bff);
+  stroke: currentColor;
+}
+
+.header_icon_svg {
+  color: var(--nav-active, #225bff);
+  stroke: currentColor;
 }
 
 /* .icon_size_header {
@@ -117,23 +139,27 @@
 } */
 
 .header_title_vendor {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--text-primary, #1a1f36);
   align-content: center;
   align-items: center;
   display: flex;
-  gap: 0.5em;
+  gap: 0.5rem;
+  margin: 0;
+  line-height: 1.3;
 }
 .headers_icons {
   display: flex;
 }
 /* .sub_title_card {
   color: var(--light-gray-color, #64748b);
-  font-size: 0.9em;
+  font-size: 0.9rem;
   font-weight: 500;
-  margin: 0.25em 0 0 0;
+  margin: 0.25rem 0 0 0;
 } */
 .confirm_onboarding {
-  padding: 1em;
+  padding: 1rem;
   width: 100px;
   height: 100px;
   background-color: #dcfce7;
@@ -144,25 +170,25 @@
 
 .onboarding_setup_card {
   /* background-color: aliceblue; */
-  padding: 1em;
+  padding: 1rem;
   display: flex;
   align-items: center;
   flex-direction: column;
-  gap: 1em;
+  gap: 1rem;
 }
 
 .onboarding_setup_card p {
   text-align: center;
-  color: #4b5563;
-  line-height: 1.5em;
+  color: var(--text-secondary, #4b5563);
+  line-height: 1.5rem;
 }
 .onboarding_setup_card h2 {
-  font: 2.5em;
+  font: 2.5rem;
 }
 
 .onboarding_setup_card a {
   font-weight: 500;
-  padding: 0.5em;
+  padding: 0.5rem;
   border: 1px solid var(--main-auth-button-color);
   text-decoration: none;
   color: white;
@@ -170,12 +196,12 @@
   display: flex;
   align-content: center;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.5rem;
 }
 
 .card_confirmation_link_btn {
   font-weight: 500;
-  padding: 0.5em;
+  padding: 0.5rem;
   border: 1px solid var(--main-auth-button-color);
   text-decoration: none;
   color: white;
@@ -183,10 +209,10 @@
   display: inline-flex;
   align-content: center;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.5rem;
   cursor: pointer;
   font-size: inherit;
-  border-radius: 5px;
+  border-radius: var(--ui-border-radius, 8px);
 }
 
 .card_confirmation_link_btn:hover {
@@ -204,24 +230,21 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 1em;
-  padding: 0.5em 0;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
 }
 
 .signup_confirmation_card {
   width: 100%;
   max-width: 920px;
-  background: #fff;
-  border-radius: 10px;
-  /* box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.08),
-    0 1px 2px -1px rgba(0, 0, 0, 0.06); */
-  border: 1px solid #e5e7eb;
-  padding: 1em 2.5em;
+  background: transparent;
+  border-radius: var(--ui-border-radius, 0);
+  box-shadow: none;
+  border: none;
+  padding: 1rem 2.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* gap: 1rem; */
   text-align: center;
 }
 
@@ -246,19 +269,19 @@
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0;
-  color: #111827;
+  color: var(--text-primary, #111827);
 }
 
 .signup_confirmation_card p {
   margin: 0;
   font-size: 0.9375rem;
   line-height: 1.5;
-  color: #4b5563;
+  color: var(--text-secondary, #4b5563);
 }
 
 .text_signup {
   font-size: 0.9375rem;
-  color: #4b5563;
+  color: var(--text-secondary, #4b5563);
   line-height: 1.5;
   text-align: center;
 }
@@ -270,7 +293,7 @@
 
 .signup_confirmation_card .onboarding_email_sent_text {
   margin-top: 0.25rem;
-  max-width: 32em;
+  max-width: 32rem;
 }
 
 .sucess_text {
@@ -280,7 +303,7 @@
 
 .signin_btn a {
   font-weight: 500;
-  padding: 0.3em;
+  padding: 0.3rem;
   border: 1px solid var(--main-auth-button-color);
   text-decoration: none;
   color: white;
@@ -288,7 +311,7 @@
   display: flex;
   align-content: center;
   align-items: center;
-  gap: 0.3em;
+  gap: 0.3rem;
 }
 
 .small_text {
@@ -297,22 +320,22 @@
   color: rgb(100, 116, 139);
 }
 .sub_title_card {
-  color: var(--light-gray-color);
-  font-size: 0.9em;
-  font-weight: 500;
-  margin: 0em 0 0 0em;
+  color: var(--text-muted, var(--light-gray-color, #64748b));
+  font-size: 0.65rem;
+  font-weight: 400;
+  margin: 0rem 0 0 0rem;
 }
 
 .card_list ul {
-  margin: 1em;
+  margin: 1rem;
 }
 .card_list ul li {
   list-style-type: none;
   display: flex;
   justify-content: flex-start;
-  gap: 0.5em;
-  padding: 0.2em 0;
-  font-size: 0.95em;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.95rem;
 }
 
 .card_list ul li span {
@@ -320,28 +343,28 @@
 }
 
 .title_card {
-  font-size: 1.1em;
-  color: black;
+  font-size: 1.1rem;
+  color: var(--text-primary, #1a1f36);
   font-weight: 600;
-  /* margin: 0.5em; */
-  padding: 0.4em 0;
+  /* margin: 0.5rem; */
+  padding: 0.4rem 0;
 }
 
 .card_para {
-  color: #4b5563;
-  font-size: 0.95em;
+  color: var(--text-secondary, #4b5563);
+  font-size: 0.95rem;
   line-height: 1.4;
   text-align: justify;
-  margin: 1em;
+  margin: 1rem;
 }
 
 .card_continue_btn {
   width: 100%;
-  margin: 1em 0 0 0;
+  margin: 1rem 0 0 0;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: var(--ui-border-radius, 8px);
   display: flex;
   justify-content: center;
   align-content: center;
@@ -357,13 +380,13 @@
   justify-content: center;
   align-content: center;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.5rem;
 }
 
 .card_onboarding {
   display: flex;
-  gap: 5em;
-  margin: 1em 0;
+  gap: 5rem;
+  margin: 1rem 0;
 }
 
 /* CSS FOR CARDCONFIRMATION FOR SIGNUP */

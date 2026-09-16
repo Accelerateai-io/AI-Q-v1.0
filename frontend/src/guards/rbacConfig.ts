@@ -15,6 +15,8 @@ export const ALLOWED_ROUTES: Record<SystemRole, readonly string[]> = {
     "/",
     "/dashboard",
     "/organizations",
+    "/controls",
+    "/observability",
     "/assessments",
     "/attestation_details",
     "/vendor-directory",
@@ -181,6 +183,7 @@ export function isPathAllowedForRole(path: string, normalizedRole: SystemRole | 
   if (path.startsWith("/buyer-vendor-risk-report/") && routesForRole.includes("/buyerAssessment"))
     return true;
   if (path.startsWith("/organizations/") && routesForRole.includes("/organizations")) return true;
+  if (path.startsWith("/observability/") && routesForRole.includes("/observability")) return true;
   if (path.startsWith("/reports/") && path.length > "/reports/".length) return true;
   if (path.startsWith("/vendor-directory/") && routesForRole.includes("/vendor-directory")) return true;
   if (path.startsWith("/riskMappings") && routesForRole.includes("/riskMappings")) return true;

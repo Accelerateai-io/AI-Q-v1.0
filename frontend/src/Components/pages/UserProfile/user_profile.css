@@ -4,7 +4,7 @@
   top: 60px;
   right: 20px;
   width: 220px;
-  background: #ffffff;
+  background: var(--surface-color);
   border-radius: 5px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   padding: 12px 0;
@@ -20,6 +20,407 @@
 .userhelptext {
   font-size: 12px;
   color: gray;
+}
+
+/* —— Account menu: org lockup header, then grouped menu rows —— */
+.user_popup--account {
+  width: 320px;
+  padding: 0;
+  border: 1px solid var(--app-border-color, #ececec);
+  border-radius: 10px;
+  background: var(--app-bg-color, #f8f4ed);
+}
+
+.account_menu_header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+}
+
+.account_menu_avatar_wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.account_menu_avatar {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.account_menu_avatar--dark {
+  display: none;
+}
+
+html[data-theme="dark"] .account_menu_avatar--light {
+  display: none;
+}
+
+html[data-theme="dark"] .account_menu_avatar--dark {
+  display: block;
+}
+
+.account_menu_org {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1c1c;
+  text-align: center;
+}
+
+.user_popup--account .account_menu_list {
+  padding: 4px 0 8px;
+}
+
+.user_popup--account .account_menu_list--divided {
+  border-top: none;
+}
+
+.user_popup--account .account_menu_item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.user_popup--account .account_menu_item:hover {
+  background-color: #efe9e3;
+}
+
+.user_popup--account .account_menu_item--static {
+  cursor: default;
+}
+
+.user_popup--account .account_menu_item--static:hover {
+  background-color: transparent;
+  color: inherit;
+}
+
+.account_menu_label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user_popup--account .account_menu_item--user {
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user_popup--account .account_menu_item--user > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: #555;
+  margin-top: 0;
+}
+
+.account_menu_user_block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+  text-align: left;
+}
+
+.account_menu_user_name_row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.user_popup--account .account_menu_item--user .account_menu_label {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  font-weight: 600;
+  color: #1c1c1c;
+  text-align: left;
+}
+
+.account_menu_portal_tag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 0;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04rem;
+  line-height: 1.2;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.account_menu_user_tag--inline {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid #dbe3ef;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.62rem;
+  letter-spacing: 0.04rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.account_menu_user_role {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-left: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.account_menu_user_role_text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 0 1 auto;
+  text-align: left;
+}
+
+.account_menu_user_role_label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--text-muted, #64748b);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.account_menu_user_role_dot {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.account_menu_user_tag {
+  display: inline-block;
+  max-width: 100%;
+  margin-left: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--nav-active, #225bff);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01rem;
+  border-radius: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+html[data-theme="dark"] .user_popup--account .account_menu_item--user .account_menu_label {
+  color: var(--text-primary, #f1f5f9);
+}
+
+html[data-theme="dark"] .account_menu_user_role_label,
+html[data-theme="dark"] .account_menu_user_role_dot {
+  color: var(--text-muted, #9c958c);
+}
+
+html[data-theme="dark"] .account_menu_user_tag {
+  background: transparent;
+  border: none;
+  color: var(--nav-active, #8aafff);
+}
+
+html[data-theme="dark"] .account_menu_portal_tag,
+html[data-theme="dark"] .account_menu_user_tag--inline {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: var(--text-muted, #cbd5e1);
+}
+
+.user_popup--account .account_menu_item > svg {
+  flex-shrink: 0;
+}
+
+.account_menu_theme {
+  display: block !important;
+  padding: 0 16px 14px 16px !important;
+  cursor: default !important;
+}
+
+.account_menu_theme:hover {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+.account_theme_options {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 0;
+  background: #eef2ff;
+  border: 1px solid rgba(34, 91, 255, 0.14);
+}
+
+.account_theme_option {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.account_theme_option svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.account_theme_option:hover {
+  color: var(--nav-active, #225bff);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.account_theme_option--active {
+  background: #ffffff;
+  color: var(--nav-active, #225bff);
+  font-weight: 600;
+  border-color: rgba(34, 91, 255, 0.18);
+  box-shadow: none;
+}
+
+.account_theme_option--active:hover {
+  background: #ffffff;
+  color: var(--nav-active, #225bff);
+}
+
+html[data-theme="dark"] .account_theme_options {
+  background: rgba(138, 175, 255, 0.1);
+  border-color: rgba(138, 175, 255, 0.24);
+}
+
+html[data-theme="dark"] .account_theme_option {
+  color: var(--text-muted, #9a95ab);
+}
+
+html[data-theme="dark"] .account_theme_option:hover {
+  color: #b4cbff;
+  background: rgba(138, 175, 255, 0.12);
+}
+
+html[data-theme="dark"] .account_theme_option--active,
+html[data-theme="dark"] .account_theme_option--active:hover {
+  background: rgba(138, 175, 255, 0.2);
+  color: var(--nav-active, #8aafff);
+  border-color: rgba(138, 175, 255, 0.36);
+}
+
+html[data-theme="dark"] .user_popup--account {
+  color: var(--text-primary, #ebe9f3);
+  background: var(--surface-elevated, #2d2a3a);
+  border-color: var(--border-strong, #524e68);
+  box-shadow: var(--shadow-elevated);
+}
+
+html[data-theme="dark"] .account_menu_org,
+html[data-theme="dark"] .user_popup--account .account_menu_item,
+html[data-theme="dark"] .user_popup--account .account_menu_item--static,
+html[data-theme="dark"] .user_popup--account .account_menu_item--static:hover,
+html[data-theme="dark"] .user_popup--account .account_menu_label {
+  color: var(--text-secondary, #c8c4d6);
+}
+
+html[data-theme="dark"] .user_popup--account .account_menu_item--user .account_menu_label {
+  color: var(--text-primary, #ebe9f3);
+}
+
+/* Profile dropdown icons — readable on dark panel (not #555) */
+html[data-theme="dark"] .user_popup svg,
+html[data-theme="dark"] .user_popup--account .account_menu_item > svg,
+html[data-theme="dark"] .user_popup--account .account_menu_item--user > svg,
+html[data-theme="dark"] .user_popup_account_icon,
+html[data-theme="dark"] .user_popup_role svg {
+  color: #c8c4d6 !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="dark"] .user_popup--account .account_menu_item:hover > svg {
+  color: #ebe9f3 !important;
+}
+
+html[data-theme="dark"] .account_theme_option svg {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="dark"] .logout_btn svg,
+html[data-theme="dark"] .logout_btn.orgCancelBtn svg {
+  color: #fff !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="dark"] .user_popup--account .account_menu_item:hover {
+  background-color: var(--surface-hover, #3f3b37);
+}
+
+html[data-theme="dark"] .user_popup--account .account_menu_list--divided {
+  border-top-color: transparent;
+}
+
+html[data-theme="dark"] .user_popup_account_header {
+  border-bottom-color: var(--border-subtle, #413c38);
+}
+
+html[data-theme="dark"] .user_popup_account_title {
+  color: var(--text-primary, #e6e2dc);
 }
 
 /* Account header: icon + title, same spacing as list items for consistency */
@@ -52,7 +453,7 @@
   font-size: 13px;
   color: #444;
   border-bottom: 1px solid #f0f0f0;
-  background: #fafbfc;
+  background: var(--surface-elevated);
 }
 
 .user_popup_role svg {
@@ -152,29 +553,67 @@
   color: #555;
 }
 
+.account_menu_logout,
+.account_menu_logout_item {
+  padding: 0 16px 8px;
+  list-style: none;
+  display: block;
+  cursor: default;
+}
+
+.account_menu_logout_item:hover {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.logout_btn.orgCancelBtn,
 .logout_btn {
-  color: white;
-  background-color: #d00000;
-  width: 91%;
-  font-size: 14px;
-  /* font-weight: 600; */
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 10px 25px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 0 !important;
+  border: 1px solid #e5383b;
+  background-color: #e5383b;
+  color: #ffffff;
   display: flex;
-  /* justify-content: center; */
-  align-content: center;
-  /* align-items: center;  */
-  gap: 11px;
-  /* border: 1px solid var(--main-auth-button-color); */
-  padding: 8px;
-  color: white;
-  margin: 0px 9px 10px 9px;
-  border: none;
+  align-items: center;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 var(--btn-3d-shadow-danger);
+}
+
+.logout_btn.orgCancelBtn:hover:not(:disabled),
+.logout_btn:hover:not(:disabled) {
+  background-color: #c92a2d;
+  border-color: #c92a2d;
+  color: #ffffff;
+  filter: brightness(1.05);
+}
+
+.logout_btn.orgCancelBtn:active:not(:disabled),
+.logout_btn:active:not(:disabled) {
+  transform: translate(var(--btn-3d-press), var(--btn-3d-press));
+  box-shadow: calc(var(--btn-3d-offset) - var(--btn-3d-press))
+    calc(var(--btn-3d-offset) - var(--btn-3d-press)) 0 0
+    var(--btn-3d-shadow-danger);
 }
 
 .logout_btn:disabled {
-  opacity: 0.85;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.logout_btn svg {
+  width: 18px;
+  height: 18px;
+  color: #ffffff;
+  flex-shrink: 0;
 }
 
 @keyframes auth-spin {
@@ -187,9 +626,362 @@
   animation: auth-spin 0.8s linear infinite;
 }
 
+/* Logout confirmation modal — portaled to body; force viewport centering */
+.logout_confirm_modal_overlay.profile_modal_overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10050 !important;
+  margin: 0 !important;
+  padding: 1rem !important;
+  box-sizing: border-box !important;
+}
+
+.logout_confirm_modal_content.profile_modal_content {
+  min-width: 360px;
+  max-width: 420px;
+  margin: auto;
+}
+
+.logout_confirm_modal_message {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+  line-height: 1.45;
+}
+
+.logout_confirm_modal_content .settings_form_actions {
+  justify-content: space-between;
+}
+
+.logout_confirm_modal_content .settings_form_actions .logout_confirm_btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Cancel: clean secondary outline — not destructive red (Logout stays red) */
+.logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn,
+.logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn.orgCancelBtn,
+.logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn:hover:not(:disabled) {
+  background-color: #fff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  -webkit-text-fill-color: #334155;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 #94a3b8;
+  filter: none;
+}
+
+.logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #93b4f0;
+  color: #225bff;
+  -webkit-text-fill-color: #225bff;
+}
+
+.logout_confirm_modal_content .logout_confirm_btn {
+  background: #d00000;
+  color: #fff;
+  border: 1px solid #d00000;
+}
+
+.logout_confirm_modal_content .logout_confirm_btn:hover:not(:disabled) {
+  background: #b80000;
+  color: #fff;
+  border-color: #b80000;
+}
+
+.logout_confirm_modal_content .logout_confirm_btn .auth_spinner {
+  animation: auth-spin 0.8s linear infinite;
+}
+
 /* User Settings modal */
 .settings_modal_content {
   max-width: 520px;
+}
+
+/* Portaled to body so top-nav backdrop-filter cannot trap/offset the dialog */
+.account_settings_modal_overlay.profile_modal_overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10050 !important;
+  margin: 0 !important;
+  padding: 1.25rem !important;
+  box-sizing: border-box !important;
+}
+
+/* —— Settings popup: My Account content rendered inside a modal —— */
+/* Fixed height so the dialog doesn't resize when switching sections */
+.profile_modal_content.account_settings_modal {
+  width: min(80em, calc(100vw - 2.5em));
+  max-width: 80em;
+  height: min(90vh, 40rem);
+  max-height: 90vh;
+  margin: 0;
+  border-radius: var(--ui-border-radius, 0);
+  background: var(--app-bg-color, #f8f4ed);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.account_settings_modal .profile_modal_body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.account_settings_modal .org_settings_page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+/* Sidebar stays put; only the detail pane scrolls */
+.account_settings_modal .account_settings_shell {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.account_settings_modal .account_settings_nav {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.account_settings_modal .account_settings_pane {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 2.25rem;
+}
+
+/* Close sits on the title row instead of taking its own empty header strip */
+.account_settings_modal_header {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+/* —— Account settings: sidebar nav + detail rows —— */
+.account_settings_shell {
+  display: flex;
+  align-items: stretch;
+  gap: 1.75rem;
+  min-height: 0;
+}
+
+.account_settings_nav {
+  flex: 0 0 15.5rem;
+  padding: 0;
+  border-right: 1px solid var(--app-border-color, #e2dcd6);
+  align-self: stretch;
+}
+
+.account_settings_nav_title {
+  margin: 0 0 1em;
+  padding: 0 0.75em 0 0;
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary, #1c1c1c);
+}
+
+.account_settings_nav_list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account_settings_nav_item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: var(--ui-border-radius, 0);
+  background: transparent;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: var(--text-secondary, #374151);
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.account_settings_nav_item svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted, #4b5563);
+}
+
+.account_settings_nav_item:hover {
+  background-color: var(--surface-hover, #efe9e3);
+}
+
+.account_settings_nav_item--active {
+  background-color: var(--surface-muted, #e9e4e0);
+  font-weight: 600;
+  color: var(--text-primary, #1c1c1c);
+}
+
+.account_settings_nav_item--active svg {
+  color: var(--text-primary, #1c1c1c);
+}
+
+.account_settings_pane {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.account_settings_heading {
+  margin: 0 0 1em;
+  padding: 0;
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary, #1c1c1c);
+}
+
+.account_rows {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+}
+
+.account_row {
+  display: grid;
+  grid-template-columns: 12em minmax(0, 1fr) 13em;
+  align-items: start;
+  column-gap: 1.5em;
+  padding: 0.9em 0;
+  border-bottom: 1px solid var(--border-subtle, #ececec);
+}
+
+.account_row:has(+ .account_row--role),
+.account_row--role {
+  border-bottom: none;
+}
+
+.account_row--editing {
+  display: block;
+  align-items: stretch;
+}
+
+.account_row_main {
+  display: contents;
+}
+
+.account_row_label {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.875em;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary, #1c1c1c);
+}
+
+.account_row_value {
+  grid-column: 2;
+  margin: 0;
+  font-size: 0.875em;
+  line-height: 1.4;
+  color: var(--text-muted, #6b7280);
+  word-break: break-word;
+}
+
+.account_row_edit {
+  grid-column: 3;
+  justify-self: end;
+  align-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.875em;
+  line-height: 1.4;
+  color: var(--text-primary, #1c1c1c);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.account_row_edit:hover {
+  color: var(--nav-active, #225bff);
+}
+
+.account_row_note {
+  grid-column: 3;
+  justify-self: end;
+  width: 100%;
+  max-width: none;
+  font-size: 0.75em;
+  line-height: 1.4;
+  text-align: right;
+  color: var(--text-muted, #9ca3af);
+}
+
+.account_row_fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.account_row_fields .settings_form_group {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.account_row_actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-right: var(--btn-3d-offset, 6px);
+  padding-bottom: var(--btn-3d-offset, 6px);
+}
+
+.account_row_actions .orgCancelBtn,
+.account_row_actions .orgCreateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: auto;
 }
 
 .settings_form {
@@ -253,33 +1045,48 @@
   width: 100%;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--input-border, var(--auth-signin-input-border, #b8c9f3));
+  border-radius: var(--ui-border-radius, 0);
+  background-color: var(--input-bg, var(--auth-signin-input-bg, #f2f6fc));
+  color: var(--input-text, #1f2937);
   box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.settings_input:hover:not(:disabled):not(:read-only),
+select.settings_input:hover:not(:disabled) {
+  border-color: #93b4f0;
 }
 
 .settings_input:focus {
   outline: none;
-  border-color: var(--main-auth-button-color, #2463eb);
-  box-shadow: 0 0 0 2px rgba(36, 99, 235, 0.15);
+  border-color: var(--main-auth-button-color, #225bff);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(1, 74, 173, 0.18));
 }
 
 .settings_input_cursor_pointer {
   cursor: pointer;
 }
 
-select.settings_input:not([disabled]) {
-  background-color: white;
+/* <select> is :read-only in CSS; keep it looking and behaving as editable */
+select.settings_input:not([disabled]),
+select.settings_input.settings_input_cursor_pointer {
+  background-color: var(--input-bg, var(--auth-signin-input-bg, #f2f6fc));
+  cursor: pointer;
 }
 
 .settings_input::placeholder {
-  color: #94a3b8;
+  color: #6477a3;
 }
 
 .settings_input_readonly,
-.settings_input:read-only {
-  background-color: #f1f5f9;
-  color: #475569;
+input.settings_input:read-only,
+textarea.settings_input:read-only {
+  background-color: var(--surface-muted, #e9edf2);
+  color: var(--text-secondary, #3c4257);
   cursor: not-allowed;
 }
 
@@ -298,7 +1105,7 @@ select.settings_input:not([disabled]) {
   align-items: center;
   justify-content: center;
   background-color: #e9f2ff;
-  padding: 0.35em;
+  padding: 0.35rem;
   border-radius: 5px;
   flex-shrink: 0;
 }
@@ -319,6 +1126,8 @@ select.settings_input:not([disabled]) {
   justify-content: flex-end;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
+  padding-right: var(--btn-3d-offset, 6px);
+  padding-bottom: var(--btn-3d-offset, 6px);
 }
 
 .settings_form_actions .orgCancelBtn,
@@ -326,6 +1135,7 @@ select.settings_input:not([disabled]) {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  width: auto;
 }
 
 .settings_form_actions .auth_spinner {
@@ -334,6 +1144,7 @@ select.settings_input:not([disabled]) {
 
 .my_account_onboarding_sections {
   margin-top: 1.25rem;
+  max-width: none;
 }
 
 .my_account_onboarding_notice {
@@ -396,6 +1207,7 @@ select.settings_input:not([disabled]) {
   justify-content: center;
   gap: 0.4rem;
   padding: 10px;
+  width: auto;
   min-width: 7rem;
   min-height: 40px;
   box-sizing: border-box;
@@ -409,4 +1221,204 @@ select.settings_input:not([disabled]) {
 .user_popup ul li:last-child svg {
   color: #d9534f;
 } */
+
+/* Dark mode popup / settings text */
+@media (max-width: 720px) {
+  .profile_modal_content.account_settings_modal {
+    width: min(100vw - 1.5em, 80em);
+    height: min(90vh, 42rem);
+  }
+
+  .account_settings_modal .profile_modal_body {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .account_settings_shell {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .account_settings_nav {
+    flex: 0 0 auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--app-border-color, #e2dcd6);
+    padding-bottom: 0.75rem;
+  }
+
+  .account_settings_nav_list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-right: 0;
+    gap: 0.35rem;
+  }
+
+  .account_settings_nav_item {
+    width: auto;
+  }
+
+  .account_settings_modal .account_settings_pane {
+    padding-right: 0;
+  }
+
+  .account_rows {
+    max-width: none;
+  }
+
+  .account_row {
+    grid-template-columns: 1fr;
+    row-gap: 0.25em;
+  }
+
+  .account_row_label,
+  .account_row_value,
+  .account_row_edit,
+  .account_row_note {
+    grid-column: 1;
+    justify-self: start;
+    text-align: left;
+    width: auto;
+  }
+
+  .account_menu_theme {
+    padding: 0 16px 10px 16px !important;
+  }
+}
+
+html[data-theme="dark"] .profile_modal_title,
+html[data-theme="dark"] .user_popup_account_title {
+  color: #ebe9f3 !important;
+}
+
+html[data-theme="dark"] .logout_confirm_modal_message,
+html[data-theme="dark"] .settings_form_group label,
+html[data-theme="dark"] .settings_form_group label svg {
+  color: #c8c4d6 !important;
+}
+
+html[data-theme="dark"] .account_settings_nav_item {
+  color: var(--text-secondary, #c8c4d6);
+}
+
+html[data-theme="dark"] .account_settings_nav_item svg {
+  color: var(--text-muted, #9a95ab);
+}
+
+html[data-theme="dark"] .account_settings_nav_item:hover {
+  background-color: var(--surface-hover, #353145);
+}
+
+html[data-theme="dark"] .account_settings_nav_item--active {
+  background-color: var(--surface-hover, #353145);
+  color: var(--text-primary, #ebe9f3);
+}
+
+html[data-theme="dark"] .account_settings_nav_item--active svg {
+  color: var(--text-primary, #ebe9f3);
+}
+
+html[data-theme="dark"] .account_settings_modal .account_settings_nav_title,
+html[data-theme="dark"] .account_settings_modal .account_settings_heading,
+html[data-theme="dark"] .account_settings_modal .account_row_label,
+html[data-theme="dark"] .account_settings_modal .account_row_edit {
+  color: var(--text-primary, #ebe9f3) !important;
+  -webkit-text-fill-color: var(--text-primary, #ebe9f3) !important;
+}
+
+html[data-theme="dark"] .account_settings_modal .account_row_value,
+html[data-theme="dark"] .account_settings_modal .account_row_note {
+  color: var(--text-muted, #9a95ab) !important;
+  -webkit-text-fill-color: var(--text-muted, #9a95ab) !important;
+}
+
+html[data-theme="dark"] .account_row_edit:hover {
+  color: var(--nav-active, #8aafff);
+}
+
+html[data-theme="dark"] .account_row {
+  border-bottom-color: var(--border-subtle, #403c52);
+}
+
+html[data-theme="dark"] .settings_input,
+html[data-theme="dark"] select.settings_input:not([disabled]) {
+  background: #221f2e !important;
+  border-color: #4a455c !important;
+  color: #ebe9f3 !important;
+}
+
+html[data-theme="dark"] .settings_input::placeholder {
+  color: #9a95ab !important;
+}
+
+html[data-theme="dark"] .profile_modal_header {
+  border-bottom-color: #403c52 !important;
+}
+
+/* Dark mode: popup outline so dialogs don't blend into the canvas */
+html[data-theme="dark"] .profile_modal_content,
+html[data-theme="dark"] .logout_confirm_modal_content,
+html[data-theme="dark"] .account_settings_modal,
+html[data-theme="dark"] .user_popup--account {
+  background: #2d2a3a !important;
+  border: 1px solid #524e68 !important;
+  box-shadow: 0 14px 40px rgba(10, 8, 20, 0.48) !important;
+}
+
+html[data-theme="dark"] .user_popup svg,
+html[data-theme="dark"] .user_popup--account .account_menu_item > svg,
+html[data-theme="dark"] .user_popup--account .account_menu_item--user > svg {
+  color: #c8c4d6 !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="dark"] .logout_btn svg {
+  color: #fff !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="dark"] .logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn,
+html[data-theme="dark"] .logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn.orgCancelBtn,
+html[data-theme="dark"] .logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn:hover:not(:disabled) {
+  background-color: #3a3648 !important;
+  border: 1px solid #6b6580 !important;
+  color: #e5e7eb !important;
+  -webkit-text-fill-color: #e5e7eb !important;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 #524e68 !important;
+  filter: none !important;
+}
+
+html[data-theme="dark"] .logout_confirm_modal_content .settings_form_actions .logout_confirm_cancel_btn:hover:not(:disabled) {
+  background-color: #454158 !important;
+  border-color: #7aa3ff !important;
+  color: #c5d4ff !important;
+  -webkit-text-fill-color: #c5d4ff !important;
+}
+
+/* Keep Logout confirm CTA red in dark mode (do not inherit primary blue) */
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn,
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn.orgCreateBtn {
+  background: #d00000 !important;
+  background-color: #d00000 !important;
+  border: 1px solid #d00000 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 var(--btn-3d-shadow-danger, #606266) !important;
+}
+
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn:hover:not(:disabled),
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn.orgCreateBtn:hover:not(:disabled) {
+  background: #b80000 !important;
+  background-color: #b80000 !important;
+  border-color: #b80000 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn:active:not(:disabled),
+html[data-theme="dark"] .logout_confirm_modal_content .logout_confirm_btn.orgCreateBtn:active:not(:disabled) {
+  background: #b80000 !important;
+  background-color: #b80000 !important;
+  border-color: #b80000 !important;
+  color: #fff !important;
+}
 

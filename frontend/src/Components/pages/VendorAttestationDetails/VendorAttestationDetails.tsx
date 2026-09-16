@@ -7,22 +7,23 @@ import {
   SquarePen,
   CircleX,
   Shield,
-  AlertTriangle,
   Check,
-  CircleCheck,
   CheckCircle2,
-  FileText,
-  Calendar,
   Search,
   Archive,
   RotateCcw,
   Ban,
   Loader2,
+  User,
+  Calendar,
+  Globe,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import Button from "../../UI/Button";
 import LoadingMessage from "../../UI/LoadingMessage";
 import Modal from "../../UI/Modal";
-import ClickTooltip from "../../UI/ClickTooltip";
+import DashboardFeatureCard from "../../UI/DashboardFeatureCard";
 import StepVendorSelfAttestationPrev, {
   type ComplianceDocumentExpiryMeta,
 } from "../VendorAttestations/StepVendorSelfAttestationPrev";
@@ -31,18 +32,19 @@ import { ReportsPagination } from "../Reports/ReportsPagination";
 import type {
   VendorSelfAttestationPayload,
   VendorSelfAttestationFormState,
-} from "../../types/vendorSelfAttestation";
+} from "../../../types/vendorSelfAttestation";
 import {
   buildFormStateFromApi,
   defaultDocumentUpload,
   mapApiCompanyProfile,
 } from "../../../utils/vendorAttestationState";
-import type { DocumentUploadState } from "../../types/vendorSelfAttestation";
-import type { AttestationCompanyProfile } from "../../types/vendorSelfAttestation";
+import type { DocumentUploadState } from "../../../types/vendorSelfAttestation";
+import type { AttestationCompanyProfile } from "../../../types/vendorSelfAttestation";
 import "../UserManagement/user_management.css";
 import "../VendorDirectory/VendorDirectory.css";
 import "../Reports/general_reports.css";
 import "../Assessments/assessments.css";
+import "../Dashboard/dashboard.css";
 import "../../../styles/page_tabs.css";
 import "./vendor_attestation_details.css";
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js";
@@ -446,11 +448,40 @@ const VendorAttestationDetails = () => {
               ? (rawExp as Record<string, ComplianceDocumentExpiryMeta>)
               : null,
           );
+          const orgNameFallback =
+            (sessionStorage.getItem("organizationName") ?? "").trim() || null;
+          let companyProfile = result.companyProfile;
+          if (
+            !(String(companyProfile?.vendorName ?? companyProfile?.vendor_name ?? "").trim()) &&
+            token
+          ) {
+            try {
+              const onboardingRes = await fetch(`${BASE_URL}/vendorOnboarding`, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              const onboardingJson = await onboardingRes.json();
+              const onboardingName = String(
+                onboardingJson?.data?.vendorName ?? onboardingJson?.data?.vendor_name ?? "",
+              ).trim();
+              if (onboardingRes.ok && onboardingJson?.success && onboardingName) {
+                companyProfile = { ...(companyProfile ?? {}), vendorName: onboardingName };
+              }
+            } catch {
+              // keep companyProfile from attestation response
+            }
+          }
           setPreviewFormState(
-            buildFormStateFromApi({
-              companyProfile: result.companyProfile,
-              attestation: result.attestation,
-            }),
+            buildFormStateFromApi(
+              {
+                companyProfile,
+                attestation: result.attestation,
+              },
+              orgNameFallback,
+            ),
           );
         }
       } finally {
@@ -592,6 +623,15 @@ const VendorAttestationDetails = () => {
     !isAttestationTimeExpired(item) &&
     item.status === "Completed";
 
+  if (loading) {
+    return (
+      <LoadingMessage
+        message="Loading attestations…"
+        className="loading_message_wrapper--page"
+      />
+    );
+  }
+
   return (
     <div className="sec_user_page attestation_page org_settings_page">
       <div className="heading_user_page page_header_align">
@@ -626,6 +666,11 @@ const VendorAttestationDetails = () => {
 
       {/* Card 1: Trust Profile Attestation – shield, title, "Your self-attestation covers:", 4-column grid */}
       <div className="attestation_section attestation_trust_profile">
+        <div className="attestation_trust_profile_bg" aria-hidden>
+          <span className="attestation_trust_pill attestation_trust_pill--1" />
+          <span className="attestation_trust_pill attestation_trust_pill--2" />
+          <span className="attestation_trust_pill attestation_trust_pill--3" />
+        </div>
         <div className="attestation_section_header">
           <span>
             <Shield
@@ -645,48 +690,80 @@ const VendorAttestationDetails = () => {
         <p className="attestation_covers_heading">
           Your self-attestation covers:
         </p>
-        <div className="attestation_covers_grid">
-          <ul className="attestation_covers_list">
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Product
-              profile and capabilities
-            </li>
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> AI safety
-              and testing practices
-            </li>
-          </ul>
-          <ul className="attestation_covers_list">
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Compliance
-              certifications
-            </li>
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Data
-              handling policies
-            </li>
-          </ul>
-          <ul className="attestation_covers_list">
-            <li>
-              <CircleCheck size={16} className="attestation_check" />{" "}
-              Operational reliability
-            </li>
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Deployment
-              options
-            </li>
-          </ul>
-          <ul className="attestation_covers_list">
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Risk
-              mitigations
-            </li>
-            <li>
-              <CircleCheck size={16} className="attestation_check" /> Evidence
-              documentation
-            </li>
-          </ul>
-        </div>
+        <ul className="premium_check_grid attestation_covers_grid" aria-label="Self-attestation coverage">
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Product</strong>
+              <span className="premium_check_rest"> profile and capabilities</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">AI safety</strong>
+              <span className="premium_check_rest"> and testing practices</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Compliance</strong>
+              <span className="premium_check_rest"> certifications</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Data</strong>
+              <span className="premium_check_rest"> handling policies</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Operational</strong>
+              <span className="premium_check_rest"> reliability</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Deployment</strong>
+              <span className="premium_check_rest"> options</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Risk</strong>
+              <span className="premium_check_rest"> mitigations</span>
+            </span>
+          </li>
+          <li className="premium_check_item">
+            <span className="premium_check_icon" aria-hidden>
+              <Check size={12} strokeWidth={2.75} />
+            </span>
+            <span className="premium_check_text">
+              <strong className="premium_check_lead">Evidence</strong>
+              <span className="premium_check_rest"> documentation</span>
+            </span>
+          </li>
+        </ul>
       </div>
    <div className="assessment_list_header_stack">
           <p className="your_assessments_title">YOUR ATTESTATIONS</p>
@@ -740,9 +817,8 @@ const VendorAttestationDetails = () => {
       <div className="ai_assessments_section">
      
 
-        {loading && <LoadingMessage message="Loading attestations…" />}
         {error && <div className="vendor_attestation_error">{error}</div>}
-        {!loading && !error && (
+        {!error && (
           <div className="attestation_list_rows assessment_list_rows">
             {filteredAttestations.length === 0 ? (
               <p className="assessment_search_no_results">
@@ -769,21 +845,33 @@ const VendorAttestationDetails = () => {
                         item.status === "Completed";
                       const cardInArchived = isInAttestationArchivedList(item);
                       const statusDisplay = isUserOnlyArchived
-                        ? "ARCHIVED"
+                        ? "Archived"
                         : item.status === "Completed"
-                          ? "COMPLETED"
+                          ? "Completed"
                           : item.status === "Expired"
-                            ? "EXPIRED"
-                            : item.status;
-                      const statusHeaderClass = isUserOnlyArchived
-                        ? "assessment_card_status_user_archived"
-                        : item.status === "Completed"
-                          ? "assessment_card_status_completed"
-                          : item.status === "Expired"
-                            ? "assessment_card_status_expired"
+                            ? "Expired"
                             : item.status === "Rejected"
-                              ? "assessment_card_status_rejected"
-                              : "assessment_card_status_draft";
+                              ? "Rejected"
+                              : item.status === "Draft"
+                                ? "Draft"
+                                : item.status;
+                      const isArchivedStatus = isUserOnlyArchived;
+                      const statusPillClass = isArchivedStatus
+                        ? ""
+                        : item.status === "Completed"
+                          ? "pill_status_active"
+                          : item.status === "Expired" ||
+                              item.status === "Rejected"
+                            ? "pill_status_inactive"
+                            : item.status === "Draft"
+                              ? "pill_status_invited"
+                              : "pill_status_pending";
+                      const showStatusDot =
+                        !isArchivedStatus &&
+                        (item.status === "Completed" ||
+                          item.status === "Expired" ||
+                          item.status === "Rejected" ||
+                          item.status === "Draft");
                       const showExpiryInHeader =
                         item.status === "Completed" ||
                         item.status === "Expired" ||
@@ -791,44 +879,70 @@ const VendorAttestationDetails = () => {
                       return (
                         <article
                           key={item.id}
-                          className={`vendor_directory_card general_rpr_card${cardInArchived ? " general_rpr_card_archived" : ""}`}
+                          className={`vendor_directory_card general_rpr_card attestation_soft_card${
+                            isArchivedStatus
+                              ? " attestation_soft_card--archived"
+                              : item.status === "Completed"
+                                ? " attestation_soft_card--completed"
+                                : item.status === "Draft"
+                                  ? " attestation_soft_card--draft"
+                                  : item.status === "Expired"
+                                    ? " attestation_soft_card--expired"
+                                    : item.status === "Rejected"
+                                      ? " attestation_soft_card--rejected"
+                                      : ""
+                          }${cardInArchived ? " general_rpr_card_archived" : ""}`}
                           data-accent="sales"
                         >
-                          <div className="general_report_card_header">
-                            <div className="assessment_card_header_left">
-                              <p
-                                className={`vendor_directory_card_products general_rpr_card_report_type ${statusHeaderClass}`}
-                              >
+                          {/* Hero — product name + assessment-style action icons */}
+                          <div className="attestation_soft_card__hero">
+                            <div className="attestation_soft_card__hero_top">
+                              {isArchivedStatus ? (
+                                <span className="assessments_vd_badge assessments_vd_badge--archived">
+                                  {statusDisplay}
+                                </span>
+                              ) : (
                                 <span
-                                  className="general_rpr_card_report_type_icon"
-                                  aria-hidden
+                                  className={`pill pill_status ${statusPillClass}${
+                                    showStatusDot ? " pill_status_with_dot" : ""
+                                  }`}
                                 >
-                                  <FileText size={16} />
+                                  {showStatusDot ? (
+                                    <span
+                                      className="pill_status_dot"
+                                      aria-hidden
+                                    />
+                                  ) : null}
+                                  {statusDisplay}
                                 </span>
-                                <span>
-                                  <span>{statusDisplay}</span>
-                                  {showExpiryInHeader && item.expiryDate && (
-                                    <span className="assessment_card_header_expiry">
-                                      Expires on:{" "}
-                                      {formatDateDDMMMYYYY(item.expiryDate)}
-                                    </span>
-                                  )}
-                                </span>
-                              </p>
-                            </div>
-                            <span className="general_rpr_card_download_wrap">
-                              {isDraft ? (
-                                canEditAttestation(item) ? (
-                                  <Link
-                                    to={`/vendorSelfAttestation?edit=${encodeURIComponent(item.recordId ?? "")}`}
-                                    state={{ editId: item.recordId }}
-                                    className="general_rpr_card_download_btn assessment_card_header_action_btn"
-                                    title="Edit"
-                                    aria-label={`Edit attestation: ${item.title}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <SquarePen size={14} aria-hidden />
-                                  </Link>
+                              )}
+                              <span className="general_rpr_card_download_wrap attestation_soft_card__icon_actions">
+                                {isDraft ? (
+                                  canEditAttestation(item) ? (
+                                    <Link
+                                      to={`/vendorSelfAttestation?edit=${encodeURIComponent(item.recordId ?? "")}`}
+                                      state={{ editId: item.recordId }}
+                                      className="general_rpr_card_download_btn assessment_card_header_action_btn"
+                                      title="Edit"
+                                      aria-label={`Edit attestation: ${item.title}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <SquarePen size={14} aria-hidden />
+                                    </Link>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="general_rpr_card_download_btn assessment_card_header_action_btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewPreview(item.recordId);
+                                      }}
+                                      aria-label={`View attestation: ${item.title}`}
+                                      title="View"
+                                    >
+                                      <Eye size={14} aria-hidden />
+                                    </button>
+                                  )
                                 ) : (
                                   <button
                                     type="button"
@@ -842,125 +956,100 @@ const VendorAttestationDetails = () => {
                                   >
                                     <Eye size={14} aria-hidden />
                                   </button>
-                                )
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="general_rpr_card_download_btn assessment_card_header_action_btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewPreview(item.recordId);
-                                  }}
-                                  aria-label={`View attestation: ${item.title}`}
-                                  title="View"
-                                >
-                                  <Eye size={14} aria-hidden />
-                                </button>
-                              )}
-                              {item.status === "Rejected" && canEditAttestation(item) && (
-                                <Link
-                                  to="/vendorSelfAttestation"
-                                  state={{ editId: item.recordId }}
-                                  className="general_rpr_card_download_btn assessment_card_header_action_btn"
-                                  title="Edit"
-                                  aria-label={`Edit attestation: ${item.title}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{ marginLeft: "0.25rem" }}
-                                >
-                                  <SquarePen size={14} aria-hidden />
-                                </Link>
-                              )}
-                              {attestationTab === "current" &&
-                                canUserArchiveAttestation(item) &&
-                                item.recordId && (
-                                  <button
-                                    type="button"
-                                    className="general_rpr_card_download_btn assessment_card_header_action_btn"
-                                    title="Archive"
-                                    aria-label={`Archive attestation: ${item.title}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openUserAttestationArchiveModal(
-                                        String(item.recordId),
-                                        "archive",
-                                      );
-                                    }}
-                                    style={{ marginLeft: "0.25rem" }}
-                                  >
-                                    <Archive size={14} aria-hidden />
-                                  </button>
                                 )}
-                              {attestationTab === "archived" &&
-                                canUserReactivateAttestation(item) &&
-                                item.recordId && (
-                                  <button
-                                    type="button"
-                                    className="general_rpr_card_download_btn assessment_card_header_action_btn"
-                                    title="Reactive: return to Current"
-                                    aria-label={`Reactive attestation: ${item.title}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openUserAttestationArchiveModal(
-                                        String(item.recordId),
-                                        "reactive",
-                                      );
-                                    }}
-                                    style={{ marginLeft: "0.25rem" }}
-                                  >
-                                    <RotateCcw size={14} aria-hidden />
-                                  </button>
-                                )}
-                            </span>
-                          </div>
-                          <div className="general_rpr_title">
-                            <div className="vendor_directory_card_header_text">
-                              <ClickTooltip
-                                content={item.title}
-                                position="top"
-                                showOn="hover"
-                              >
-                                <span className="general_rpr_card_title_wrap">
-                                  <h2 className="vendor_directory_card_name general_rpr_card_title_clamp">
-                                    {item.title}
-                                  </h2>
-                                </span>
-                              </ClickTooltip>
+                                {item.status === "Rejected" &&
+                                  canEditAttestation(item) && (
+                                    <Link
+                                      to="/vendorSelfAttestation"
+                                      state={{ editId: item.recordId }}
+                                      className="general_rpr_card_download_btn assessment_card_header_action_btn"
+                                      title="Edit"
+                                      aria-label={`Edit attestation: ${item.title}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <SquarePen size={14} aria-hidden />
+                                    </Link>
+                                  )}
+                                {attestationTab === "current" &&
+                                  canUserArchiveAttestation(item) &&
+                                  item.recordId && (
+                                    <button
+                                      type="button"
+                                      className="general_rpr_card_download_btn assessment_card_header_action_btn"
+                                      title="Archive"
+                                      aria-label={`Archive attestation: ${item.title}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openUserAttestationArchiveModal(
+                                          String(item.recordId),
+                                          "archive",
+                                        );
+                                      }}
+                                    >
+                                      <Archive size={14} aria-hidden />
+                                    </button>
+                                  )}
+                                {attestationTab === "archived" &&
+                                  canUserReactivateAttestation(item) &&
+                                  item.recordId && (
+                                    <button
+                                      type="button"
+                                      className="general_rpr_card_download_btn assessment_card_header_action_btn"
+                                      title="Reactive: return to Current"
+                                      aria-label={`Reactive attestation: ${item.title}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openUserAttestationArchiveModal(
+                                          String(item.recordId),
+                                          "reactive",
+                                        );
+                                      }}
+                                    >
+                                      <RotateCcw size={14} aria-hidden />
+                                    </button>
+                                  )}
+                              </span>
                             </div>
+                            <h2 className="attestation_soft_card__title general_rpr_card_title_clamp">
+                              {item.title}
+                            </h2>
+                            {showExpiryInHeader && item.expiryDate ? (
+                              <p className="attestation_soft_card__expiry">
+                                Expires on{" "}
+                                {formatDateDDMMMYYYY(item.expiryDate)}
+                              </p>
+                            ) : null}
                           </div>
-                          <div className="general_rpr_card_footer">
-                            <div className="general_rpr_card_dates">
-                              <div className="general_rpr_card_date_row">
-                                <span className="general_rpr_card_date_label_expiry">
-                                  {isDraft ? "Updated by:" : "Completed by:"}
-                                </span>
-                                <span className="general_rpr_card_date_value_expiry">
-                                  {item.completedBy?.trim() || "—"}
-                                </span>
-                              </div>
-                              {!isDraft && (
-                                <div className="general_rpr_card_date_row">
-                                  <span className="general_rpr_card_date_label_expiry">
-                                    Created on:
-                                  </span>
-                                  <span className="general_rpr_card_date_value_expiry">
-                                    {item.submittedDate
-                                      ? formatDateDDMMMYYYY(item.submittedDate)
-                                      : "—"}
-                                  </span>
-                                </div>
-                              )}
-                              {isDraft ? (
-                                <div className="general_rpr_card_date_row">
-                                  <span className="general_rpr_card_date_label_expiry">
-                                    Drafted on:
-                                  </span>
-                                  <span className="general_rpr_card_date_value_expiry">
-                                    {item.submittedDate
-                                      ? formatDateDDMMMYYYY(item.submittedDate)
-                                      : "—"}
-                                  </span>
-                                </div>
-                              ) : null}
+
+                          {/* Meta — completed / created */}
+                          <div className="attestation_soft_card__meta">
+                            <div className="attestation_soft_card__meta_item">
+                              <span className="attestation_soft_card__meta_label">
+                                <User
+                                  size={14}
+                                  className="attestation_card_meta_icon"
+                                  aria-hidden
+                                />
+                                {isDraft ? "Updated by" : "Completed by"}
+                              </span>
+                              <span className="attestation_soft_card__meta_value">
+                                {item.completedBy?.trim() || "—"}
+                              </span>
+                            </div>
+                            <div className="attestation_soft_card__meta_item">
+                              <span className="attestation_soft_card__meta_label">
+                                <Calendar
+                                  size={14}
+                                  className="attestation_card_meta_icon"
+                                  aria-hidden
+                                />
+                                {isDraft ? "Drafted on" : "Created on"}
+                              </span>
+                              <span className="attestation_soft_card__meta_value">
+                                {item.submittedDate
+                                  ? formatDateDDMMMYYYY(item.submittedDate)
+                                  : "—"}
+                              </span>
                             </div>
                           </div>
                         </article>
@@ -992,45 +1081,44 @@ const VendorAttestationDetails = () => {
           </div>
         )}
       </div>
-      {/* Directory Listing Requirements - at the top */}
-      <div className="attestation_section attestation_directory_requirements">
-        <div className="attestation_section_header">
-          <AlertTriangle
-            className="attestation_section_icon attestation_section_icon_warning"
-            size={24}
+      {/* Directory Listing Requirements */}
+      <section
+        className="attestation_directory_requirements"
+        aria-labelledby="directory-listing-requirements-heading"
+      >
+        <h2
+          id="directory-listing-requirements-heading"
+          className="attestation_section_title"
+        >
+          Directory Listing Requirements
+        </h2>
+        <div
+          className="dash_feature_grid dash_feature_grid--pa_hero"
+          aria-label="Directory listing requirements"
+        >
+          <DashboardFeatureCard
+            variant="pa"
+            accent="sky"
+            title="Public Directory"
+            description="Complete your attestation and achieve a passing trust score to appear in the vendor directory visible to buyers."
+            icon={<Globe size={14} strokeWidth={2.25} />}
           />
-          <h2 className="attestation_section_title">
-            Directory Listing Requirements
-          </h2>
+          <DashboardFeatureCard
+            variant="pa"
+            accent="amber"
+            title="Keep It Updated"
+            description="You can edit your attestation at any time to reflect changes in your product, certifications, or practices."
+            icon={<RefreshCw size={14} strokeWidth={2.25} />}
+          />
+          <DashboardFeatureCard
+            variant="pa"
+            accent="violet"
+            title="Continuous Trust"
+            description="Regular updates to your attestation help maintain your trust score and directory standing."
+            icon={<ShieldCheck size={14} strokeWidth={2.25} />}
+          />
         </div>
-        <div className="attestation_requirements_grid">
-          <div className="attestation_requirement_item">
-            <h3 className="attestation_requirement_heading">
-              Public Directory
-            </h3>
-            <p>
-              Complete your attestation and achieve a passing trust score to
-              appear in the vendor directory visible to buyers.
-            </p>
-          </div>
-          <div className="attestation_requirement_item">
-            <h3 className="attestation_requirement_heading">Keep It Updated</h3>
-            <p>
-              You can edit your attestation at any time to reflect changes in
-              your product, certifications, or practices.
-            </p>
-          </div>
-          <div className="attestation_requirement_item">
-            <h3 className="attestation_requirement_heading">
-              Continuous Trust
-            </h3>
-            <p>
-              Regular updates to your attestation help maintain your trust score
-              and directory standing.
-            </p>
-          </div>
-        </div>
-      </div>
+      </section>
 
       <Modal
         isOpen={userArchiveModal.attestationId != null}
@@ -1086,7 +1174,7 @@ const VendorAttestationDetails = () => {
                   placeholder="Please provide a reason for this change…"
                   rows={3}
                   disabled={userArchiveSubmitting}
-                  style={{ resize: "none", minHeight: "4em" }}
+                  style={{ resize: "none", minHeight: "4rem" }}
                 />
               </div>
             </div>
@@ -1158,6 +1246,9 @@ const VendorAttestationDetails = () => {
                   attestationId={previewAttestationId}
                   onOpenDocument={handleOpenDocument}
                   complianceDocumentExpiries={previewComplianceExpiries}
+                  vendorNameFallback={
+                    (sessionStorage.getItem("organizationName") ?? "").trim() || null
+                  }
                 />
               )}
             </div>

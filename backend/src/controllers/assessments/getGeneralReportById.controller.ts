@@ -6,6 +6,7 @@ import { generalReports } from "../../schema/assessments/generalReports.js";
 import { assessments } from "../../schema/assessments/assessments.js";
 import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssessments.js";
 import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
+import { ensureGeneralReportsLlmColumns } from "../../utils/ensureGeneralReportsLlmColumns.js";
 
 /**
  * GET /generalReports/:id
@@ -14,6 +15,8 @@ import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttes
  */
 const getGeneralReportById = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureGeneralReportsLlmColumns();
+
     const payload = req.user as { id?: number } | undefined;
     const userId = payload?.id;
     if (userId == null) {
@@ -59,6 +62,7 @@ const getGeneralReportById = async (req: Request, res: Response): Promise<void> 
         assessment_label: generalReports.assessment_label,
         report_type: generalReports.report_type,
         content: generalReports.content,
+        llm_model_id: generalReports.llm_model_id,
         created_at: generalReports.created_at,
         created_by: generalReports.created_by,
         expiryAt: assessments.expiry_at,
@@ -114,6 +118,10 @@ const getGeneralReportById = async (req: Request, res: Response): Promise<void> 
         generatedAt,
         briefContent,
         createdBy: row.created_by,
+        llmModelId:
+          typeof row.llm_model_id === "string" && row.llm_model_id.trim()
+            ? row.llm_model_id.trim()
+            : null,
         expiryAt,
         attestationExpiryAt,
         assessmentUserArchivedAt,

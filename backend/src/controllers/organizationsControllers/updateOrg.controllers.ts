@@ -26,16 +26,27 @@ const updateOrganization = async (req: Request, res: Response) => {
   const organizationStatus = typeof data.isStatus === "string" ? data.isStatus.trim().toLowerCase() : "";
   const reason = typeof data.isReason === "string" ? data.isReason.trim() : "";
 
+  if (orgId === 1 && organizationStatus === "archived") {
+    return res.status(403).json({
+      success: false,
+      message: "The platform organization cannot be archived.",
+    });
+  }
+
   if (!organizationName) {
     return res.status(400).json({
       success: false,
       message: "Organization name is required",
     });
   }
-  if (organizationStatus !== "active" && organizationStatus !== "inactive") {
+  if (
+    organizationStatus !== "active" &&
+    organizationStatus !== "inactive" &&
+    organizationStatus !== "archived"
+  ) {
     return res.status(400).json({
       success: false,
-      message: "Status must be active or inactive",
+      message: "Status must be active, inactive, or archived",
     });
   }
 
@@ -54,14 +65,14 @@ const updateOrganization = async (req: Request, res: Response) => {
       .update(createOrganization)
       .set({
         organizationName,
-        organizationStatus: organizationStatus as "active" | "inactive",
+        organizationStatus: organizationStatus as "active" | "inactive" | "archived",
       })
       .where(eq(createOrganization.id, orgId));
 
     await db.insert(organizationEditLogs).values({
       organizationId: String(orgId),
       organizationName,
-      organizationStatus: organizationStatus as "active" | "inactive",
+      organizationStatus: organizationStatus as "active" | "inactive" | "archived",
       updated_by: updatedBy,
       reason: reason || "—",
     });

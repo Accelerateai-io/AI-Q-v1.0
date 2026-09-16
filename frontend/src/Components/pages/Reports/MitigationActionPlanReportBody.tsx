@@ -1,6 +1,7 @@
 import { ArrowUpDown, CalendarClock, Download, ListChecks, Search, Table2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { ensureSpaceAfterColon } from "../../../utils/summarizeRiskPoints";
 import "../Assessments/assessments.css";
 import "../Assessments/BuyerAssessment/buyer_vendor_risk_report.css";
 
@@ -310,7 +311,7 @@ export default function MitigationActionPlanReportBody({ data }: { data: Mitigat
         </h3>
         <ul className="ira_gap_list">
           {reassessmentTriggers.length > 0 ? (
-            reassessmentTriggers.map((t, i) => <li key={i}>{t}</li>)
+            reassessmentTriggers.map((t, i) => <li key={i}>{ensureSpaceAfterColon(t)}</li>)
           ) : (
             <li className="ira_gap_empty">None listed</li>
           )}
@@ -346,7 +347,7 @@ export default function MitigationActionPlanReportBody({ data }: { data: Mitigat
               {(csvExport.fieldDefinitions.length > 0 ? csvExport.fieldDefinitions : []).map((fd, i) => (
                 <tr key={`${fd.fieldName}-${i}`}>
                   <td>
-                    <code style={{ fontSize: "0.9em" }}>{fd.fieldName}</code>
+                    <code style={{ fontSize: "0.9rem" }}>{fd.fieldName}</code>
                   </td>
                   <td>{fd.description}</td>
                 </tr>

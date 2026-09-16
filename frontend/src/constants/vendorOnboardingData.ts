@@ -210,6 +210,80 @@ export const OPERATING_REGIONS = [
 /** Mutually exclusive with other entries in `OPERATING_REGIONS` (see ChipMultiSelect `globalExclusiveValue`). */
 export const VENDOR_OPERATING_REGIONS_GLOBAL_VALUE = "Global (All regions)";
 
+export const FUNDING_STATUS_OPTIONS = [
+  { label: "Publicly traded", value: "publicly_traded" },
+  { label: "Series D+", value: "series_d_plus" },
+  { label: "Series B/C", value: "series_b_c" },
+  { label: "Series A", value: "series_a" },
+  { label: "Seed / Angel", value: "seed_angel" },
+  { label: "Bootstrapped", value: "bootstrapped" },
+];
+
+export const FINANCIAL_POSITION_OPTIONS = [
+  { label: "Profitable for 3+ years", value: "profitable_3_years" },
+  { label: "Profitable for 1+ year", value: "profitable_1_year" },
+  { label: "Break even", value: "break_even" },
+  { label: "Funded with 2+ years runway", value: "funded_runway_2_years" },
+  { label: "Funded with 1+ year runway", value: "funded_runway_1_year" },
+  { label: "Uncertain", value: "uncertain" },
+];
+
+export const YES_NO_OPTIONS = [
+  { label: "Yes", value: "yes" },
+  { label: "No", value: "no" },
+];
+
+export const SECURITY_INCIDENT_SEVERITY_OPTIONS = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Critical", value: "critical" },
+];
+
+const FUNDING_STATUS_LABELS = Object.fromEntries(
+  FUNDING_STATUS_OPTIONS.map((option) => [option.value, option.label]),
+);
+
+const FINANCIAL_POSITION_LABELS = Object.fromEntries(
+  FINANCIAL_POSITION_OPTIONS.map((option) => [option.value, option.label]),
+);
+
+const SECURITY_INCIDENT_SEVERITY_LABELS = Object.fromEntries(
+  SECURITY_INCIDENT_SEVERITY_OPTIONS.map((option) => [option.value, option.label]),
+);
+
+export function formatFundingStatus(value?: string | null): string {
+  if (!value) return "—";
+  return FUNDING_STATUS_LABELS[value] ?? value;
+}
+
+export function formatFinancialPosition(value?: string | null): string {
+  if (!value) return "—";
+  return FINANCIAL_POSITION_LABELS[value] ?? value;
+}
+
+export function formatSecurityIncidents(
+  incidents?: Array<{
+    date?: string;
+    summary?: string;
+    sourceUrl?: string;
+    source_url?: string;
+    severity?: string;
+    resolved?: boolean;
+  }> | null,
+): string | string[] {
+  if (!incidents?.length) return "None disclosed";
+  return incidents.map((incident, index) => {
+    const date = incident.date || "Date not provided";
+    const severity = incident.severity
+      ? SECURITY_INCIDENT_SEVERITY_LABELS[incident.severity] ?? incident.severity
+      : "Severity not provided";
+    const resolved = incident.resolved ? "Resolved" : "Open";
+    const summary = incident.summary || "No summary";
+    return `${index + 1}. ${date} — ${severity} — ${resolved}: ${summary}`;
+  });
+}
+
 // HELPER TEXT FOR VENDOR ONBOARDING
 export const VENDOR_HELPTEXT = {
   vendorName:
@@ -238,6 +312,20 @@ export const VENDOR_HELPTEXT = {
     "Select the country where your company's headquarters is located",
   operatingRegions:
     "Select all geographic regions where your company actively operates or serves customers",
+  fundingStatus:
+    "Select the option that best matches your current funding status",
+  financialPosition:
+    "Select the option that best describes your current financial position",
+  enterpriseCustomers:
+    "Enter the number of enterprise customers you currently serve",
+  customerRetentionRate:
+    "Annual customer / logo retention rate as a percentage (0–100)",
+  trustCentreUrl:
+    "If you publish a public trust centre, enter the URL (e.g., https://trust.yourcompany.com)",
+  hasPublicSecurityIncident:
+    "Disclose whether you have had a publicly reported security incident in the last 24 months",
+  securityIncidents:
+    "Add each publicly disclosed incident with the date, a short summary, source URL, severity, and whether it is resolved",
 };
 
 
@@ -356,6 +444,45 @@ export const VENDOR_PREVIEW_SECTIONS: PreviewSection<VendorFormData>[] = [
         value: (d) => d.headquartersLocation,
       },
       { label: "Operating Regions", value: (d) => d.operatingRegions },
+    ],
+  },
+
+  {
+    title: "General Business",
+    fields: [
+      { label: "Funding Status", value: (d) => formatFundingStatus(d.fundingStatus) },
+      {
+        label: "Financial Position",
+        value: (d) => formatFinancialPosition(d.financialPosition),
+      },
+      {
+        label: "Enterprise Customers",
+        value: (d) =>
+          d.enterpriseCustomers != null && String(d.enterpriseCustomers).trim() !== ""
+            ? d.enterpriseCustomers
+            : "—",
+      },
+      {
+        label: "Annual Customer Retention Rate",
+        value: (d) =>
+          d.customerRetentionRate != null && String(d.customerRetentionRate).trim() !== ""
+            ? `${d.customerRetentionRate}%`
+            : "—",
+      },
+    ],
+  },
+
+  {
+    title: "Verification of Claims",
+    fields: [
+      { label: "Trust Centre URL", value: (d) => d.trustCentreUrl },
+      {
+        label: "Public Security Incidents (24 months)",
+        value: (d) => {
+          if (d.hasPublicSecurityIncident === "no") return "No";
+          return formatSecurityIncidents(d.securityIncidents);
+        },
+      },
     ],
   },
 ];

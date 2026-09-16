@@ -4,48 +4,7 @@ import { usersTable } from "../../schema/schema.js";
 import { assessments } from "../../schema/assessments/assessments.js";
 import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssessments.js";
 import { eq, and } from "drizzle-orm";
-
-/** Map API (camelCase) to DB columns for vendor COTS. */
-function buildPayloadVendorCots(body: Record<string, unknown>) {
-  const get = (k: string) => body[k] ?? body[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())];
-  const parseJson = (v: unknown) => {
-    if (v == null) return null;
-    if (typeof v === "string" && v.trim()) {
-      try {
-        const p = JSON.parse(v);
-        return Array.isArray(p) ? p : p;
-      } catch {
-        return v;
-      }
-    }
-    return v;
-  };
-  return {
-    vendor_attestation_id: get("selectedProductId") != null && String(get("selectedProductId")).trim() !== "" ? String(get("selectedProductId")).trim() : null,
-    customer_organization_name: get("customerOrganizationName") != null ? String(get("customerOrganizationName")).slice(0, 200) : null,
-    customer_sector: get("customerSector") != null ? String(get("customerSector")).slice(0, 200) : null,
-    primary_pain_point: get("primaryPainPoint") != null ? String(get("primaryPainPoint")) : null,
-    expected_outcomes: get("expectedOutcomes") != null ? String(get("expectedOutcomes")).slice(0, 300) : null,
-    customer_budget_range: get("customerBudgetRange") != null ? String(get("customerBudgetRange")).slice(0, 100) : null,
-    implementation_timeline: get("implementationTimeline") != null ? String(get("implementationTimeline")).slice(0, 100) : null,
-    product_features: parseJson(get("productFeatures") ?? get("product_features")),
-    implementation_approach: get("implementationApproach") != null ? String(get("implementationApproach")).slice(0, 100) : null,
-    customization_level: get("customizationLevel") != null ? String(get("customizationLevel")).slice(0, 100) : null,
-    integration_complexity: get("integrationComplexity") != null ? String(get("integrationComplexity")).slice(0, 100) : null,
-    regulatory_requirements: parseJson(get("regulatoryRequirements") ?? get("regulatory_requirements")),
-    regulatory_requirements_other: get("regulatoryRequirementsOther") != null ? String(get("regulatoryRequirementsOther")).slice(0, 300) : null,
-    data_sensitivity: get("dataSensitivity") != null ? String(get("dataSensitivity")).slice(0, 100) : null,
-    customer_risk_tolerance: get("customerRiskTolerance") != null ? String(get("customerRiskTolerance")).slice(0, 100) : null,
-    alternatives_considered: get("alternativesConsidered") != null ? String(get("alternativesConsidered")) : null,
-    key_advantages: get("keyAdvantages") != null ? String(get("keyAdvantages")) : null,
-    customer_specific_risks: parseJson(get("customerSpecificRisks") ?? get("customer_specific_risks")),
-    customer_specific_risks_other: get("customerSpecificRisksOther") != null ? String(get("customerSpecificRisksOther")).slice(0, 300) : null,
-    identified_risks: get("identifiedRisks") != null ? String(get("identifiedRisks")) : null,
-    risk_domain_scores: get("riskDomainScores") != null ? String(get("riskDomainScores")) : null,
-    contextual_multipliers: get("contextualMultipliers") != null ? String(get("contextualMultipliers")) : null,
-    risk_mitigation: get("riskMitigation") != null ? String(get("riskMitigation")) : null,
-  };
-}
+import { buildVendorCotsPayload } from "../../utils/buildVendorCotsPayload.js";
 
 /** POST /vendorCotsAssessment/save-draft - create or update draft. Status always "draft".
  *  Organization ID is always taken from the authenticated user (DB). */
@@ -70,7 +29,7 @@ const saveVendorCotsDraft = async (req: Request, res: Response) => {
       assessmentIdRaw != null && assessmentIdRaw !== ""
         ? String(assessmentIdRaw).trim() || null
         : null;
-    const payloadCots = buildPayloadVendorCots(body);
+    const payloadCots = buildVendorCotsPayload(body as Record<string, unknown>);
 
     if (assessmentId) {
       const [existing] = await db

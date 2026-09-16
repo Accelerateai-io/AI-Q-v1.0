@@ -1,4 +1,4 @@
-import { Building2, User, BarChart3, Globe, FileCheck } from "lucide-react"
+import { Building2, User, BarChart3, Globe, Briefcase, FileCheck } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 /**
@@ -16,5 +16,6 @@ export const VENDOR_ONBOARDING_TAB_STEPS: VendorOnboardingStepConfig[] = [
   { id: "contact-information", label: "Contact Information", icon: User },
   { id: "company-scale", label: "Company Scale", icon: BarChart3 },
   { id: "geography", label: "Geography", icon: Globe },
+  { id: "business-claims", label: "Business & Claims", icon: Briefcase },
   { id: "review", label: "Review", icon: FileCheck },
 ]

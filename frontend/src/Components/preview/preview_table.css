@@ -11,7 +11,7 @@
 
 .preview-title {
   margin: 10px 0 10px 10px;
-  font-size: 1em;
+  font-size: 1rem;
   font-weight: 600;
   border-radius: 5px;
 }
@@ -19,7 +19,7 @@
 .preview-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9em;
+  font-size: 0.9rem;
 }
 
 
@@ -54,7 +54,7 @@
   padding: 6px 8px;
   font-weight: 500;
   /* border: 1px solid #ddd; */
-  /* background: #fafafa; */
+  /* background: var(--surface-muted); */
   width: 30%;
   vertical-align: top;
 }

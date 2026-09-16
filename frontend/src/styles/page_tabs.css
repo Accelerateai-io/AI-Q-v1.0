@@ -4,38 +4,44 @@
  */
 .page_tabs {
   display: flex;
-  gap: 0;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 0.15rem;
+  margin-bottom: 1.35rem;
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
 }
 
 .page_tab {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.9375rem;
+  padding: 0.7rem 1.15rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   cursor: pointer;
   font-family: inherit;
-  border-radius: 5px 5px 0 0;
-  transition: color 0.15s, border-color 0.15s;
+  border-radius: 0;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 /* Don’t paint active tabs dark on hover (:hover beats .page_tab_active otherwise) */
 .page_tab:hover:not(.page_tab_active) {
-  color: #64748b;
+  color: var(--text-secondary, #475569);
 }
 
 .page_tab_active {
-  color: var(--main-auth-button-color, #2563eb);
-  border-bottom-color: var(--main-auth-button-color, #2563eb);
-  background: #fff;
-  box-shadow: 0 1px 0 0 #fff;
+  color: var(--nav-active, #225bff);
+  border-bottom-color: var(--nav-active, #225bff);
+  background: transparent;
+  box-shadow: none;
   border-radius: 0 !important;
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .page_tab_active {
+  color: var(--nav-active, #8aafff);
+  border-bottom-color: var(--nav-active, #8aafff);
 }

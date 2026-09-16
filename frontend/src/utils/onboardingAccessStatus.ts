@@ -1,8 +1,10 @@
 import { getApiBaseUrl } from "./apiBaseUrl"
 
-export type OnboardingAccessStatusResult =
-  | { ok: true; onboardingCompleted: boolean }
-  | { ok: false; reason: "unauthorized" | "not_found" | "network" | "unknown" }
+export type OnboardingAccessStatusResult = {
+  ok: boolean
+  onboardingCompleted?: boolean
+  reason?: "unauthorized" | "not_found" | "network" | "unknown"
+}
 
 /** Uses onboarding JWT (invite link) to check if user has already completed onboarding. */
 export async function fetchOnboardingAccessStatus(

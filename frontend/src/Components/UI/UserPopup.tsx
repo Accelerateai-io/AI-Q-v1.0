@@ -1,8 +1,8 @@
 import React from 'react'
 
 type UserPopupTypes = {
-    children ?: React.ReactNode;
-
+    children?: React.ReactNode;
+    className?: string;
 }
 const UserPopup = ({children, ...props} : UserPopupTypes) => {
   return (

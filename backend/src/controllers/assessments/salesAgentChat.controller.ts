@@ -4,6 +4,7 @@ import { db } from "../../database/db.js";
 import { usersTable } from "../../schema/schema.js";
 import { customerRiskAssessmentReports } from "../../schema/assessments/customerRiskAssessmentReports.js";
 import { answerSalesQuestion } from "../agents/salesEnablementAgent.js";
+import { sendIfTokenQuotaExceeded } from "../../services/admin/featureTokenQuota.service.js";
 
 /**
  * POST /salesEnablement/chat
@@ -79,6 +80,7 @@ const salesAgentChat = async (req: Request, res: Response): Promise<void> => {
       data: { answer },
     });
   } catch (error) {
+    if (sendIfTokenQuotaExceeded(res, error)) return;
     console.error("salesAgentChat controller error:", error);
     res.status(500).json({
       success: false,

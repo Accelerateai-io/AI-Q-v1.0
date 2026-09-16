@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import type { GeneratedProductProfileReport } from "../../../types/generatedProductProfile";
 import { sortReportSectionsForDisplay } from "../../../utils/productProfileSectionDisplayOrder";
+import {
+  AdminLlmModelLabel,
+  resolveStoredLlmModelId,
+} from "../../UI/AdminLlmModelInfo";
 import "./GeneratedProductProfileCards.css";
 
 const SECTION_ICONS: Record<number, React.ReactNode> = {
@@ -72,10 +76,10 @@ export interface SectionVisibilityControl {
   onToggle: (value: boolean) => void;
 }
 
-/** Remove trailing "---", "--", or " -" from summary text for display. */
+/** Remove markdown bold markers (**) and trailing dashes from summary text for display. */
 function summaryForDisplay(summary: string | null | undefined): string {
   if (!summary || typeof summary !== "string") return "";
-  return summary.replace(/\s*-+\s*$/, "").trim();
+  return summary.replace(/\*\*/g, "").replace(/\s*-+\s*$/, "").trim();
 }
 
 /** Section 4 (AI governance / ethics): show "Human Oversight" instead of "Human-in-the-Loop" style labels. */
@@ -95,6 +99,22 @@ function shouldOmitHumanOversightFromModelSection(sectionId: number, label: stri
 function shouldOmitLegacyOperationsRow(sectionId: number, label: string): boolean {
   if (sectionId !== 8) return false;
   return /^change\s*management$/i.test(String(label ?? "").trim());
+}
+
+/** Evidence & Trust (11): attestation fields only — hide score-calculation / formula rows. */
+const EVIDENCE_TRUST_ALLOWED_LABELS = new Set([
+  "usage / interaction telemetry",
+  "audit logs (siem export)",
+  "supporting testing and policy documentation",
+  "model / safety testing results (under nda)",
+]);
+
+function shouldOmitScoreCalcFromEvidenceTrust(sectionId: number, label: string): boolean {
+  if (sectionId !== 11) return false;
+  const key = String(label ?? "").trim().toLowerCase();
+  if (EVIDENCE_TRUST_ALLOWED_LABELS.has(key)) return false;
+  // Drop anything else (score calc, formula, category coverage, etc.)
+  return true;
 }
 
 function pickSectionField(
@@ -255,6 +275,18 @@ function GeneratedProductProfileCards({
 
   return (
     <div className="generated_profile_wrap">
+      <div className="generated_profile_llm_row">
+        <AdminLlmModelLabel
+          className="report_llm_model_tag generated_profile_llm_model"
+          showIcon={false}
+          preferModelId
+          fallbackToActive
+          modelName={resolveStoredLlmModelId({
+            llmModelId: report.modelId,
+            report,
+          })}
+        />
+      </div>
       {/* Trust Score on top – number then label (match reference: large green number, "Trust Score" below) */}
       <section className="generated_profile_trust_section" aria-label="Trust Score">
         <div
@@ -459,6 +491,7 @@ function GeneratedProductProfileCards({
                       .filter(([label]) => {
                         if (shouldOmitHumanOversightFromModelSection(sec.id, label)) return false;
                         if (shouldOmitLegacyOperationsRow(sec.id, label)) return false;
+                        if (shouldOmitScoreCalcFromEvidenceTrust(sec.id, label)) return false;
                         return true;
                       })
                       .filter(([, value]) => {

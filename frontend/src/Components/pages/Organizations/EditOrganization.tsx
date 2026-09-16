@@ -1,6 +1,6 @@
 import { Ban, CircleX, Landmark, CircleArrowUp, Shield, FileText } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../../../Context/hooks";
 import { getOrganizations } from "../../../Context/OrganizationsData";
 import { toast } from "react-toastify";
 import "../UserProfile/user_profile.css";
@@ -11,7 +11,7 @@ const EditOrganization = ({ setIsEdit, id, orgData, allOrganizations = [] }) => 
 
   const [isError, setIsError] = useState("");
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [isOrganizationName, setIsOrganizationName] = useState("");
   const [isStatus, setIsStatus] = useState("");
   const [isReason, setIsReason] = useState("");
@@ -160,6 +160,9 @@ const EditOrganization = ({ setIsEdit, id, orgData, allOrganizations = [] }) => 
                   </option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
+                  {Number(id) !== 1 && (
+                    <option value="archived">Archived</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -175,7 +178,7 @@ const EditOrganization = ({ setIsEdit, id, orgData, allOrganizations = [] }) => 
                   value={isReason}
                   onChange={(e) => setIsReason(e.target.value)}
                   rows={3}
-                  style={{ resize: "none", minHeight: "4em" }}
+                  style={{ resize: "none", minHeight: "4rem" }}
                 />
               </div>
             </div>

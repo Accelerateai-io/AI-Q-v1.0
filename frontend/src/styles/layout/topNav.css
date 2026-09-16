@@ -1,34 +1,155 @@
 .top_nav_content {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
+  position: relative;
   width: 100%;
-  /* padding: 0.75rem 1.5rem; */
-padding: 0.75em 1.5em 0 1.5em;
-  min-height: inherit;
+  height: 100%;
+  min-height: var(--top-nav-height, 64px);
+  padding: 0 1.5rem;
   box-sizing: border-box;
+  gap: 1rem;
+  background: transparent;
 }
+
+/* Centered on the full viewport (accounts for sidebar offset) — look from search.css */
+.nav_search {
+  position: absolute;
+  left: calc(50vw - var(--side-nav-width, 240px));
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: min(30rem, 46vw);
+  max-width: min(30rem, calc(100% - 17rem));
+  min-width: 12rem;
+}
+
+.nav_left_spacer {
+  display: none;
+}
+
+html[data-theme="dark"] .userName {
+  color: var(--nav-active, #8aafff);
+}
+
+html[data-theme="dark"] .user_role_badge {
+  color: var(--main-dark-color, #8aafff);
+  background: rgba(138, 175, 255, 0.14);
+}
+
+html[data-theme="dark"] .logo_name p {
+  color: var(--text-muted, #9a95ab);
+}
+
+html[data-theme="dark"] .notification_icon {
+  stroke: var(--text-muted, #9a95ab);
+}
+
 .nav_left_content {
   display: flex;
   align-content: center;
   align-items: center;
-  gap: 1em;
+  gap: 1rem;
 }
 
 .top_nav_content a {
   text-decoration: none;
 }
+
 .nav_right_content {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 1em;
-  /* padding: 0 1em 0 0; */
+  justify-content: flex-end;
+  gap: 1rem;
+  min-width: 0;
+  margin-left: auto;
+  position: relative;
+  z-index: 3;
+}
+
+@media (max-width: 900px) {
+  .nav_search {
+    width: min(24rem, 42vw);
+    max-width: calc(100% - 15rem);
+  }
+}
+
+@media (max-width: 720px) {
+  .top_nav_content {
+    padding: 0 1rem;
+  }
+
+  .nav_search {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .nav_right_content {
+    flex: 0 0 auto;
+  }
 }
 
 .notifications_icon_sec {
-  margin: 3px 0 0 0;
+  margin: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.notifications_icon_sec .notification_icon {
+  display: block;
+}
+
+.notification_icon_btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.notification_badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.22rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.user_icon_sec {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.name_email {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.2;
 }
 
 .notifications_popover_anchor {
@@ -41,91 +162,63 @@ padding: 0.75em 1.5em 0 1.5em;
 
 .logo_name h3 {
   color: var(--main-dark-color);
-  font-size: 1.5em;
+  font-size: 1.5rem;
 }
 
 .logo_name p {
   color: #4b5563;
-  font-size: 0.6em;
+  font-size: 0.6rem;
 }
 
 .logo_img {
-  padding: 0.5em;
+  padding: 0.5rem;
   width: 35px;
   height: 35px;
   background-color: var(--main-dark-color);
   color: white;
-  border-radius: 50%; /* circle */
-}
-
-.user_icon_sec {
-  /* border: 1px solid red; */
-  display: flex;
-  align-items: center;
-  gap: 0.4em;
-}
-
-/* .user_icon_sec span {
-  
-    background-color: var(--main-dark-color);
-    color: white;
-    border-radius: 50%;
-    width: 2.5em;
-    height: 2.5em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1em;
-  
-} */
-.name_email {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  border-radius: 50%;
 }
 
 .userName {
-  font-size: 0.9em;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: var(--main-dark-color);
+  color: #225bff;
   margin: 0;
 }
 
 .user_role_badge {
   display: inline-block;
-  font-size: 0.7em;
+  font-size: 0.7rem;
   font-weight: 500;
   color: var(--main-dark-color);
   background: rgba(30, 58, 138, 0.1);
   padding: 2px 8px;
   border-radius: 999px;
   max-width: fit-content;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.02rem;
 }
 
 .initials {
   width: 35px;
   height: 35px;
   color: white;
-  background-color: var(--main-dark-color);
+  background-color: #225bff;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 0.8em;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .notification_icon {
-  /* fill: var(--main-dark-color); */
-  /* stroke: var(--main-dark-color); */
   stroke: grey;
   cursor: pointer;
 }
 
 .email_id {
-  font-size: 0.8em;
+  font-size: 0.8rem;
   color: var(--grey-color);
   margin: 0;
   max-width: 160px;

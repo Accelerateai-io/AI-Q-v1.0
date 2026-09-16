@@ -1,13 +1,13 @@
 import { Ban, CircleArrowUp, Mail, Landmark, UserStar, CircleX, Shield, FileText } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../../../Context/hooks";
 import { getOrganizations } from "../../../Context/OrganizationsData";
 import { toast } from "react-toastify";
 import Button from "../../UI/Button";
 import "../UserProfile/user_profile.css";
 import "../../../styles/popovers.css";
 
-const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
+const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser, onUpdated }) => {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -33,8 +33,8 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
     setIsError("");
   };
 
-  const dispatch = useDispatch();
-  const { data } = useSelector((state) => state.organizations);
+  const dispatch = useAppDispatch();
+  const { data } = useAppSelector((state) => state.organizations);
 
   useEffect(() => {
     setIsModalOpen(isEdit);
@@ -88,7 +88,7 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
   }, [dispatch]);
 
   const systemRole = (sessionStorage.getItem("systemRole") ?? "").toLowerCase().trim();
-  const isSystemOrg = organization === "1" || organization === 1;
+  const isSystemOrg = String(organization) === "1";
 
   const baseRoleOptions = [
     { value: "admin", label: "Admin" },
@@ -130,13 +130,22 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
     value: org.id,
   })) ?? [];
 
+  const roleChanged =
+    String(role ?? "").trim().toLowerCase() !==
+    String(initialRole ?? "").trim().toLowerCase();
+  const statusChanged =
+    String(isStatus ?? "").trim().toLowerCase() !==
+    String(initialStatus ?? "").trim().toLowerCase();
+  const hasChange = roleChanged || statusChanged;
+  const canUpdate =
+    hasChange &&
+    String(role ?? "").trim().length > 0 &&
+    String(isStatus ?? "").trim().length > 0 &&
+    String(isReason ?? "").trim().length > 0;
+
   const updateUser = async (e) => {
     e.preventDefault();
     setIsError("");
-
-    const roleChanged = String(role ?? "").trim().toLowerCase() !== String(initialRole ?? "").trim().toLowerCase();
-    const statusChanged = String(isStatus ?? "").trim().toLowerCase() !== String(initialStatus ?? "").trim().toLowerCase();
-    const hasChange = roleChanged || statusChanged;
 
     if (!hasChange) {
       setIsError("No changes");
@@ -174,11 +183,15 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
       if (response.ok) {
         toast.success("User updated successfully! ");
         setIsError("");
-        setIsModalOpen(false);
-        setEmail("");
-        setOrganization("");
-        setIsReason("");
-        setRole("");
+        // Optimistically refresh parent table with new role/status before closing
+        if (typeof onUpdated === "function") {
+          onUpdated({
+            id: isUserId,
+            role,
+            userStatus: isStatus,
+          });
+        }
+        handleCloseModal();
       } else {
         console.error("Server error:", result.message);
         toast.error(result.message);
@@ -308,7 +321,7 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
                   value={isReason}
                   onChange={(e) => setIsReason(e.target.value)}
                   rows={3}
-                  style={{ resize: "vertical", minHeight: "4em" }}
+                  style={{ resize: "vertical", minHeight: "4rem" }}
                 />
               </div>
             </div>
@@ -318,7 +331,7 @@ const EditUsers = ({ isUserId, setIsEdit, isEdit, isSelectedUser }) => {
                 <Ban size={16} aria-hidden />
                 Cancel
               </Button>
-              <Button type="submit" className="orgCreateBtn">
+              <Button type="submit" className="orgCreateBtn" disabled={!canUpdate}>
                 <CircleArrowUp size={16} aria-hidden />
                 Update
               </Button>

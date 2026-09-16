@@ -5,7 +5,7 @@ interface YearPickerProps {
   startYear?: number;
   endYear?: number;
   label?: React.ReactNode;
-  value?: number;
+  value?: number | string;
   name?: string;
   id?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
@@ -27,8 +27,7 @@ const YearPicker: React.FC<YearPickerProps> = ({
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
-    if (onChange) onChange(e); // Pass the original event to parent
+    if (onChange) onChange(e);
   };
 
   return (

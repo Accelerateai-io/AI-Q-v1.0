@@ -4,6 +4,7 @@ import { db } from "../../database/db.js";
 import { usersTable } from "../../schema/schema.js";
 import { customerRiskAssessmentReports } from "../../schema/assessments/customerRiskAssessmentReports.js";
 import { generateSalesEnablement } from "../agents/salesEnablementAgent.js";
+import { sendIfTokenQuotaExceeded } from "../../services/admin/featureTokenQuota.service.js";
 
 /**
  * POST /assessments/salesEnablement
@@ -89,6 +90,7 @@ const salesEnablement = async (req: Request, res: Response): Promise<void> => {
       data,
     });
   } catch (error) {
+    if (sendIfTokenQuotaExceeded(res, error)) return;
     console.error("salesEnablement controller error:", error);
     res.status(500).json({
       success: false,

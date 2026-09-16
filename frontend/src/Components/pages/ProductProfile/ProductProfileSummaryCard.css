@@ -1,80 +1,121 @@
-/* Product Profile summary card component */
+/* Product Profile summary card — aligned with Risk Register / Reports chrome */
 
 .summary_card {
-  background: #fff;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
-  padding: 1.1rem 1.2rem;
-  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.05);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--surface-color, #ffffff);
+  border: 1px solid var(--border-subtle, #e2e6ec);
+  border-radius: 0;
+  padding: 1.15rem 1.2rem;
+  box-shadow: var(--shadow-soft, 0 4px 16px rgba(15, 23, 42, 0.05));
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.85rem;
+  min-height: 100px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
+.summary_card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 220' preserveAspectRatio='none'%3E%3Cpath d='M0 58 C70 28 140 88 210 58 S350 28 420 58 V0 H0 Z' fill='rgba(34,91,255,0.05)'/%3E%3Cpath d='M0 92 C70 62 140 122 210 92 S350 62 420 92' fill='none' stroke='rgba(34,91,255,0.11)' stroke-width='1.4'/%3E%3Cpath d='M0 118 C75 90 145 146 220 118 S345 90 420 118' fill='none' stroke='rgba(96,165,250,0.13)' stroke-width='1.25'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: 100% 58%;
+}
+
+.summary_card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .summary_card:hover {
-  border-color: #dbeafe;
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.08);
+  border-color: color-mix(in srgb, var(--nav-active, #225bff) 28%, var(--border-subtle, #e2e6ec));
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
 }
 
 .summary_card_header {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .summary_card_icon {
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0;
   line-height: 0;
+  background: #eef3ff;
+  border: 1px solid #c7d6ff;
+  color: var(--nav-active, #225bff);
+}
+
+.summary_card_icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .summary_card_icon_default {
-  color: #6b7280;
+  background: #f1f5f9;
+  color: var(--text-muted, #64748b);
 }
 
 .summary_card_icon_blue {
-  color: var(--main-auth-button-color, #2463eb);
+  background: #e8efff;
+  color: var(--nav-active, #225bff);
 }
 
 .summary_card_icon_green {
+  background: #ecfdf3;
   color: #16a34a;
 }
 
 .summary_card_icon_purple {
-  color: #7c3aed;
+  background: #e8f7ef;
+  color: #0f766e;
 }
 
 .summary_card_title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.05rem;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin: 0;
 }
 
 .summary_card_body {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
 .summary_card_primary {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02rem;
+  color: var(--text-primary, #1a1f36);
+  line-height: 1.2;
 }
 
 .summary_card_primary.summary_card_primary_trust_score {
-  font-size: 1.25rem;
+  font-size: 1.7rem;
   font-weight: 700;
+  letter-spacing: -0.03rem;
   color: #16a34a;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary_card_primary.summary_card_primary_badge_wrapper {
@@ -87,7 +128,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.25rem 0.6rem;
-  background: #dcfce7;
+  background: var(--active-status-background, #dcfce7);
   color: #166534;
   border-radius: 9999px;
   font-size: 0.875rem;
@@ -97,6 +138,6 @@
 .summary_card_secondary {
   font-size: 0.8125rem;
   line-height: 1.4;
-  color: #64748b;
-  margin: 0.35rem 0 0;
+  color: var(--text-muted, #64748b);
+  margin: 0.2rem 0 0;
 }

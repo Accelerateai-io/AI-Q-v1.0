@@ -1,14 +1,18 @@
 import {
+  AlertTriangle,
   BarChart3,
   Calendar,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronUp,
   CircleChevronLeft,
   LayoutGrid,
+  ListChecks,
   Search,
   Shield,
   ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -17,7 +21,8 @@ import {
   type FrameworkMappingDetailLocationState,
   type FrameworkMappingRiskMappingContextPayload,
 } from "../../frameworkMapping/FrameworkMappingCardGrid";
-import Select from "../../UI/Select";
+import DashboardStatCard from "../../UI/DashboardStatCard";
+import LoadingMessage from "../../UI/LoadingMessage";
 import { ReportsPagination, REPORTS_PAGE_SIZE } from "../Reports/ReportsPagination";
 import {
   FRAMEWORK_MAPPING_TOP_CONTROLS_MAX,
@@ -32,9 +37,30 @@ import { sanitizeFrameworkMappingNotesForDisplay } from "../../../utils/framewor
 import { formatFrameworkMappingFrameworkForDisplay } from "../../../utils/frameworkMappingFrameworkDisplay";
 import "../../../styles/page_tabs.css";
 import "../Assessments/assessments.css";
+import "../Dashboard/dashboard.css";
 import "./MyVendors.css";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
+
+function RiskMappingEmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="risk_mapping_empty_state" role="status">
+      <span className="risk_mapping_empty_state__icon" aria-hidden>
+        {icon}
+      </span>
+      <h3 className="risk_mapping_empty_state__title">{title}</h3>
+      <p className="risk_mapping_empty_state__desc">{description}</p>
+    </div>
+  );
+}
 
 const CONTROLS_NOT_PROVIDED_RE = /^not\s*provided\.?$/i;
 
@@ -298,6 +324,95 @@ function filterFrameworkRowsByQuery(rows: FrameworkMappingRow[], query: string):
   });
 }
 
+interface AssessmentSelectDropdownProps {
+  id?: string;
+  options: { label: string; value: string }[];
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}
+
+function AssessmentSelectDropdown({
+  id,
+  options,
+  value,
+  placeholder,
+  onChange,
+}: AssessmentSelectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((o) => o.value === value)?.label;
+  const isPlaceholder = !value || !selectedLabel;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="risk_mapping_fw_multiselect" ref={wrapRef}>
+      <button
+        type="button"
+        id={id}
+        className={`risk_mapping_fw_multiselect_trigger${isPlaceholder ? " risk_mapping_fw_multiselect_trigger--placeholder" : ""}`}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-labelledby="risk_mapping_assessment_label"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="risk_mapping_fw_multiselect_trigger_label">
+          {isPlaceholder ? placeholder : selectedLabel}
+        </span>
+      </button>
+      {open ? (
+        <div
+          className="risk_mapping_fw_multiselect_panel"
+          role="listbox"
+          aria-label="Select assessment"
+        >
+          {options.length === 0 ? (
+            <div className="risk_mapping_fw_multiselect_row risk_mapping_fw_multiselect_row_muted">
+              No assessments available
+            </div>
+          ) : (
+            options.map((option) => {
+              const selected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={`risk_mapping_fw_multiselect_row risk_mapping_fw_multiselect_option${selected ? " risk_mapping_fw_multiselect_row_selected" : ""}`}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="risk_mapping_fw_multiselect_framework_name">{option.label}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 interface FrameworkMultiSelectDropdownProps {
   frameworkNames: string[];
   selected: Set<string>;
@@ -364,17 +479,13 @@ function FrameworkMultiSelectDropdown({
     <div className="risk_mapping_fw_multiselect" ref={wrapRef}>
       <button
         type="button"
-        className="risk_mapping_fw_multiselect_trigger"
+        className={`risk_mapping_fw_multiselect_trigger${noneSelected || frameworkNames.length === 0 ? " risk_mapping_fw_multiselect_trigger--placeholder" : ""}`}
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-labelledby="risk_mapping_frameworks_label"
         onClick={() => setOpen((o) => !o)}
       >
         <span className="risk_mapping_fw_multiselect_trigger_label">{summaryLabel}</span>
-        <ChevronDown
-          size={18}
-          aria-hidden
-          className={`risk_mapping_fw_multiselect_chevron ${open ? "risk_mapping_fw_multiselect_chevron_open" : ""}`}
-        />
       </button>
       {open ? (
         <div className="risk_mapping_fw_multiselect_panel" role="listbox" aria-label="Filter by framework">
@@ -400,6 +511,103 @@ function FrameworkMultiSelectDropdown({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function RiskRegisterCard({ risk }: { risk: RiskItem }) {
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+  const descRef = useRef<HTMLParagraphElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (expanded) return;
+      const titleEl = titleRef.current;
+      const descEl = descRef.current;
+      const titleOverflow = titleEl ? titleEl.scrollHeight > titleEl.clientHeight + 1 : false;
+      const descOverflow = descEl ? descEl.scrollHeight > descEl.clientHeight + 1 : false;
+      setCanExpand(titleOverflow || descOverflow);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [expanded, risk.id, risk.title, risk.description]);
+
+  return (
+    <div
+      className={`risk_mapping_risk_card${expanded ? " risk_mapping_risk_card_expanded" : ""}`}
+    >
+      <div className="risk_mapping_risk_top">
+        <span className="risk_mapping_chip risk_mapping_chip_id">{risk.id}</span>
+        <div className="risk_mapping_chip_row risk_mapping_chip_row_right">
+          <span
+            className={`risk_mapping_chip ${
+              risk.severity === "critical/high"
+                ? "risk_mapping_chip_critical"
+                : risk.severity === "medium"
+                  ? "risk_mapping_chip_medium"
+                  : "risk_mapping_chip_low"
+            }`}
+          >
+            {risk.severity}
+          </span>
+          <span
+            className={`risk_mapping_chip ${
+              risk.status === "open" ? "risk_mapping_chip_open" : "risk_mapping_chip_mitigated"
+            }`}
+          >
+            {risk.status}
+          </span>
+        </div>
+      </div>
+      <div className="risk_mapping_risk_body">
+        <h4
+          ref={titleRef}
+          className={`risk_mapping_risk_title${expanded ? " risk_mapping_risk_title_expanded" : ""}`}
+        >
+          {risk.title}
+        </h4>
+        <p
+          ref={descRef}
+          className={`risk_mapping_risk_desc${expanded ? " risk_mapping_risk_desc_expanded" : ""}`}
+        >
+          {risk.description}
+        </p>
+        {canExpand || expanded ? (
+          <button
+            type="button"
+            className="dash_view_all_btn risk_mapping_risk_expand_btn"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            {expanded ? "Show less" : "Show more"}
+            {expanded ? (
+              <ChevronUp size={12} strokeWidth={2.25} aria-hidden />
+            ) : (
+              <ChevronDown size={12} strokeWidth={2.25} aria-hidden />
+            )}
+          </button>
+        ) : null}
+      </div>
+      <div className="risk_mapping_risk_footer">
+        <span
+          className={`risk_mapping_owner${expanded ? " risk_mapping_owner_expanded" : ""}`}
+          title={risk.owner}
+        >
+          {risk.owner}
+        </span>
+        <div className="risk_mapping_progress_wrap">
+          <div className="risk_mapping_progress_track">
+            <div
+              className="risk_mapping_progress_fill"
+              style={{ width: `${risk.progressPercent}%` }}
+            />
+          </div>
+          <span className="risk_mapping_progress_label">{risk.progressPercent}%</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -823,6 +1031,17 @@ const MyVendors = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFrameworkNames, setSelectedFrameworkNames] = useState<Set<string>>(() => new Set());
   const [showFullControlSummary, setShowFullControlSummary] = useState(false);
+  const [assessmentsLoading, setAssessmentsLoading] = useState(true);
+  const [vendorListLoading, setVendorListLoading] = useState(false);
+  const [detailReportLoading, setDetailReportLoading] = useState(false);
+  const [detailMapLoading, setDetailMapLoading] = useState(false);
+  const assessmentOptionsRef = useRef<{ label: string; value: string }[]>([]);
+
+  const listsLoading = assessmentsLoading || (isVendorPortal && vendorListLoading);
+  const detailLoading =
+    Boolean(selectedAssessmentId) &&
+    (isVendorPortal ? detailReportLoading : detailReportLoading || detailMapLoading);
+  const pageLoading = listsLoading;
 
   const buyerFrameworkRows = useMemo(
     () =>
@@ -872,9 +1091,15 @@ const MyVendors = () => {
     }));
   }, [assessments, isVendorPortal, vendorAssessmentIdsWithReport]);
 
+  assessmentOptionsRef.current = completedActiveAssessmentOptions;
+
   useEffect(() => {
     const token = sessionStorage.getItem("bearerToken");
-    if (!token) return;
+    if (!token) {
+      setAssessmentsLoading(false);
+      return;
+    }
+    setAssessmentsLoading(true);
     fetch(`${BASE_URL}/assessments?all=1`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -883,7 +1108,8 @@ const MyVendors = () => {
         const list = Array.isArray(data?.data?.assessments) ? (data.data.assessments as AssessmentRow[]) : [];
         setAssessments(list);
       })
-      .catch(() => setAssessments([]));
+      .catch(() => setAssessments([]))
+      .finally(() => setAssessmentsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -906,9 +1132,11 @@ const MyVendors = () => {
     const token = sessionStorage.getItem("bearerToken");
     if (!token || !isVendorPortal) {
       setVendorAssessmentIdsWithReport(new Set());
+      setVendorListLoading(false);
       return;
     }
     const controller = new AbortController();
+    setVendorListLoading(true);
     fetch(`${BASE_URL}/customerRiskReports`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -927,6 +1155,9 @@ const MyVendors = () => {
       .catch(() => {
         if (controller.signal.aborted) return;
         setVendorAssessmentIdsWithReport(new Set());
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setVendorListLoading(false);
       });
     return () => controller.abort();
   }, [isVendorPortal]);
@@ -963,10 +1194,12 @@ const MyVendors = () => {
       setVendorFrameworkRows([]);
       setBuyerFrameworkRowsFromReport([]);
       setBuyerFrameworkRowsFromRiskMap([]);
+      setDetailReportLoading(false);
       return;
     }
     const currentAssessmentId = selectedAssessmentId;
     const controller = new AbortController();
+    setDetailReportLoading(true);
     fetch(
       `${BASE_URL}/customerRiskReports?assessmentId=${encodeURIComponent(currentAssessmentId)}`,
       {
@@ -983,7 +1216,7 @@ const MyVendors = () => {
         if (!blob) {
           setAssessmentDetail({
             assessmentId: currentAssessmentId,
-            assessmentLabel: completedActiveAssessmentOptions.find((o) => o.value === currentAssessmentId)?.label,
+            assessmentLabel: assessmentOptionsRef.current.find((o) => o.value === currentAssessmentId)?.label,
           });
           setCompleteReportRiskAnalysis([]);
           setDbTop5Risks([]);
@@ -1005,7 +1238,7 @@ const MyVendors = () => {
         const createdAt = first?.createdAt != null ? String(first.createdAt) : undefined;
         setAssessmentDetail({
           assessmentId: currentAssessmentId,
-          assessmentLabel: completedActiveAssessmentOptions.find((o) => o.value === currentAssessmentId)?.label,
+          assessmentLabel: assessmentOptionsRef.current.find((o) => o.value === currentAssessmentId)?.label,
           vendorName: String(blob.customerOrganizationName ?? "").trim() || undefined,
           productName: undefined,
           identifiedRisks: blob.identifiedRisks,
@@ -1021,9 +1254,12 @@ const MyVendors = () => {
         setDbTop5Risks([]);
         setDbMitigationsByRiskId({});
         setVendorFrameworkRows([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDetailReportLoading(false);
       });
     return () => controller.abort();
-  }, [selectedAssessmentId, isVendorPortal, completedActiveAssessmentOptions]);
+  }, [selectedAssessmentId, isVendorPortal]);
 
   useEffect(() => {
     if (isVendorPortal) return;
@@ -1031,10 +1267,14 @@ const MyVendors = () => {
     if (!token || !selectedAssessmentId) {
       setAssessmentDetail(null);
       setCompleteReportRiskAnalysis([]);
+      setDetailReportLoading(false);
       return;
     }
     const currentAssessmentId = selectedAssessmentId;
     const controller = new AbortController();
+    let ignore = false;
+    const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+    setDetailReportLoading(true);
     fetch(`${BASE_URL}/buyerCotsAssessment/${encodeURIComponent(currentAssessmentId)}/vendor-risk-report`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -1053,7 +1293,7 @@ const MyVendors = () => {
           setCompleteReportRiskAnalysis(reportRiskAnalysis);
           setAssessmentDetail({
             assessmentId: currentAssessmentId,
-            assessmentLabel: completedActiveAssessmentOptions.find((o) => o.value === currentAssessmentId)?.label,
+            assessmentLabel: assessmentOptionsRef.current.find((o) => o.value === currentAssessmentId)?.label,
             vendorName: (data.vendorName as string | undefined) ?? "",
             productName: (data.productName as string | undefined) ?? "",
             identifiedRisks: d.riskAnalysis,
@@ -1076,21 +1316,36 @@ const MyVendors = () => {
         setAssessmentDetail(null);
         setCompleteReportRiskAnalysis([]);
         setBuyerFrameworkRowsFromReport([]);
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (!ignore) setDetailReportLoading(false);
       });
-    return () => controller.abort();
-  }, [selectedAssessmentId, completedActiveAssessmentOptions, isVendorPortal]);
+    return () => {
+      ignore = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [selectedAssessmentId, isVendorPortal]);
 
   useEffect(() => {
-    if (isVendorPortal) return;
+    if (isVendorPortal) {
+      setDetailMapLoading(false);
+      return;
+    }
     const token = sessionStorage.getItem("bearerToken");
     if (!token || !selectedAssessmentId) {
       setDbTop5Risks([]);
       setDbMitigationsByRiskId({});
       setBuyerFrameworkRowsFromRiskMap([]);
+      setDetailMapLoading(false);
       return;
     }
     const currentAssessmentId = selectedAssessmentId;
     const controller = new AbortController();
+    let ignore = false;
+    const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+    setDetailMapLoading(true);
     fetch(`${BASE_URL}/buyerCotsAssessment/${encodeURIComponent(currentAssessmentId)}/risk-mappings`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -1122,8 +1377,16 @@ const MyVendors = () => {
         setDbTop5Risks([]);
         setDbMitigationsByRiskId({});
         setBuyerFrameworkRowsFromRiskMap([]);
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (!ignore) setDetailMapLoading(false);
       });
-    return () => controller.abort();
+    return () => {
+      ignore = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [selectedAssessmentId, isVendorPortal]);
 
   const riskItems = useMemo(
@@ -1599,36 +1862,26 @@ const MyVendors = () => {
   }
 
   return (
-    <div className="sec_user_page org_settings_page">
+    <div className="sec_user_page org_settings_page risk_mapping_page">
+      {pageLoading ? (
+        <LoadingMessage
+          message="Loading risk mapping…"
+          className="loading_message_wrapper--page"
+        />
+      ) : (
+        <>
       <div className="org_settings_header page_header_align">
-        <div className="risk_mapping_header_row">
-          <div className="org_settings_headers page_header_row risk_mapping_header_left">
-            <span className="icon_size_header" aria-hidden>
-              <ShieldAlert size={24} className="header_icon_svg" />
-            </span>
-            <div className="page_header_title_block">
-              <h1 className="org_settings_title page_header_title">Risk & Controls</h1>
-              <p className="org_settings_subtitle page_header_subtitle">
-                {isVendorPortal
-                  ? "Risk register and framework mapping from your generated analysis reports"
-                  : "Risk register, framework mappings, and gap analysis per assessment"}
-              </p>
-            </div>
-          </div>
-          <div className="risk_mapping_header_select">
-            <Select
-              id="risk_mapping_assessment"
-              name="risk_mapping_assessment"
-              ariaLabel="Assessment"
-              value={selectedAssessmentId}
-              default_option={
-                isVendorPortal
-                  ? "Select assessment with a complete report"
-                  : "Select completed active assessment"
-              }
-              options={completedActiveAssessmentOptions}
-              onChange={(e) => setSelectedAssessmentId(e.target.value)}
-            />
+        <div className="org_settings_headers page_header_row risk_mapping_header_left">
+          <span className="icon_size_header" aria-hidden>
+            <ShieldAlert size={24} className="header_icon_svg" />
+          </span>
+          <div className="page_header_title_block">
+            <h1 className="org_settings_title page_header_title">Risk & Controls</h1>
+            <p className="org_settings_subtitle page_header_subtitle">
+              {isVendorPortal
+                ? "Risk register and framework mapping from your generated analysis reports"
+                : "Risk register, framework mappings, and gap analysis per assessment"}
+            </p>
           </div>
         </div>
       </div>
@@ -1666,37 +1919,101 @@ const MyVendors = () => {
           ) : null}
           */}
         </div>
-        <div className="assessments_ledger_search">
-          <Search size={18} className="assessments_ledger_search_icon" aria-hidden />
-          <input
-            type="search"
-            placeholder="Search risk ID, title, owner, framework, controls, notes…"
-            className="assessments_ledger_search_input"
-            aria-label="Search risk mapping"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="risk_mapping_tabs_tools">
+          <div className="assessments_ledger_search">
+            <Search size={18} className="assessments_ledger_search_icon" aria-hidden />
+            <input
+              type="search"
+              placeholder="Search risk ID, title, owner, framework, controls, notes…"
+              className="assessments_ledger_search_input"
+              aria-label="Search risk mapping"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="risk_mapping_assessment_wrap">
+            <span className="risk_mapping_assessment_label" id="risk_mapping_assessment_label">
+              Select assessment
+            </span>
+            <AssessmentSelectDropdown
+              id="risk_mapping_assessment"
+              value={selectedAssessmentId}
+              placeholder={
+                isVendorPortal
+                  ? "Select assessment with a complete report"
+                  : "Select completed active assessment"
+              }
+              options={completedActiveAssessmentOptions}
+              onChange={setSelectedAssessmentId}
+            />
+          </div>
+          {activeTab === "framework_mappings" && uniqueFrameworkNames.length > 0 ? (
+            <div className="risk_mapping_framework_filter_wrap">
+              <span className="risk_mapping_assessment_label" id="risk_mapping_frameworks_label">
+                Select frameworks
+              </span>
+              <FrameworkMultiSelectDropdown
+                frameworkNames={uniqueFrameworkNames}
+                selected={selectedFrameworkNames}
+                onSelectionChange={setSelectedFrameworkNames}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
-      {activeTab === "risk_register" ? (
+      {detailLoading ? (
+        <LoadingMessage
+          message="Loading assessment data…"
+          className="loading_message_wrapper--page risk_mapping_detail_loader"
+        />
+      ) : activeTab === "risk_register" ? (
         <>
-            <section className="risk_mapping_stats_grid">
-              <div className="risk_mapping_stat_card">
-                <p className="risk_mapping_stat_label">Total Risks</p>
-                <p className="risk_mapping_stat_value">{riskStats.total}</p>
-              </div>
-              <div className="risk_mapping_stat_card">
-                <p className="risk_mapping_stat_label risk_mapping_stat_label_critical">Critical/High</p>
-                <p className="risk_mapping_stat_value risk_mapping_stat_value_critical">{riskStats.criticalHigh}</p>
-              </div>
-              <div className="risk_mapping_stat_card">
-                <p className="risk_mapping_stat_label risk_mapping_stat_label_mitigated">Mitigated</p>
-                <p className="risk_mapping_stat_value risk_mapping_stat_value_mitigated">{riskStats.mitigated}</p>
-              </div>
-              <div className="risk_mapping_stat_card">
-                <p className="risk_mapping_stat_label risk_mapping_stat_label_open">Open</p>
-                <p className="risk_mapping_stat_value risk_mapping_stat_value_open">{riskStats.open}</p>
-              </div>
+            <section
+              className="risk_mapping_stats_grid dash_stat_grid"
+              aria-label="Risk register summary"
+            >
+              <DashboardStatCard
+                label="Total Risks"
+                value={riskStats.total}
+                description="Identified risks for this assessment"
+                progress={100}
+                icon={<ListChecks size={18} />}
+                accent="blue"
+              />
+              <DashboardStatCard
+                label="Critical/High"
+                value={riskStats.criticalHigh}
+                description="Highest severity items"
+                progress={
+                  riskStats.total > 0
+                    ? (riskStats.criticalHigh / riskStats.total) * 100
+                    : 0
+                }
+                icon={<AlertTriangle size={18} />}
+                accent="rose"
+              />
+              <DashboardStatCard
+                label="Mitigated"
+                value={riskStats.mitigated}
+                description="Closed or mitigated risks"
+                progress={
+                  riskStats.total > 0
+                    ? (riskStats.mitigated / riskStats.total) * 100
+                    : 0
+                }
+                icon={<CheckCircle2 size={18} />}
+                accent="green"
+              />
+              <DashboardStatCard
+                label="Open"
+                value={riskStats.open}
+                description="Still requiring action"
+                progress={
+                  riskStats.total > 0 ? (riskStats.open / riskStats.total) * 100 : 0
+                }
+                icon={<ShieldAlert size={18} />}
+                accent="orange"
+              />
             </section>
             <section className="risk_mapping_panel risk_mapping_panel_compact">
               <h3 className="risk_mapping_panel_title">
@@ -1706,52 +2023,22 @@ const MyVendors = () => {
                 Identified risks, owners, and mitigation status.
               </p>
               {riskItems.length === 0 ? (
-                <p className="risk_mapping_empty_text">No identified risks were found for this assessment.</p>
+                <RiskMappingEmptyState
+                  icon={<ShieldAlert size={22} />}
+                  title="No identified risks"
+                  description="No identified risks were found for this assessment."
+                />
               ) : filteredRiskItems.length === 0 ? (
-                <p className="risk_mapping_empty_text">No risks match your search.</p>
+                <RiskMappingEmptyState
+                  icon={<Search size={22} />}
+                  title="No matching risks"
+                  description="No risks match your search. Try a different keyword."
+                />
               ) : (
                 <>
                 <div className="risk_mapping_risk_list">
                   {paginatedRiskItems.map((risk) => (
-                    <div key={risk.id} className="risk_mapping_risk_card">
-                      <div className="risk_mapping_risk_top">
-                        <div className="risk_mapping_chip_row">
-                          <span className="risk_mapping_chip risk_mapping_chip_id">{risk.id}</span>
-                          <span
-                            className={`risk_mapping_chip ${
-                              risk.severity === "critical/high"
-                                ? "risk_mapping_chip_critical"
-                                : risk.severity === "medium"
-                                  ? "risk_mapping_chip_medium"
-                                  : "risk_mapping_chip_low"
-                            }`}
-                          >
-                            {risk.severity}
-                          </span>
-                          <span
-                            className={`risk_mapping_chip ${
-                              risk.status === "open" ? "risk_mapping_chip_open" : "risk_mapping_chip_mitigated"
-                            }`}
-                          >
-                            {risk.status}
-                          </span>
-                        </div>
-                        <span className="risk_mapping_meta">{risk.date}</span>
-                      </div>
-                      <div className="risk_mapping_risk_body">
-                        <h4 className="risk_mapping_risk_title">{risk.title}</h4>
-                        <p className="risk_mapping_risk_desc">{risk.description}</p>
-                      </div>
-                      <div className="risk_mapping_risk_footer">
-                        <span className="risk_mapping_owner">{risk.owner}</span>
-                        <div className="risk_mapping_progress_wrap">
-                          <div className="risk_mapping_progress_track">
-                            <div className="risk_mapping_progress_fill" style={{ width: `${risk.progressPercent}%` }} />
-                          </div>
-                          <span className="risk_mapping_progress_label">{risk.progressPercent}%</span>
-                        </div>
-                      </div>
-                    </div>
+                    <RiskRegisterCard key={risk.id} risk={risk} />
                   ))}
                 </div>
                 <footer className="risk_mapping_register_footer">
@@ -1779,33 +2066,31 @@ const MyVendors = () => {
                 </h3>
                 {isVendorPortal ? (
                   <p className="risk_mapping_panel_subtitle risk_mapping_fw_panel_subtitle_vendor">
-                    Control coverage derived from the selected product&apos;s attestation (compliance certificate
-                    uploads) and stored on your complete analysis report.
+                    Control coverage from this product&apos;s attestation, saved on your complete analysis report.
                   </p>
                 ) : null}
               </div>
-              {uniqueFrameworkNames.length > 0 ? (
-                <FrameworkMultiSelectDropdown
-                  frameworkNames={uniqueFrameworkNames}
-                  selected={selectedFrameworkNames}
-                  onSelectionChange={setSelectedFrameworkNames}
-                />
-              ) : null}
             </div>
             {isVendorPortal ? (
               <>
                 {vendorFrameworkRows.length === 0 ? (
-                  <div className="risk_mapping_empty_text">
-                    No framework mapping for this assessment yet. Upload compliance PDFs under your product
-                    attestation (certifications slot), complete attestation processing, then submit the vendor
-                    assessment so the complete report can include mapped controls.
-                  </div>
+                  <RiskMappingEmptyState
+                    icon={<LayoutGrid size={22} />}
+                    title="No framework mapping yet"
+                    description="Upload compliance PDFs under your product attestation, complete attestation processing, then submit the vendor assessment so the complete report can include mapped controls."
+                  />
                 ) : filteredFrameworkRows.length === 0 ? (
-                  <p className="risk_mapping_empty_text">No framework rows match your search.</p>
+                  <RiskMappingEmptyState
+                    icon={<Search size={22} />}
+                    title="No matching frameworks"
+                    description="No framework rows match your search."
+                  />
                 ) : frameworkGridRows.length === 0 ? (
-                  <p className="risk_mapping_empty_text">
-                    Select at least one framework in the filter above to see mapped controls.
-                  </p>
+                  <RiskMappingEmptyState
+                    icon={<ShieldCheck size={22} />}
+                    title="Select a framework"
+                    description="Select at least one framework in the filter above to see mapped controls."
+                  />
                 ) : (
                   <FrameworkMappingCardGrid
                     rows={frameworkGridRows}
@@ -1818,13 +2103,23 @@ const MyVendors = () => {
             ) : (
               <>
                 {buyerFrameworkRows.length === 0 ? (
-                  <p className="risk_mapping_empty_text">No framework mapping rows found for this assessment.</p>
+                  <RiskMappingEmptyState
+                    icon={<LayoutGrid size={22} />}
+                    title="No framework mappings"
+                    description="No framework mapping rows found for this assessment."
+                  />
                 ) : filteredFrameworkRows.length === 0 ? (
-                  <p className="risk_mapping_empty_text">No framework rows match your search.</p>
+                  <RiskMappingEmptyState
+                    icon={<Search size={22} />}
+                    title="No matching frameworks"
+                    description="No framework rows match your search."
+                  />
                 ) : frameworkGridRows.length === 0 ? (
-                  <p className="risk_mapping_empty_text">
-                    Select at least one framework in the filter above to see mapped controls.
-                  </p>
+                  <RiskMappingEmptyState
+                    icon={<ShieldCheck size={22} />}
+                    title="Select a framework"
+                    description="Select at least one framework in the filter above to see mapped controls."
+                  />
                 ) : (
                   <FrameworkMappingCardGrid
                     rows={frameworkGridRows}
@@ -1846,6 +2141,8 @@ const MyVendors = () => {
           </section>
         )}
         */}
+        </>
+      )}
     </div>
   );
 };

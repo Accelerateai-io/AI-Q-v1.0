@@ -4,43 +4,94 @@
   --side-nav-width: 240px;       /* sidebar width - adjust as needed */
   --top-nav-left: var(--side-nav-width); /* start after sidebar so top nav only spans main content */
   --top-nav-width: calc(100% - var(--side-nav-width));
+  /* Shared gap between sidenav and page content */
+  --page-sidenav-gap: 1.35rem;
   /* --main-dark-color: #2463eb; */
-  --main-dark-color: #014aad;
+  --main-dark-color: var(--nav-active, #225bff);
   --grey-color: #4b5563;
+  /* Shared page background for every screen (top nav, sidebar, main content) */
+  --app-bg-color: #f8f4ed;
+  --app-border-color: #e2dcd6;
+}
+
+html[data-theme="dark"] {
+  --main-dark-color: #7aa3ff;
+  --grey-color: #9a95ab;
+  --app-bg-color: #1c1a27;
+  --app-border-color: #403c52;
+}
+
+html[data-theme="dark"] body {
+  background-color: var(--app-bg-color);
+  color: var(--text-primary, #ebe9f3);
 }
 
 .container {
-  height: 100vh;
+  height: 100%;
+  min-height: 100%;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: var(--app-bg-color, #f8f4ed);
 }
 
 .top_nav {
   width: var(--top-nav-width);
+  height: var(--top-nav-height);
   min-height: var(--top-nav-height);
   flex-shrink: 0;
-  padding: 0 0.1em;
-  border-bottom: 0.5px solid #dadce0;
-  /* background-color: #f5f7fa; */
-  background-color: #efefef;
+  padding: 0 0.1rem;
+  border-bottom: 2px solid color-mix(in srgb, var(--app-border-color) 70%, transparent);
+  background-color: color-mix(in srgb, var(--app-bg-color, #f8f4ed) 55%, transparent);
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
   position: fixed;
   top: 0;
   left: var(--top-nav-left);
   right: 0;
   z-index: 900;
-  /* z-index: 10001; */
   display: flex;
   align-items: center;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    backdrop-filter 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.top_nav.top_nav--scrolled {
+  background-color: color-mix(in srgb, var(--app-bg-color, #f8f4ed) 48%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--app-border-color) 85%, transparent);
+  backdrop-filter: blur(48px) saturate(1.4);
+  -webkit-backdrop-filter: blur(48px) saturate(1.4);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset;
+}
+
+html[data-theme="dark"] .top_nav {
+  background-color: color-mix(in srgb, var(--app-bg-color, #1c1a27) 52%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--app-border-color) 75%, transparent);
+}
+
+html[data-theme="dark"] .top_nav.top_nav--scrolled {
+  background-color: color-mix(in srgb, var(--app-bg-color, #1c1a27) 45%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--app-border-color) 90%, transparent);
+  backdrop-filter: blur(48px) saturate(1.4);
+  -webkit-backdrop-filter: blur(48px) saturate(1.4);
+  box-shadow: none;
 }
 
 .wrapper {
   flex: 1;
   display: flex;
+  min-height: 0;
   overflow: hidden;
+  overscroll-behavior: none;
   /* No padding-top here so sidebar runs full height from top; main content has its own padding */
 }
 
-/* Sidebar on the left - dark navy theme, full height */
+/* Sidebar on the left - light theme, full height */
 .side_nav {
   width: var(--side-nav-width);
   flex-shrink: 0;
@@ -48,19 +99,45 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background-color: #014aad;
+  background-color: var(--app-bg-color);
+  border-right: 2px solid var(--app-border-color);
   overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Main content fills remaining space; padding-top so content starts below the top nav bar */
 .main_container {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--top-nav-height) 0 0 1em;
-  /* background: #f6f9fb; */
-  background: #f5f7fa;
+  padding: var(--top-nav-height) 0 0 var(--page-sidenav-gap, 1.35rem);
+  background: var(--app-bg-color);
   /* Edge/Chromium: reserve width when scrollbar shows/hides so content doesn’t shift horizontally */
   scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  /* Prevent Edge rubber-band / empty overscroll past page content */
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+}
+
+/*
+ * Shared page shell: no extra left padding — sidenav gap comes only from .main_container.
+ */
+.main_container > .sec_user_page,
+.main_container > .org_settings_page,
+.main_container > .vendor_directory_page,
+.main_container > .sales_enablement_page,
+.main_container > .vendor_overview_page,
+.main_container > .admin_overview_page {
+  padding-left: 0;
+  margin-left: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* css onboarding layout starts here */
@@ -68,13 +145,27 @@
 .layout_onBoarrding {
   background-color: var(--bg-colour-main);
   /* background-color: var(--background-color-onboarding); */
-  min-height: 100vh; /* ensures it fills full height */
+  height: 100%;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
 }
 .header_onboarding {
   text-align: center;
   padding: 20px 20px 0 20px;
+}
+
+.onboarding-header-logo_wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
 }
 
 .onboarding-header-logo {
@@ -85,15 +176,55 @@
   margin: 0 auto;
 }
 
+.onboarding-header-logo--dark {
+  display: none;
+}
+
+html[data-theme="dark"] .onboarding-header-logo--light {
+  display: none;
+}
+
+html[data-theme="dark"] .onboarding-header-logo--dark {
+  display: block;
+}
+
 .container_onBoarding {
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .main_onBoarding {
   display: flex;
   flex-direction: column;
-
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
   margin-top: 10px;
+}
+
+.main_onBoarding > section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Same centered page loader used elsewhere; account for onboarding header (no top nav) */
+.layout_onBoarrding .onboarding_page_loader.loading_message_wrapper--page {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100dvh - 11rem);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  max-width: none;
+  padding: 0;
 }

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { db } from "../../database/db.js";
 import { vendors } from "../../schema/schema.js";
 import { eq, sql } from "drizzle-orm";
+import { loadVendorOnboardingBusinessFields } from "../../utils/normalizeVendorOnboardingBusinessFields.js";
 
 /**
  * Fetch vendor onboarding data for the currently authenticated user.
@@ -25,11 +26,17 @@ const fetchVendorOnboarding = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // --- 2. Ensure column exists so select() never fails with "column does not exist" ---
+    // --- 2. Ensure columns exist so select() never fails with "column does not exist" ---
     try {
       await db.execute(sql`
         ALTER TABLE public.vendor_onboarding
-        ADD COLUMN IF NOT EXISTS public_directory_listing boolean NOT NULL DEFAULT false
+        ADD COLUMN IF NOT EXISTS public_directory_listing boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS funding_status varchar(50),
+        ADD COLUMN IF NOT EXISTS financial_position varchar(50),
+        ADD COLUMN IF NOT EXISTS enterprise_customers integer,
+        ADD COLUMN IF NOT EXISTS customer_retention_rate numeric(5,2),
+        ADD COLUMN IF NOT EXISTS trust_centre_url varchar(500),
+        ADD COLUMN IF NOT EXISTS security_incidents jsonb NOT NULL DEFAULT '[]'::jsonb
       `);
     } catch {
       // Ignore (e.g. permission)
@@ -98,6 +105,15 @@ const fetchVendorOnboarding = async (req: Request, res: Response): Promise<void>
       sector = sectorRaw as Record<string, unknown>;
     }
 
+    const extra = await loadVendorOnboardingBusinessFields(
+      String(row.organizationId ?? row.organization_id ?? ""),
+    );
+    const securityIncidentsRaw =
+      extra?.securityIncidents ?? row.securityIncidents ?? row.security_incidents;
+    const securityIncidents = Array.isArray(securityIncidentsRaw)
+      ? securityIncidentsRaw
+      : [];
+
     const data = {
       userId: row.userId,
       organizationId: row.organizationId,
@@ -118,6 +134,22 @@ const fetchVendorOnboarding = async (req: Request, res: Response): Promise<void>
         : row.operatingRegions != null && typeof row.operatingRegions === "object"
           ? (row.operatingRegions as string[])
           : [],
+      fundingStatus: extra?.fundingStatus ?? row.fundingStatus ?? row.funding_status ?? "",
+      financialPosition:
+        extra?.financialPosition ?? row.financialPosition ?? row.financial_position ?? "",
+      enterpriseCustomers:
+        extra?.enterpriseCustomers ??
+        row.enterpriseCustomers ??
+        row.enterprise_customers ??
+        null,
+      customerRetentionRate:
+        extra?.customerRetentionRate ??
+        row.customerRetentionRate ??
+        row.customer_retention_rate ??
+        "",
+      trustCentreUrl:
+        extra?.trustCentreUrl ?? row.trustCentreUrl ?? row.trust_centre_url ?? "",
+      securityIncidents,
       publicDirectoryListing: publicListing,
     };
 

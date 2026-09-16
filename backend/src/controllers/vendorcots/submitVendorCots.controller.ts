@@ -7,10 +7,20 @@ import { customerRiskAssessmentReports } from "../../schema/assessments/customer
 import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
 import { eq, and, or } from "drizzle-orm";
 import { generateVendorCotsReport } from "../agents/vendorCotsReportAgent.js";
+import { buildVendorCotsPayload } from "../../utils/buildVendorCotsPayload.js";
 import {
   getTop5RisksWithMitigations,
   type Top5RisksWithMitigations,
 } from "../../services/getTop5RisksFromAssessmentContext.js";
+import { stampActiveLlmModel, getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
+import {
+  assertFeatureTokenQuota,
+  sendIfTokenQuotaExceeded,
+} from "../../services/admin/featureTokenQuota.service.js";
+import {
+  getRequestActor,
+  runWithRequestActor,
+} from "../../utils/requestActorContext.js";
 
 /** Persisted under fullReport.appendix: catalog rows used to generate the assessment. */
 function appendixCatalogRisksAndMitigations(
@@ -110,6 +120,7 @@ async function createCustomerRiskReport(
   payloadCots: Record<string, unknown>,
   reviewedByUser: string,
 ): Promise<void> {
+  const reportStarted = Date.now();
   const vendorAttestationId = payloadCots.vendor_attestation_id != null ? String(payloadCots.vendor_attestation_id).trim() : null;
   let productName = "";
   let attestationFrameworkSource: Record<string, unknown> | null = null;
@@ -219,6 +230,14 @@ async function createCustomerRiskReport(
     console.error("getTop5RisksWithMitigations failed:", err);
   }
 
+  // Persist RI-derived intent into contextual multipliers for the report / UI.
+  if (top5RisksWithMitigations?.intentScore?.label) {
+    const intentLabel = top5RisksWithMitigations.intentScore.label;
+    report.contextualMultipliers = intentLabel;
+    payloadCots.contextual_multipliers = intentLabel;
+    payloadCots.contextualMultipliers = intentLabel;
+  }
+
   if (top5RisksWithMitigations) {
     report.dbTop5Risks = {
       top5Risks: top5RisksWithMitigations.top5Risks.map((r) => ({
@@ -252,6 +271,7 @@ async function createCustomerRiskReport(
     top5RisksWithMitigations,
     frameworkRowsForStoredReport,
   );
+  let srsRationale = "";
   if (generated) {
     if (
       generated.matchedRiskSummaries &&
@@ -338,6 +358,16 @@ async function createCustomerRiskReport(
     report.generatedAnalysis = {
       overallRiskScore: generated.overallRiskScore,
       riskLevel: generated.riskLevel,
+      scoreRationale:
+        typeof generated.scoreRationale === "string"
+          ? generated.scoreRationale.trim() || undefined
+          : undefined,
+      scoreRationaleType:
+        generated.scoreRationaleType === "SCS" ||
+        generated.scoreRationaleType === "SRS" ||
+        generated.scoreRationaleType === "IRS"
+          ? generated.scoreRationaleType
+          : "SCS",
       summary: generated.summary,
       executiveSummary: generated.executiveSummary,
       keyRisks: generated.keyRisks,
@@ -362,6 +392,12 @@ async function createCustomerRiskReport(
     if (frameworkMappingRows.length > 0) {
       report.frameworkMappingRows = frameworkMappingRows;
     }
+    srsRationale =
+      typeof generated.scoreRationale === "string" ? generated.scoreRationale.trim() : "";
+    if (srsRationale) {
+      report.scoreRationale = srsRationale;
+      report.scoreRationaleType = "SCS";
+    }
   } else if (frameworkRowsForStoredReport.length > 0) {
     report.generatedAnalysis = {
       fullReport: {
@@ -371,11 +407,53 @@ async function createCustomerRiskReport(
     report.frameworkMappingRows = frameworkRowsForStoredReport;
   }
 
+  const llmMeta = getActiveLlmModelMeta();
+  const reportStored = stampActiveLlmModel(report as Record<string, unknown>);
+
   await db.insert(customerRiskAssessmentReports).values({
     assessment_id: assessmentId,
     organization_id: orgIdStr,
     title,
-    report,
+    report: reportStored,
+    score_rationale: srsRationale || undefined,
+    score_rationale_type: srsRationale ? "SCS" : undefined,
+    llm_model_id: llmMeta.modelId,
+    llm_model_label: llmMeta.modelLabel,
+  });
+  console.log(
+    `[cots_vendor] report saved assessment=${assessmentId} elapsed=${Date.now() - reportStarted}ms`,
+  );
+}
+
+/**
+ * LLM report generation often exceeds the gateway idle timeout (~60s).
+ * Save the assessment, send JSON to the browser, THEN generate the report.
+ * Do not await this from the HTTP handler.
+ */
+function queueCustomerRiskReport(
+  assessmentId: string,
+  orgIdStr: string,
+  payloadCots: Record<string, unknown>,
+  reviewedByUser: string,
+): void {
+  const actor = getRequestActor();
+  setImmediate(() => {
+    void runWithRequestActor(actor, async () => {
+      try {
+        await createCustomerRiskReport(
+          assessmentId,
+          orgIdStr,
+          payloadCots,
+          reviewedByUser,
+        );
+      } catch (err) {
+        console.error(
+          "Background vendor COTS report generation failed:",
+          assessmentId,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    });
   });
 }
 
@@ -399,6 +477,8 @@ const submitVendorCotsAssessment = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User has no organization. Complete onboarding or contact admin." });
     }
 
+    await assertFeatureTokenQuota("assessment");
+
     const u = user as Record<string, unknown>;
     const firstName = typeof u.user_first_name === "string" ? u.user_first_name.trim() : "";
     const lastName = typeof u.user_last_name === "string" ? u.user_last_name.trim() : "";
@@ -408,54 +488,7 @@ const submitVendorCotsAssessment = async (req: Request, res: Response) => {
       [firstName, lastName].filter(Boolean).join(" ") || userName || email || "—";
 
     const body = req.body ?? {};
-    const get = (key: string) => body[key] ?? body[key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())];
-    const parseJson = (v: unknown): unknown => {
-      if (v == null) return null;
-      if (typeof v === "string" && v.trim().length > 0) {
-        try {
-          const parsed = JSON.parse(v);
-          return parsed;
-        } catch {
-          return v;
-        }
-      }
-      return v;
-    };
-
-    const selectedProduct = get("selectedProductId");
-    const vendorAttestationAlt = get("vendor_attestation_id") ?? get("vendorAttestationId");
-    const resolvedAttestationId = (() => {
-      const a = selectedProduct != null ? String(selectedProduct).trim() : "";
-      if (a) return a;
-      const b = vendorAttestationAlt != null ? String(vendorAttestationAlt).trim() : "";
-      return b || null;
-    })();
-
-    const payloadCots = {
-      vendor_attestation_id: resolvedAttestationId,
-      customer_organization_name: get("customerOrganizationName") != null ? String(get("customerOrganizationName")).slice(0, 200) : null,
-      customer_sector: get("customerSector") != null ? String(get("customerSector")).slice(0, 200) : null,
-      primary_pain_point: get("primaryPainPoint") != null ? String(get("primaryPainPoint")) : null,
-      expected_outcomes: get("expectedOutcomes") != null ? String(get("expectedOutcomes")).slice(0, 300) : null,
-      customer_budget_range: get("customerBudgetRange") != null ? String(get("customerBudgetRange")).slice(0, 100) : null,
-      implementation_timeline: get("implementationTimeline") != null ? String(get("implementationTimeline")).slice(0, 100) : null,
-      product_features: parseJson(get("productFeatures") ?? get("product_features")),
-      implementation_approach: get("implementationApproach") != null ? String(get("implementationApproach")).slice(0, 100) : null,
-      customization_level: get("customizationLevel") != null ? String(get("customizationLevel")).slice(0, 100) : null,
-      integration_complexity: get("integrationComplexity") != null ? String(get("integrationComplexity")).slice(0, 100) : null,
-      regulatory_requirements: parseJson(get("regulatoryRequirements") ?? get("regulatory_requirements")),
-      regulatory_requirements_other: get("regulatoryRequirementsOther") != null ? String(get("regulatoryRequirementsOther")).slice(0, 300) : null,
-      data_sensitivity: get("dataSensitivity") != null ? String(get("dataSensitivity")).slice(0, 100) : null,
-      customer_risk_tolerance: get("customerRiskTolerance") != null ? String(get("customerRiskTolerance")).slice(0, 100) : null,
-      alternatives_considered: get("alternativesConsidered") != null ? String(get("alternativesConsidered")) : null,
-      key_advantages: get("keyAdvantages") != null ? String(get("keyAdvantages")) : null,
-      customer_specific_risks: parseJson(get("customerSpecificRisks") ?? get("customer_specific_risks")),
-      customer_specific_risks_other: get("customerSpecificRisksOther") != null ? String(get("customerSpecificRisksOther")).slice(0, 300) : null,
-      identified_risks: get("identifiedRisks") != null ? String(get("identifiedRisks")) : null,
-      risk_domain_scores: get("riskDomainScores") != null ? String(get("riskDomainScores")) : null,
-      contextual_multipliers: get("contextualMultipliers") != null ? String(get("contextualMultipliers")) : null,
-      risk_mitigation: get("riskMitigation") != null ? String(get("riskMitigation")) : null,
-    };
+    const payloadCots = buildVendorCotsPayload(body as Record<string, unknown>);
 
     const assessmentIdRaw = body.assessmentId ?? body.assessment_id;
     const assessmentId = typeof assessmentIdRaw === "string" ? assessmentIdRaw.trim() || null : null;
@@ -489,11 +522,13 @@ const submitVendorCotsAssessment = async (req: Request, res: Response) => {
             .set({ ...payloadCots, user_id: Number(userId), updated_at: new Date() })
             .where(eq(cotsVendorAssessments.assessment_id, assessmentId));
         });
-        await createCustomerRiskReport(assessmentId, orgIdStr, payloadCots, reviewedByUser);
-        return res.status(200).json({
+        res.status(200).json({
           message: "Vendor COTS assessment submitted successfully",
           assessmentId,
+          reportGenerating: true,
         });
+        queueCustomerRiskReport(assessmentId, orgIdStr, payloadCots, reviewedByUser);
+        return;
       }
     }
 
@@ -520,13 +555,15 @@ const submitVendorCotsAssessment = async (req: Request, res: Response) => {
       return [a];
     });
 
-    await createCustomerRiskReport(assessment.id, orgIdStr, payloadCots, reviewedByUser);
-
-    return res.status(201).json({
+    res.status(201).json({
       message: "Vendor COTS assessment submitted successfully",
       assessmentId: assessment.id,
+      reportGenerating: true,
     });
+    queueCustomerRiskReport(assessment.id, orgIdStr, payloadCots, reviewedByUser);
+    return;
   } catch (error) {
+    if (sendIfTokenQuotaExceeded(res, error)) return;
     const message = error instanceof Error ? error.message : String(error);
     console.error("Error in submitVendorCotsAssessment:", message);
     return res.status(500).json({

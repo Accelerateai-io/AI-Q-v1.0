@@ -8,7 +8,7 @@ interface FormFieldProps {
   mandatory?: boolean;
   tooltipText?: string;
   errorText?: string;
-  children: ReactNode; // The actual input/select/dropdown component
+  children?: ReactNode;
 }
 
 const FormField = ({

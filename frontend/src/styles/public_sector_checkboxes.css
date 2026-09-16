@@ -10,28 +10,29 @@
   gap: 0.75rem 1.25rem;
 }
 
-/* Each item is a button: padding, rounded, border */
+/* Each item matches chip-multi-select sector tiles */
 .public-sector-checkbox-item {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.875rem;
+  font-family: "Sora", sans-serif;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #1f2937;
-  background-color: #ffffff;
-  /* border: 1.5px solid #d1d5db; */
-  border: 1.5px solid var(--light-gray-color);
-  border-radius: 8px;
+  color: var(--text-secondary, var(--light-gray-color, #64748b));
+  background-color: var(--surface-muted, #f5f7fa);
+  border: 1px solid var(--border-strong, var(--light-gray-color, #d1d5db));
+  border-radius: var(--ui-border-radius, 0);
   cursor: pointer;
   user-select: none;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .public-sector-checkbox-item:hover {
-  border-color: #9ca3af;
-  background-color: #f9fafb;
+  border-color: var(--nav-active, #9ca3af);
+  background-color: var(--surface-hover, #f9fafb);
+  color: var(--text-primary, #1f2937);
 }
 
 /* Hide native checkbox off-screen; label click toggles it */
@@ -58,16 +59,17 @@
   box-shadow: 0 0 0 2px rgba(44, 126, 241, 0.35);
 }
 
-/* Selected: blue border, light blue bg */
+/* Selected: same as chip-multi-select-chip--selected */
 .public-sector-checkbox-item:has(.public-sector-checkbox-input:checked) {
-  border-color: #2c7ef1;
-  background-color: #e0e8f9;
-  color: #1f2937;
+  border-color: var(--nav-active, #2c7ef1);
+  background-color: var(--icon-chip-bg, #e0e8f9);
+  color: var(--nav-active, #2c7ef1);
 }
 
 .public-sector-checkbox-item:has(.public-sector-checkbox-input:checked):hover {
-  background-color: #c9d6f5;
-  border-color: #1d6ad4;
+  background-color: var(--icon-chip-bg, #c9d6f5);
+  border-color: var(--nav-active, #1d6ad4);
+  filter: brightness(0.97);
 }
 
 .public-sector-checkbox-label {

@@ -1,13 +1,27 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileText, LayoutDashboard, Activity, Shield, AlertTriangle, ChevronDown, ClipboardPlus, Building2, Users, ChevronRight } from "lucide-react";
-import { MetricCard } from "../../UI/Card";
+import {
+  FileText,
+  FileCheck,
+  ClipboardCheck,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Sparkles,
+  Workflow,
+} from "lucide-react";
 import LoadingMessage from "../../UI/LoadingMessage";
+import DashboardFeatureCard from "../../UI/DashboardFeatureCard";
+import DashboardStatCard from "../../UI/DashboardStatCard";
 import type { AssessmentRow } from "./types";
 import { BASE_URL, formatGovDate, getAssessmentLabel } from "./utils";
 import { formatFrameworkMappingFrameworkForDisplay } from "../../../utils/frameworkMappingFrameworkDisplay";
 import { frameworkControlsDisplayLines } from "../../../utils/frameworkMappingControlsDisplay";
+import DashboardTypewriterGreeting from "../../UI/DashboardTypewriterGreeting";
+import { invertScore100 } from "../../../utils/completeReportGrade";
 import "./dashboard.css";
+import "../UserManagement/user_management.css";
 
 type RiskFrequency = { label: string; count: number; riskIds: string[] };
 type DomainShare = { primaryRisk: string; domainName: string; percentage: number };
@@ -196,7 +210,111 @@ function extractExecutiveSummaryFromCompleteReport(report: unknown): string | nu
   return text || null;
 }
 
-const LOADER_MIN_MS = 2000;
+function deriveBuyerMappingStats(data: unknown): {
+  riskCount: number;
+  mitigationCount: number;
+  topRisks: RiskFrequency[];
+  topDomains: DomainShare[];
+  frameworkRows: FrameworkMappingRow[];
+} {
+  const top5 = Array.isArray((data as { data?: { top5Risks?: unknown } })?.data?.top5Risks)
+    ? ((data as { data: { top5Risks: Array<Record<string, unknown>> } }).data.top5Risks)
+    : [];
+  const mitByRisk =
+    (data as { data?: { mitigationsByRiskId?: unknown } })?.data?.mitigationsByRiskId &&
+    typeof (data as { data: { mitigationsByRiskId: unknown } }).data.mitigationsByRiskId === "object"
+      ? ((data as { data: { mitigationsByRiskId: Record<string, unknown> } }).data.mitigationsByRiskId)
+      : {};
+  const frameworkTypesForAssessment = frameworkTypesFromBuyerMappingRows(
+    (data as { data?: { frameworkMappingRows?: unknown } })?.data?.frameworkMappingRows,
+  );
+  const frameworkControlIdsForAssessment = frameworkControlIdsFromBuyerMappingRows(
+    (data as { data?: { frameworkMappingRows?: unknown } })?.data?.frameworkMappingRows,
+  );
+  const riskIds = new Set<string>();
+  const mitigationIds = new Set<string>();
+  const riskFreq = new Map<string, { label: string; count: number; riskIds: Set<string> }>();
+  const domainFreq = new Map<string, number>();
+  const domainNameByPrimary = new Map<string, Map<string, number>>();
+  const frameworkRows: FrameworkMappingRow[] = [];
+
+  for (const risk of top5) {
+    const rid = String(risk?.risk_id ?? "").trim();
+    if (!rid) continue;
+    const labelRaw = String(risk?.risk_title ?? rid).trim();
+    const label = toTopRiskCategory(labelRaw);
+    riskIds.add(rid);
+    const prev = riskFreq.get(label);
+    const nextIds = prev?.riskIds ?? new Set<string>();
+    nextIds.add(rid);
+    riskFreq.set(label, { label, count: (prev?.count ?? 0) + 1, riskIds: nextIds });
+
+    const primaryRisks = splitPrimaryRisk(risk.primary_risk);
+    const targetPrimaryRisks = primaryRisks.length > 0 ? primaryRisks : ["Unspecified"];
+    const domains = splitDomainNames(risk.domains);
+    const domainName = domains[0] ?? "Unspecified";
+    for (const primary of targetPrimaryRisks) {
+      domainFreq.set(primary, (domainFreq.get(primary) ?? 0) + 1);
+      if (!domainNameByPrimary.has(primary)) domainNameByPrimary.set(primary, new Map<string, number>());
+      const nameMap = domainNameByPrimary.get(primary)!;
+      nameMap.set(domainName, (nameMap.get(domainName) ?? 0) + 1);
+    }
+
+    const frameworkControl =
+      frameworkControlIdsForAssessment.trim() !== ""
+        ? frameworkControlIdsForAssessment
+        : frameworkTypesForAssessment.trim() !== ""
+          ? frameworkTypesForAssessment
+          : getStaticFrameworkControl(labelRaw);
+    const mids = Array.isArray(mitByRisk[rid])
+      ? (mitByRisk[rid] as Array<Record<string, unknown>>)
+          .map((m) => toMitigationId(m?.mitigation_id ?? m?.mitigation_action_id))
+          .filter(Boolean)
+      : [];
+    frameworkRows.push({
+      riskId: rid,
+      riskCategory: labelRaw,
+      frameworkControl,
+      mitigationIds: [...new Set(mids)],
+    });
+  }
+
+  for (const arr of Object.values(mitByRisk)) {
+    if (!Array.isArray(arr)) continue;
+    for (const m of arr) {
+      if (!m || typeof m !== "object") continue;
+      const mid = toMitigationId(
+        (m as Record<string, unknown>).mitigation_id ?? (m as Record<string, unknown>).mitigation_action_id,
+      );
+      if (mid) mitigationIds.add(mid);
+    }
+  }
+
+  const totalDomainCount = [...domainFreq.values()].reduce((sum, n) => sum + n, 0);
+  return {
+    riskCount: riskIds.size,
+    mitigationCount: mitigationIds.size,
+    topRisks: [...riskFreq.values()]
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .slice(0, 3)
+      .map((x) => ({ label: x.label, count: x.count, riskIds: [...x.riskIds] })),
+    topDomains: [...domainFreq.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3)
+      .map(([primaryRisk, count]) => {
+        const nameCounts = domainNameByPrimary.get(primaryRisk);
+        const domainName = nameCounts
+          ? [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unspecified"
+          : "Unspecified";
+        return {
+          primaryRisk,
+          domainName,
+          percentage: totalDomainCount > 0 ? Math.round((count / totalDomainCount) * 100) : 0,
+        };
+      }),
+    frameworkRows,
+  };
+}
 
 const BuyerOverview = () => {
   const navigate = useNavigate();
@@ -218,7 +336,7 @@ const BuyerOverview = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   // const [aiSearchQuery, setAiSearchQuery] = useState("");
 
-  const fetchAssessments = useCallback(() => {
+  const fetchAssessments = useCallback(async () => {
     const token = sessionStorage.getItem("bearerToken");
     if (!token) {
       setLoading(false);
@@ -226,425 +344,66 @@ const BuyerOverview = () => {
     }
     setFetchError(null);
     setLoading(true);
-    const loadStart = Date.now();
-    const finishLoading = () => {
-      const remaining = Math.max(0, LOADER_MIN_MS - (Date.now() - loadStart));
-      setTimeout(() => setLoading(false), remaining);
-    };
     const organizationId = sessionStorage.getItem("organizationId");
     const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
-    fetch(`${BASE_URL}/assessments${query}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then(async (assessmentsResult) => {
-        let completedBuyerIds: string[] = [];
-        const list: AssessmentRow[] =
-          assessmentsResult?.data?.assessments != null
-            ? (assessmentsResult.data.assessments as AssessmentRow[])
-            : [];
-        if (list.length > 0) {
-          setAssessmentsList(list);
-          const buyer = list.filter((a) => (a.type ?? "").toLowerCase() === "cots_buyer");
-          const completed = buyer.filter((a) => (a.status ?? "").toLowerCase() !== "draft");
-          completedBuyerIds = completed.map((a) => String(a.assessmentId)).filter(Boolean);
-          setSelectedAssessmentId((prev) => {
-            if (prev && completed.some((a) => String(a.assessmentId) === prev)) return prev;
-            return "";
-          });
-        } else {
-          setAssessmentsList([]);
-          setSelectedAssessmentId("");
-        }
-
-        /** Report list APIs require organizationId; session may be unset right after login. */
-        const orgFromSession = String(sessionStorage.getItem("organizationId") ?? "").trim();
-        const buyerRows = list.filter((a) => (a.type ?? "").toLowerCase() === "cots_buyer");
-        const orgFromAssessment = String(
-          buyerRows.find((a) => String(a.organizationId ?? "").trim())?.organizationId ?? "",
-        ).trim();
-        const effectiveOrgId = orgFromSession || orgFromAssessment;
-        const reportsQuery = effectiveOrgId ? `?organizationId=${encodeURIComponent(effectiveOrgId)}` : "";
-        if (effectiveOrgId && !orgFromSession) {
-          try {
-            sessionStorage.setItem("organizationId", effectiveOrgId);
-          } catch {
-            // ignore storage failures
-          }
-        }
-
-        const reportsByAssessment: Record<string, AssessmentReportMeta> = {};
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+    try {
+      const assessmentsRes = await fetch(`${BASE_URL}/assessments${query}`, { method: "GET", headers });
+      const assessmentsResult = await assessmentsRes.json().catch(() => ({}));
+      const list: AssessmentRow[] =
+        assessmentsResult?.data?.assessments != null
+          ? (assessmentsResult.data.assessments as AssessmentRow[])
+          : [];
+      setAssessmentsList(list);
+      const buyer = list.filter((a) => (a.type ?? "").toLowerCase() === "cots_buyer");
+      const completed = buyer.filter((a) => (a.status ?? "").toLowerCase() !== "draft");
+      setSelectedAssessmentId((prev) => {
+        if (prev && completed.some((a) => String(a.assessmentId) === prev)) return prev;
+        return "";
+      });
+      const orgFromList = String(
+        buyer.find((a) => String(a.organizationId ?? "").trim())?.organizationId ?? "",
+      ).trim();
+      if (orgFromList && !String(organizationId ?? "").trim()) {
         try {
-          const reportsRes = await fetch(`${BASE_URL}/customerRiskReports${reportsQuery}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const reportsData = await reportsRes.json().catch(() => ({}));
-          const reports = Array.isArray(reportsData?.data?.reports) ? reportsData.data.reports : [];
-          reports.sort(
-            (a: Record<string, unknown>, b: Record<string, unknown>) =>
-              new Date(String(b?.createdAt ?? 0)).getTime() - new Date(String(a?.createdAt ?? 0)).getTime(),
-          );
-          for (const rep of reports) {
-            const aid = String(rep?.assessmentId ?? "").trim();
-            const rid = String(rep?.id ?? "").trim();
-            if (!aid || !rid) continue;
-            const score = extractOverallRiskScoreFromReportItem(rep);
-            const implementationRiskScore = extractImplementationRiskScoreFromReportItem(rep);
-            const nextMeta: AssessmentReportMeta = {
-              reportId: rid,
-              score,
-              implementationRiskScore,
-              summary:
-                rep?.report &&
-                typeof rep.report === "object" &&
-                (rep.report as Record<string, unknown>).generatedAnalysis &&
-                typeof (rep.report as Record<string, unknown>).generatedAnalysis === "object"
-                  ? String(
-                      ((rep.report as Record<string, unknown>).generatedAnalysis as Record<string, unknown>).summary ?? "",
-                    ).trim() || null
-                  : null,
-            };
-            if (!reportsByAssessment[aid]) {
-              reportsByAssessment[aid] = nextMeta;
-              continue;
-            }
-            const current = reportsByAssessment[aid];
-            if (current.score == null && nextMeta.score != null) {
-              reportsByAssessment[aid] = {
-                ...nextMeta,
-                implementationRiskScore:
-                  nextMeta.implementationRiskScore ?? current.implementationRiskScore ?? null,
-              };
-            } else if (current.implementationRiskScore == null && nextMeta.implementationRiskScore != null) {
-              reportsByAssessment[aid] = {
-                ...current,
-                implementationRiskScore: nextMeta.implementationRiskScore,
-              };
-            }
-          }
-          try {
-            const bvrRes = await fetch(`${BASE_URL}/buyerVendorRiskReports${reportsQuery}`, {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            const bvrData = await bvrRes.json().catch(() => ({}));
-            const bvrRows = Array.isArray(bvrData?.data?.reports) ? (bvrData.data.reports as Array<Record<string, unknown>>) : [];
-            for (const row of bvrRows) {
-              const bvrAid = String(row?.assessmentId ?? "").trim();
-              const rawIrs = row?.implementationRiskScore;
-              const n = Number(rawIrs);
-              if (!bvrAid || !Number.isFinite(n)) continue;
-              const irs = Math.max(0, Math.min(100, Math.round(n)));
-              const cur = reportsByAssessment[bvrAid];
-              if (cur) {
-                reportsByAssessment[bvrAid] = { ...cur, implementationRiskScore: irs };
-              } else {
-                reportsByAssessment[bvrAid] = {
-                  reportId: "",
-                  score: null,
-                  implementationRiskScore: irs,
-                  summary: null,
-                };
-              }
-            }
-          } catch {
-            // ignore buyer vendor risk list failure
-          }
+          sessionStorage.setItem("organizationId", orgFromList);
         } catch {
-          // ignore reports fetch failure; cards still render
+          // ignore storage failures
         }
-        try {
-          const orgParamEnrich = effectiveOrgId ? `&organizationId=${encodeURIComponent(effectiveOrgId)}` : "";
-          for (const aid of completedBuyerIds) {
-            if (reportsByAssessment[aid]?.reportId) continue;
-            const res = await fetch(
-              `${BASE_URL}/customerRiskReports?assessmentId=${encodeURIComponent(aid)}${orgParamEnrich}`,
-              {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-              },
-            );
-            const data = await res.json().catch(() => ({}));
-            const rows = Array.isArray(data?.data?.reports) ? (data.data.reports as Array<Record<string, unknown>>) : [];
-            if (rows.length === 0) continue;
-            const row0 = rows[0]!;
-            const rid = String(row0?.id ?? "").trim();
-            if (!rid) continue;
-            const score = extractOverallRiskScoreFromReportItem(row0);
-            const implementationRiskScore = extractImplementationRiskScoreFromReportItem(row0);
-            const summary =
-              row0?.report &&
-              typeof row0.report === "object" &&
-              (row0.report as Record<string, unknown>).generatedAnalysis &&
-              typeof (row0.report as Record<string, unknown>).generatedAnalysis === "object"
-                ? String(
-                    ((row0.report as Record<string, unknown>).generatedAnalysis as Record<string, unknown>).summary ?? "",
-                  ).trim() || null
-                : null;
-            const existing = reportsByAssessment[aid];
-            reportsByAssessment[aid] = {
-              reportId: rid,
-              score: existing?.score ?? score ?? null,
-              implementationRiskScore: existing?.implementationRiskScore ?? implementationRiskScore ?? null,
-              summary: existing?.summary ?? summary ?? null,
-            };
-          }
-        } catch {
-          // ignore per-assessment complete report lookup failures
-        }
-        setReportsByAssessmentId(reportsByAssessment);
+      }
+    } catch {
+      setFetchError("Failed to load assessments.");
+      setAssessmentsList([]);
+      setReportsByAssessmentId({});
+    } finally {
+      setLoading(false);
+    }
 
-        const riskIds = new Set<string>();
-        const mitigationIds = new Set<string>();
-        const riskIdsByAssessment = new Map<string, Set<string>>();
-        const mitigationIdsByAssessment = new Map<string, Set<string>>();
-        const riskFreq = new Map<string, { label: string; count: number; riskIds: Set<string> }>();
-        const riskFreqByAssessment = new Map<string, Map<string, { label: string; count: number; riskIds: Set<string> }>>();
-        const domainFreq = new Map<string, number>();
-        const domainFreqByAssessment = new Map<string, Map<string, number>>();
-        const domainNameByPrimary = new Map<string, Map<string, number>>();
-        const domainNameByPrimaryByAssessment = new Map<string, Map<string, Map<string, number>>>();
-        const frameworkByAssessment = new Map<string, FrameworkMappingRow[]>();
-        const frameworkMergedByRisk = new Map<string, FrameworkMappingRow & { _mitSet: Set<string> }>();
-        const results = await Promise.allSettled(
-          completedBuyerIds.map((aid) =>
-            fetch(`${BASE_URL}/buyerCotsAssessment/${encodeURIComponent(aid)}/risk-mappings`, {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            })
-              .then((res) => (res.ok ? res.json() : null))
-              .then((data) => ({ aid, data })),
-          ),
-        );
-
-        for (const r of results) {
-          if (r.status !== "fulfilled") continue;
-          const aid = r.value.aid;
-          const data = r.value.data;
-          const top5 = Array.isArray(data?.data?.top5Risks) ? (data.data.top5Risks as Array<Record<string, unknown>>) : [];
-          const mitByRisk =
-            data?.data?.mitigationsByRiskId && typeof data.data.mitigationsByRiskId === "object"
-              ? (data.data.mitigationsByRiskId as Record<string, unknown>)
-              : {};
-          const frameworkTypesForAssessment = frameworkTypesFromBuyerMappingRows(data?.data?.frameworkMappingRows);
-          const frameworkControlIdsForAssessment = frameworkControlIdsFromBuyerMappingRows(
-            data?.data?.frameworkMappingRows,
-          );
-          const rowsForAssessment: FrameworkMappingRow[] = [];
-
-          if (!riskIdsByAssessment.has(aid)) {
-            riskIdsByAssessment.set(aid, new Set<string>());
-            mitigationIdsByAssessment.set(aid, new Set<string>());
-          }
-          if (!riskFreqByAssessment.has(aid)) {
-            riskFreqByAssessment.set(aid, new Map<string, { label: string; count: number; riskIds: Set<string> }>());
-          }
-          if (!domainFreqByAssessment.has(aid)) {
-            domainFreqByAssessment.set(aid, new Map<string, number>());
-          }
-          if (!domainNameByPrimaryByAssessment.has(aid)) {
-            domainNameByPrimaryByAssessment.set(aid, new Map<string, Map<string, number>>());
-          }
-
-          for (const risk of top5) {
-            const rid = String(risk?.risk_id ?? "").trim();
-            const labelRaw = String(risk?.risk_title ?? (rid || "Unknown Risk")).trim();
-            const label = toTopRiskCategory(labelRaw);
-            if (!rid) continue;
-            riskIds.add(rid);
-            riskIdsByAssessment.get(aid)?.add(rid);
-            const prev = riskFreq.get(label);
-            const nextIds = prev?.riskIds ?? new Set<string>();
-            nextIds.add(rid);
-            riskFreq.set(label, { label, count: (prev?.count ?? 0) + 1, riskIds: nextIds });
-            const perAid = riskFreqByAssessment.get(aid)!;
-            const prevAid = perAid.get(label);
-            const nextAidIds = prevAid?.riskIds ?? new Set<string>();
-            nextAidIds.add(rid);
-            perAid.set(label, { label, count: (prevAid?.count ?? 0) + 1, riskIds: nextAidIds });
-
-            const primaryRisks = splitPrimaryRisk((risk as Record<string, unknown>).primary_risk);
-            const targetPrimaryRisks = primaryRisks.length > 0 ? primaryRisks : ["Unspecified"];
-            const domains = splitDomainNames((risk as Record<string, unknown>).domains);
-            const domainName = domains[0] ?? "Unspecified";
-            const aidDomainMap = domainFreqByAssessment.get(aid)!;
-            const aidPrimaryDomainMap = domainNameByPrimaryByAssessment.get(aid)!;
-            for (const primary of targetPrimaryRisks) {
-              domainFreq.set(primary, (domainFreq.get(primary) ?? 0) + 1);
-              aidDomainMap.set(primary, (aidDomainMap.get(primary) ?? 0) + 1);
-
-              if (!domainNameByPrimary.has(primary)) {
-                domainNameByPrimary.set(primary, new Map<string, number>());
-              }
-              const globalDomainMap = domainNameByPrimary.get(primary)!;
-              globalDomainMap.set(domainName, (globalDomainMap.get(domainName) ?? 0) + 1);
-
-              if (!aidPrimaryDomainMap.has(primary)) {
-                aidPrimaryDomainMap.set(primary, new Map<string, number>());
-              }
-              const aidDomainNameMap = aidPrimaryDomainMap.get(primary)!;
-              aidDomainNameMap.set(domainName, (aidDomainNameMap.get(domainName) ?? 0) + 1);
-            }
-
-            const riskCategory = String(risk?.risk_title ?? (rid || "Unknown Risk")).trim();
-            const frameworkControl =
-              frameworkControlIdsForAssessment.trim() !== ""
-                ? frameworkControlIdsForAssessment
-                : frameworkTypesForAssessment.trim() !== ""
-                  ? frameworkTypesForAssessment
-                  : getStaticFrameworkControl(riskCategory);
-            const mids = Array.isArray((mitByRisk as Record<string, unknown>)[rid])
-              ? ((mitByRisk as Record<string, unknown>)[rid] as Array<Record<string, unknown>>)
-                  .map((m) => toMitigationId(m?.mitigation_id ?? m?.mitigation_action_id))
-                  .filter(Boolean)
-              : [];
-            rowsForAssessment.push({
-              riskId: rid,
-              riskCategory,
-              frameworkControl,
-              mitigationIds: [...new Set(mids)],
-            });
-          }
-          for (const arr of Object.values(mitByRisk)) {
-            if (!Array.isArray(arr)) continue;
-            for (const m of arr) {
-              if (!m || typeof m !== "object") continue;
-              const mm = m as Record<string, unknown>;
-              const mid = toMitigationId(mm.mitigation_id ?? mm.mitigation_action_id);
-              if (!mid) continue;
-              mitigationIds.add(mid);
-              mitigationIdsByAssessment.get(aid)?.add(mid);
-            }
-          }
-          frameworkByAssessment.set(aid, rowsForAssessment);
-          for (const row of rowsForAssessment) {
-            const prev = frameworkMergedByRisk.get(row.riskId);
-            if (!prev) {
-              frameworkMergedByRisk.set(row.riskId, {
-                ...row,
-                _mitSet: new Set(row.mitigationIds),
-              });
-            } else {
-              row.mitigationIds.forEach((m) => prev._mitSet.add(m));
-              const fwSet = new Set<string>();
-              for (const part of prev.frameworkControl.split(",").map((s) => s.trim())) {
-                if (part) fwSet.add(part);
-              }
-              for (const part of row.frameworkControl.split(",").map((s) => s.trim())) {
-                if (part) fwSet.add(part);
-              }
-              if (fwSet.size > 0) prev.frameworkControl = [...fwSet].join(", ");
-            }
-          }
-        }
-        const riskCountMap = Object.fromEntries(
-          [...riskIdsByAssessment.entries()].map(([aid, ids]) => [aid, ids.size]),
-        );
-        const mitigationCountMap = Object.fromEntries(
-          [...mitigationIdsByAssessment.entries()].map(([aid, ids]) => [aid, ids.size]),
-        );
-        const topAll = [...riskFreq.values()]
-          .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-          .slice(0, 3)
-          .map((x) => ({ label: x.label, count: x.count, riskIds: [...x.riskIds] }));
-        const topByAssessment = Object.fromEntries(
-          [...riskFreqByAssessment.entries()].map(([aid, mp]) => [
-            aid,
-            [...mp.values()]
-              .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-              .slice(0, 3)
-              .map((x) => ({ label: x.label, count: x.count, riskIds: [...x.riskIds] })),
-          ]),
-        );
-        const totalDomainCount = [...domainFreq.values()].reduce((sum, n) => sum + n, 0);
-        const topDomainsAll = [...domainFreq.entries()]
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-          .slice(0, 3)
-          .map(([primaryRisk, count]) => {
-            const nameCounts = domainNameByPrimary.get(primaryRisk);
-            const domainName = nameCounts
-              ? [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unspecified"
-              : "Unspecified";
-            return {
-              primaryRisk,
-              domainName,
-              percentage: totalDomainCount > 0 ? Math.round((count / totalDomainCount) * 100) : 0,
-            };
-          });
-        const topDomainsByAssessment = Object.fromEntries(
-          [...domainFreqByAssessment.entries()].map(([aid, mp]) => {
-            const total = [...mp.values()].reduce((sum, n) => sum + n, 0);
-            const aidPrimaryDomainMap = domainNameByPrimaryByAssessment.get(aid);
-            const rows = [...mp.entries()]
-              .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-              .slice(0, 3)
-              .map(([primaryRisk, count]) => {
-                const nameCounts = aidPrimaryDomainMap?.get(primaryRisk);
-                const domainName = nameCounts
-                  ? [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unspecified"
-                  : "Unspecified";
-                return {
-                  primaryRisk,
-                  domainName,
-                  percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-                };
-              });
-            return [aid, rows];
-          }),
-        );
-        const frameworkAssessmentMap = Object.fromEntries(
-          [...frameworkByAssessment.entries()].map(([aid, rows]) => [aid, rows]),
-        );
-        const frameworkAllRows = [...frameworkMergedByRisk.values()].map((r) => ({
-          riskId: r.riskId,
-          riskCategory: r.riskCategory,
-          frameworkControl: r.frameworkControl,
-          mitigationIds: [...r._mitSet],
-        }));
-        setBuyerRiskCount(riskIds.size);
-        setBuyerMitigationCount(mitigationIds.size);
-        setRiskCountByAssessment(riskCountMap);
-        setMitigationCountByAssessment(mitigationCountMap);
-        setTopRiskFrequency(topAll);
-        setTopRiskFrequencyByAssessment(topByAssessment);
-        setTopDomainShares(topDomainsAll);
-        setTopDomainSharesByAssessment(topDomainsByAssessment);
-        setFrameworkRowsByAssessment(frameworkAssessmentMap);
-        setFrameworkRowsAll(frameworkAllRows);
-      })
-      .catch(() => {
-        setFetchError("Failed to load assessments.");
-        setAssessmentsList([]);
-        setBuyerRiskCount(0);
-        setBuyerMitigationCount(0);
-        setRiskCountByAssessment({});
-        setMitigationCountByAssessment({});
-        setTopRiskFrequency([]);
-        setTopRiskFrequencyByAssessment({});
-        setTopDomainShares([]);
-        setTopDomainSharesByAssessment({});
-        setReportsByAssessmentId({});
-        setFrameworkRowsByAssessment({});
-        setFrameworkRowsAll([]);
-      })
-      .finally(() => finishLoading());
+    try {
+      const bvrRes = await fetch(`${BASE_URL}/buyerVendorRiskReports${query}`, { method: "GET", headers });
+      const bvrData = await bvrRes.json().catch(() => ({}));
+      const bvrRows = Array.isArray(bvrData?.data?.reports)
+        ? (bvrData.data.reports as Array<Record<string, unknown>>)
+        : [];
+      const reportsByAssessment: Record<string, AssessmentReportMeta> = {};
+      for (const row of bvrRows) {
+        const bvrAid = String(row?.assessmentId ?? "").trim();
+        if (!bvrAid) continue;
+        const n = Number(row?.implementationRiskScore);
+        reportsByAssessment[bvrAid] = {
+          reportId: String(row?.id ?? "").trim(),
+          score: extractOverallRiskScoreFromReportItem(row),
+          implementationRiskScore: Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null,
+          summary: null,
+        };
+      }
+      setReportsByAssessmentId(reportsByAssessment);
+    } catch {
+      setReportsByAssessmentId({});
+    }
   }, []);
 
   useEffect(() => {
@@ -658,61 +417,63 @@ const BuyerOverview = () => {
       return;
     }
     let cancelled = false;
+    const headers = { Authorization: `Bearer ${token}` };
+    const aid = selectedAssessmentId;
     (async () => {
-      let overallRiskScore: number | null = null;
-      let implementationRiskScore: number | null = null;
-      let executiveSummary: string | null = null;
-      try {
-        const orgId = sessionStorage.getItem("organizationId");
-        const orgQuery = orgId ? `&organizationId=${encodeURIComponent(orgId)}` : "";
-        const res = await fetch(
-          `${BASE_URL}/customerRiskReports?assessmentId=${encodeURIComponent(selectedAssessmentId)}${orgQuery}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        const data = await res.json().catch(() => ({}));
-        const rows = Array.isArray(data?.data?.reports) ? (data.data.reports as Array<Record<string, unknown>>) : [];
-        if (rows.length > 0) {
-          overallRiskScore = extractOverallRiskScoreFromReportItem(rows[0]);
-          implementationRiskScore = extractImplementationRiskScoreFromReportItem(rows[0]);
-          executiveSummary = extractExecutiveSummaryFromCompleteReport(rows[0]?.report);
-        }
-      } catch {
-        // continue to buyer-vendor fallback
-      }
-      if (implementationRiskScore == null || overallRiskScore == null || !executiveSummary) {
+      const [bvrRes, mapRes] = await Promise.allSettled([
+        fetch(
+          `${BASE_URL.replace(/\/$/, "")}/buyerCotsAssessment/${encodeURIComponent(aid)}/vendor-risk-report`,
+          { headers },
+        ),
+        fetch(
+          `${BASE_URL}/buyerCotsAssessment/${encodeURIComponent(aid)}/risk-mappings`,
+          { headers },
+        ),
+      ]);
+
+      if (cancelled) return;
+
+      if (bvrRes.status === "fulfilled") {
         try {
-          const bvrRes = await fetch(
-            `${BASE_URL.replace(/\/$/, "")}/buyerCotsAssessment/${encodeURIComponent(selectedAssessmentId)}/vendor-risk-report`,
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-          const bvrData = await bvrRes.json().catch(() => ({}));
-          if (bvrRes.ok && bvrData?.report && typeof bvrData.report === "object") {
+          const bvrData = await bvrRes.value.json().catch(() => ({}));
+          if (cancelled) return;
+          if (bvrRes.value.ok && bvrData?.report && typeof bvrData.report === "object") {
             const rep = bvrData.report as Record<string, unknown>;
-            if (implementationRiskScore == null) {
-              const irsN = Number(rep.implementationRiskScore);
-              implementationRiskScore = Number.isFinite(irsN)
+            const irsN = Number(rep.implementationRiskScore);
+            const n = Number(rep.overallRiskScore);
+            setSelectedAssessmentSnapshot({
+              implementationRiskScore: Number.isFinite(irsN)
                 ? Math.max(0, Math.min(100, Math.round(irsN)))
-                : implementationRiskScore;
-            }
-            if (overallRiskScore == null) {
-              const n = Number(rep.overallRiskScore);
-              overallRiskScore = Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : overallRiskScore;
-            }
-            if (!executiveSummary) {
-              const s = String(rep.executiveSummary ?? "").trim();
-              executiveSummary = s || executiveSummary;
-            }
+                : null,
+              overallRiskScore: Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null,
+              executiveSummary: String(rep.executiveSummary ?? "").trim() || null,
+            });
+          } else {
+            setSelectedAssessmentSnapshot(null);
           }
         } catch {
-          // ignore fallback failure
+          setSelectedAssessmentSnapshot(null);
         }
       }
-      if (!cancelled) {
-        setSelectedAssessmentSnapshot({
-          implementationRiskScore,
-          overallRiskScore,
-          executiveSummary,
-        });
+
+      if (mapRes.status === "fulfilled" && mapRes.value.ok) {
+        try {
+          const mapData = await mapRes.value.json().catch(() => ({}));
+          if (cancelled) return;
+          const stats = deriveBuyerMappingStats(mapData);
+          setRiskCountByAssessment((prev) => ({ ...prev, [aid]: stats.riskCount }));
+          setMitigationCountByAssessment((prev) => ({ ...prev, [aid]: stats.mitigationCount }));
+          setTopRiskFrequencyByAssessment((prev) => ({ ...prev, [aid]: stats.topRisks }));
+          setTopDomainSharesByAssessment((prev) => ({ ...prev, [aid]: stats.topDomains }));
+          setFrameworkRowsByAssessment((prev) => ({ ...prev, [aid]: stats.frameworkRows }));
+          setBuyerRiskCount(stats.riskCount);
+          setBuyerMitigationCount(stats.mitigationCount);
+          setTopRiskFrequency(stats.topRisks);
+          setTopDomainShares(stats.topDomains);
+          setFrameworkRowsAll(stats.frameworkRows);
+        } catch {
+          // keep existing mapping stats
+        }
       }
     })();
     return () => {
@@ -729,9 +490,12 @@ const BuyerOverview = () => {
   const orgScopedList = organizationId
     ? assessmentsList.filter((a) => String(a.organizationId ?? "") === String(organizationId))
     : assessmentsList;
-  const buyerAssessments = orgScopedList.filter((a) => (a.type ?? "").toLowerCase() === "cots_buyer");
+  const listForBuyerCards =
+    orgScopedList.some((a) => (a.type ?? "").toLowerCase() === "cots_buyer")
+      ? orgScopedList
+      : assessmentsList;
+  const buyerAssessments = listForBuyerCards.filter((a) => (a.type ?? "").toLowerCase() === "cots_buyer");
   const completedBuyerAssessments = buyerAssessments.filter((a) => (a.status ?? "").toLowerCase() !== "draft");
-  const draftCount = buyerAssessments.filter((a) => (a.status ?? "").toLowerCase() === "draft").length;
   const completedCount = completedBuyerAssessments.length;
   const selectedAssessment = completedBuyerAssessments.find((a) => String(a.assessmentId) === selectedAssessmentId);
   const displayedRiskCount = selectedAssessmentId
@@ -766,102 +530,184 @@ const BuyerOverview = () => {
     : null;
   const assessmentMetricTitle = selectedAssessmentId ? "Implementation risk score" : "Assessments";
   const assessmentMetricValue = selectedAssessmentId
-    ? (selectedAssessmentDashboardScore != null ? selectedAssessmentDashboardScore : "")
+    ? (selectedAssessmentDashboardScore != null ? invertScore100(selectedAssessmentDashboardScore) : "")
     : buyerAssessments.length;
-  const assessmentMetricDescription = selectedAssessmentId ? "" : `${completedCount} completed, ${draftCount} pending`;
+
+  if (loading) {
+    return (
+      <div className="vendor_overview_page sec_user_page org_settings_page governance_overview">
+        <LoadingMessage
+          message="Loading dashboard…"
+          className="loading_message_wrapper--page"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="vendor_overview_page sec_user_page org_settings_page governance_overview">
-      <div className="vendor_overview_heading page_header_align governance_overview_header">
-        <div className="vendor_overview_headers page_header_row">
-          <span className="icon_size_header" aria-hidden>
-            <LayoutDashboard size={24} className="header_icon_svg" />
-          </span>
-          <div className="page_header_title_block">
-            <h1 className="page_header_title">Governance Intelligence</h1>
-            <p className="sub_title page_header_subtitle">
-              Strategic oversight for enterprise-wide AI risk mapping and compliance framework alignment.
+      <section className="dash_hero" aria-label="Buyer dashboard overview">
+        <div className="dash_hero_bg" aria-hidden>
+          <span className="dash_hero_pill dash_hero_pill--1" />
+          <span className="dash_hero_pill dash_hero_pill--2" />
+          <span className="dash_hero_pill dash_hero_pill--3" />
+          <span className="dash_hero_pill dash_hero_pill--4" />
+          <span className="dash_hero_pill dash_hero_pill--5" />
+        </div>
+
+        <div className="dash_greeting_row dash_greeting_row--centered dash_hero_greeting">
+          <div className="page_header_row dash_greeting_heading dash_greeting_heading--pa">
+            <DashboardTypewriterGreeting
+              role="buyer"
+              className="dash_greeting_title dash_hero_title"
+            />
+            <p className="dash_greeting_subtitle dash_hero_subtitle">
+              Start an assessment or explore vendors to evaluate AI trust end to end.
             </p>
           </div>
         </div>
-        <div className="vendor_overview_actions governance_overview_actions">
-          <div className="governance_overview_select_wrap">
-            <select
-              className="governance_overview_select"
-              value={selectedAssessmentId}
-              onChange={(e) => setSelectedAssessmentId(e.target.value)}
-              aria-label="Select assessment"
-            >
-              <option value="">All Assessments</option>
-              {completedBuyerAssessments.map((a) => (
-                <option key={a.assessmentId} value={a.assessmentId}>
-                  {getAssessmentLabel(a)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={18} className="governance_overview_chevron governance_overview_chevron_select" aria-hidden />
-          </div>
-        </div>
-      </div>
 
-      {loading && <LoadingMessage message="Loading assessments…" />}
-      {fetchError && <div className="vendor_overview_error">{fetchError}</div>}
+        {fetchError && <div className="vendor_overview_error">{fetchError}</div>}
 
-      {!loading && (
-        <>
-          {!isViewOnlyRole && (
-            <section className="vendor_portal_section" aria-labelledby="buyer-quick-actions-heading">
-              <h2 id="buyer-quick-actions-heading" className="vendor_portal_section_heading">
-                Quick Actions
-              </h2>
-              <div className="vendor_portal_action_cards">
-                <Link to="/buyerAssessment" className="vendor_portal_action_card vendor_portal_action_card_primary">
-                  <ClipboardPlus size={26} className="vendor_portal_action_icon_secondary" aria-hidden />
-                  <span className="vendor_portal_action_label">Create Assessment</span>
-                </Link>
-                <Link to="/vendor-directory" className="vendor_portal_action_card vendor_portal_action_card_primary">
-                  <Building2 size={26} className="vendor_portal_action_icon_secondary" aria-hidden />
-                  <span className="vendor_portal_action_label">AI Directory</span>
-                </Link>
-                <Link to="/riskMappings" className="vendor_portal_action_card vendor_portal_action_card_primary">
-                  <Users size={26} className="vendor_portal_action_icon_secondary" aria-hidden />
-                  <span className="vendor_portal_action_label">Risk Mapping</span>
-                </Link>
-                <Link to="/reports" className="vendor_portal_action_card vendor_portal_action_card_primary">
-                  <FileText size={26} className="vendor_portal_action_icon_secondary" aria-hidden />
-                  <span className="vendor_portal_action_label">Access Reports</span>
-                </Link>
-              </div>
-            </section>
+        <div
+          className="dash_feature_grid dash_feature_grid--pa_hero"
+          aria-label="Quick actions"
+        >
+          {isViewOnlyRole ? (
+            <>
+              <DashboardFeatureCard
+                variant="pa"
+                to="/vendor-directory"
+                accent="violet"
+                title="AI Directory"
+                description="Browse and discover AI vendors in your directory to compare trust."
+                icon={<Building2 size={14} strokeWidth={2.25} />}
+              />
+              <DashboardFeatureCard
+                variant="pa"
+                to="/riskMappings"
+                accent="sky"
+                title="Risk mapping"
+                description="Review identified risks mapped to controls and frameworks."
+                icon={<Workflow size={14} strokeWidth={2.25} />}
+              />
+              <DashboardFeatureCard
+                variant="pa"
+                to="/reports"
+                accent="amber"
+                title="View reports"
+                description="Open finished assessments and published risk reports."
+                icon={<FileText size={14} strokeWidth={2.25} />}
+              />
+            </>
+          ) : (
+            <>
+              <DashboardFeatureCard
+                variant="pa"
+                to="/buyerAssessment"
+                accent="violet"
+                title="Create an assessment"
+                description="Start a new buyer assessment for vendor AI products with full control."
+                icon={<ClipboardCheck size={14} strokeWidth={2.25} />}
+              />
+              <DashboardFeatureCard
+                variant="pa"
+                to="/vendor-directory"
+                accent="sky"
+                title="AI Directory"
+                description="Browse and discover AI vendors in your directory to compare trust."
+                icon={<Building2 size={14} strokeWidth={2.25} />}
+              />
+              <DashboardFeatureCard
+                variant="pa"
+                to="/riskMappings"
+                accent="amber"
+                title="Risk mapping"
+                description="Map identified risks to controls and frameworks across assessments."
+                icon={<Workflow size={14} strokeWidth={2.25} />}
+              />
+            </>
           )}
-          <div className="vendor_overview_metrics vendor_overview_metrics_four governance_overview_metrics governance_overview_top_cards">
-            <MetricCard
-              icon={<Activity size={20} />}
-              title="Total Identified Risk"
-              value={displayedRiskCount.toLocaleString()}
-              description=""
-            />
-            <MetricCard
-              icon={<Shield size={20} />}
-              title="Total Mitigations Implemented"
-              value={displayedMitigationCount.toLocaleString()}
-              description=""
-            />
-            <MetricCard
-              icon={<FileText size={20} />}
-              title={assessmentMetricTitle}
-              value={assessmentMetricValue}
-              description={assessmentMetricDescription}
-            />
-            {/* <MetricCard
-              icon={<AlertTriangle size={20} />}
-              title="Risk Domains"
-              value="6"
-              description="Active categories"
-            /> */}
-          </div>
+        </div>
+      </section>
 
-          {selectedAssessmentId && (
+      <section
+        className="dash_section"
+        aria-labelledby="buyer-quick-glance-heading"
+      >
+        <header className="dash_section_header dash_section_header--with_action">
+          <div className="dash_section_header_copy">
+            <h2 id="buyer-quick-glance-heading" className="dash_section_title">
+              Quick Glance
+            </h2>
+            <p className="dash_section_lead">
+              Key risk, mitigation, and assessment metrics at a glance.
+            </p>
+          </div>
+          <div className="dash_section_header_action">
+            <div className="governance_overview_select_wrap">
+              <select
+                className="governance_overview_select"
+                value={selectedAssessmentId}
+                onChange={(e) => setSelectedAssessmentId(e.target.value)}
+                aria-label="Select assessment"
+              >
+                <option value="">All Assessments</option>
+                {completedBuyerAssessments.map((a) => (
+                  <option key={a.assessmentId} value={a.assessmentId}>
+                    {getAssessmentLabel(a)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={18}
+                className="governance_overview_chevron governance_overview_chevron_select"
+                aria-hidden
+              />
+            </div>
+          </div>
+        </header>
+        <div className="dash_stat_grid" aria-label="Dashboard metrics">
+          <DashboardStatCard
+            to="/riskMappings"
+            label="Identified risks"
+            value={displayedRiskCount.toLocaleString()}
+            description="Across active assessments"
+            icon={<Workflow size={18} />}
+            accent="green"
+          />
+          <DashboardStatCard
+            to="/riskMappings"
+            label="Mitigations"
+            value={displayedMitigationCount.toLocaleString()}
+            description="Mapped to identified risks"
+            icon={<FileCheck size={18} />}
+            accent="orange"
+          />
+          <DashboardStatCard
+            to="/buyerAssessment"
+            label={assessmentMetricTitle}
+            value={assessmentMetricValue === "" ? "—" : assessmentMetricValue}
+            description={
+              selectedAssessmentId
+                ? "Selected assessment score"
+                : "Started in your organization"
+            }
+            icon={<ClipboardCheck size={18} />}
+            accent="rose"
+          />
+          <DashboardStatCard
+            to="/reports"
+            label="Completed"
+            value={completedCount}
+            description="With published reports"
+            icon={<FileText size={18} />}
+            accent="teal"
+          />
+        </div>
+      </section>
+
+      {selectedAssessmentId && (
             <section className="governance_panel">
               <div className="governance_section_title_row">
                 <h3 className="governance_bottom_card_title">Assessment Summary</h3>
@@ -994,7 +840,7 @@ const BuyerOverview = () => {
                 <thead>
                   <tr>
                     <th>Risk ID</th>
-                    <th>Risk Category</th>
+                    <th className="governance_table_col_risk_category">Risk Category</th>
                     <th>Framework Control</th>
                     <th>Mitigation IDs</th>
                   </tr>
@@ -1004,7 +850,7 @@ const BuyerOverview = () => {
                     displayedFrameworkRowsTop3.map((row) => (
                       <tr key={row.riskId}>
                         <td>{row.riskId}</td>
-                        <td>{row.riskCategory}</td>
+                        <td className="governance_table_col_risk_category">{row.riskCategory}</td>
                         <td>{row.frameworkControl}</td>
                         <td>
                           <div className="governance_mit_chip_list">
@@ -1035,8 +881,8 @@ const BuyerOverview = () => {
             <section className="governance_panel">
               <div className="governance_section_title_row">
                 <h3 className="governance_bottom_card_title">Top Risk Implementations</h3>
-                <Link to="/reports" className="governance_view_link">
-                  View All <ChevronRight size={14} aria-hidden />
+                <Link to="/reports" className="dash_view_all_btn governance_view_link">
+                  View All <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
                 </Link>
               </div>
               <div className="governance_table_wrap">
@@ -1065,29 +911,27 @@ const BuyerOverview = () => {
                             <td>{String(a.productName ?? a.product_in_scope ?? a.productInScope ?? "—")}</td>
                             <td>
                               {reportMeta?.implementationRiskScore != null
-                                ? `${reportMeta.implementationRiskScore}/100`
-                                : reportMeta?.score != null
-                                  ? `${reportMeta.score}/100`
-                                  : "—"}
+                                ? `${invertScore100(reportMeta.implementationRiskScore)}/100`
+                                : "—"}
                             </td>
                             <td>
                               {reportMeta?.reportId ? (
                                 <Link
                                   to={`/reports/${reportMeta.reportId}`}
-                                  className="governance_assessment_link governance_assessment_link_table"
-                                  title="Open complete assessment report"
-                                  aria-label="Open complete assessment report"
+                                  className="user_table_action_btn user_table_action_btn_icon"
+                                  title="View"
+                                  aria-label="View report"
                                 >
-                                  <FileText size={18} className="governance_assessment_link_icon" aria-hidden />
+                                  <Eye size={14} />
                                 </Link>
                               ) : (
                                 <Link
                                   to={`/buyer-vendor-risk-report/${encodeURIComponent(String(a.assessmentId ?? ""))}`}
-                                  className="governance_assessment_link governance_assessment_link_table"
-                                  title="Open complete assessment report"
-                                  aria-label="Open complete assessment report"
+                                  className="user_table_action_btn user_table_action_btn_icon"
+                                  title="View"
+                                  aria-label="View report"
                                 >
-                                  <FileText size={18} className="governance_assessment_link_icon" aria-hidden />
+                                  <Eye size={14} />
                                 </Link>
                               )}
                             </td>
@@ -1142,8 +986,6 @@ const BuyerOverview = () => {
             </div>
           )}
           */}
-        </>
-      )}
     </div>
   );
 };

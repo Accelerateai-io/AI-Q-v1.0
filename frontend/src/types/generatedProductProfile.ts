@@ -19,6 +19,10 @@ export interface ReportSection {
 export interface GeneratedProductProfileReport {
   trustScore: TrustScoreBlock;
   sections: ReportSection[];
+  /** Stamped when report is generated (Controls LLM). */
+  modelId?: string;
+  modelLabel?: string;
+  scoringSource?: string;
 }
 
 export interface GenerateProductProfileResponse {

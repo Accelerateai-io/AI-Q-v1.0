@@ -64,8 +64,9 @@ function tokenizeText(s: string): Set<string> {
   );
 }
 
-function classifyDocument(category: string, fileName: string, text: string): string {
-  const hay = `${category} ${fileName} ${text.slice(0, 5000)}`.toLowerCase();
+function classifyDocument(fileName: string, text: string): string {
+  const hay = `${fileName} ${text.slice(0, 5000)}`.toLowerCase();
+  if (/soc\s*3|soc3/.test(hay)) return "SOC3";
   if (/soc\s*2|soc2/.test(hay)) return "SOC2";
   if (/iso\s*27001|iso-?27001/.test(hay)) return "ISO27001";
   if (/nist|800-53|800-171|csf/.test(hay)) return "NIST";
@@ -74,13 +75,35 @@ function classifyDocument(category: string, fileName: string, text: string): str
   if (/pci|dss/.test(hay)) return "PCI-DSS";
   if (/dora/.test(hay)) return "DORA";
   if (/cmmc/.test(hay)) return "CMMC";
+  if (/fedramp/.test(hay)) return "FEDRAMP";
   if (/certificat|attestation|audit|compliance/.test(hay)) return "COMPLIANCE_EVIDENCE";
   return "GENERAL_COMPLIANCE_DOCUMENT";
 }
 
+function categoryExpectedClass(category: string): string | null {
+  const c = category.toLowerCase();
+  if (/soc\s*3/.test(c)) return "SOC3";
+  if (/soc\s*2/.test(c)) return "SOC2";
+  if (/iso\s*27001/.test(c)) return "ISO27001";
+  if (/iso\s*42001/.test(c)) return "ISO42001";
+  if (/hitrust/.test(c)) return "HIPAA";
+  if (/fedramp/.test(c)) return "FEDRAMP";
+  if (/pci/.test(c)) return "PCI-DSS";
+  if (/hipaa/.test(c)) return "HIPAA";
+  if (/gdpr/.test(c)) return "GDPR";
+  return null;
+}
+
+function classMatchesCategory(docClass: string, category: string): boolean {
+  const expected = categoryExpectedClass(category);
+  if (!expected) return true;
+  return docClass === expected;
+}
+
 function frameworkFitsClass(name: string, docClass: string): boolean {
   const n = name.toLowerCase();
-  if (docClass === "SOC2") return n.includes("soc2");
+  if (docClass === "SOC3") return n.includes("soc");
+  if (docClass === "SOC2") return n.includes("soc2") || n.includes("soc 2") || n.includes("soc");
   if (docClass === "ISO27001") return n.includes("iso");
   if (docClass === "NIST") return n.includes("nist");
   if (docClass === "HIPAA") return n.includes("hipaa");
@@ -382,23 +405,30 @@ export async function parseAndStoreComplianceDocumentExpiries(
         continue;
       }
       const expiry = extractExpiryFromText(text);
-      const documentClass = classifyDocument(category, safe, text);
+      const documentClass = classifyDocument(safe, text);
       const frameworkMapping = mapToFrameworkControls(text, documentClass);
-      const validation =
-        frameworkMapping != null
-          ? {
-              isValid: frameworkMapping.controls.length > 0,
-              reason:
-                frameworkMapping.controls.length > 0
-                  ? "" // "Document classified and mapped to framework controls"
-                  : "Framework detected but no controls matched document content",
-              controlsMapped: frameworkMapping.controls.length,
-            }
-          : {
-              isValid: false,
-              reason: "No framework mapping found from backend data folder",
-              controlsMapped: 0,
-            };
+      const expired =
+        expiry != null && expiry.getTime() < Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+      const mismatch = !classMatchesCategory(documentClass, category);
+      const mappedOk = (frameworkMapping?.controls.length ?? 0) > 0;
+      const isValid = mappedOk && !expired && !mismatch;
+      const reasons: string[] = [];
+      if (expired) reasons.push("Certificate expiry date is in the past");
+      if (mismatch) reasons.push(`Document class ${documentClass} does not match selected category ${category}`);
+      if (!mappedOk) {
+        reasons.push(
+          frameworkMapping
+            ? "Framework detected but no controls matched document content"
+            : "No framework mapping found from backend data folder",
+        );
+      }
+      const validation = {
+        isValid,
+        reason: reasons.join("; "),
+        controlsMapped: frameworkMapping?.controls.length ?? 0,
+        mismatch,
+        expired: Boolean(expired),
+      };
       result[safe] = {
         category,
         expiryAt: expiry ? toDateOnlyLocal(expiry) : null,

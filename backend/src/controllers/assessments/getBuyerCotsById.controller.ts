@@ -98,6 +98,7 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
         phased_rollout_plan: cotsBuyerAssessments.phased_rollout_plan,
         rollback_capability: cotsBuyerAssessments.rollback_capability,
         management_plan: cotsBuyerAssessments.management_plan,
+        compliance_document: cotsBuyerAssessments.compliance_document,
         vendor_usage_data: cotsBuyerAssessments.vendor_usage_data,
         audit_logs: cotsBuyerAssessments.audit_logs,
         testing_results: cotsBuyerAssessments.testing_results,
@@ -107,6 +108,49 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
         buyer_risk_mitigation: cotsBuyerAssessments.buyer_risk_mitigation,
         risk_mitigation_mapping_ids: cotsBuyerAssessments.risk_mitigation_mapping_ids,
         vendor_risk_assessment_report: cotsBuyerAssessments.vendor_risk_assessment_report,
+        use_case_types: cotsBuyerAssessments.use_case_types,
+        users_in_scope: cotsBuyerAssessments.users_in_scope,
+        current_usage_state: cotsBuyerAssessments.current_usage_state,
+        pilot_status: cotsBuyerAssessments.pilot_status,
+        accountable_owner_name: cotsBuyerAssessments.accountable_owner_name,
+        accountable_owner_role: cotsBuyerAssessments.accountable_owner_role,
+        data_classes: cotsBuyerAssessments.data_classes,
+        data_subject_jurisdictions: cotsBuyerAssessments.data_subject_jurisdictions,
+        decision_domains: cotsBuyerAssessments.decision_domains,
+        output_exposure: cotsBuyerAssessments.output_exposure,
+        regulatory_requirements_derived: cotsBuyerAssessments.regulatory_requirements_derived,
+        regulatory_requirements_added: cotsBuyerAssessments.regulatory_requirements_added,
+        regulatory_requirements_removed: cotsBuyerAssessments.regulatory_requirements_removed,
+        retention_requirement: cotsBuyerAssessments.retention_requirement,
+        training_use_of_data: cotsBuyerAssessments.training_use_of_data,
+        training_use_of_data_stance: cotsBuyerAssessments.training_use_of_data_stance,
+        training_use_of_data_dispute_note: cotsBuyerAssessments.training_use_of_data_dispute_note,
+        human_review_level: cotsBuyerAssessments.human_review_level,
+        ai_disclosure: cotsBuyerAssessments.ai_disclosure,
+        deployment_model: cotsBuyerAssessments.deployment_model,
+        cloud_provider: cotsBuyerAssessments.cloud_provider,
+        integration_access_levels: cotsBuyerAssessments.integration_access_levels,
+        implementation_capacity: cotsBuyerAssessments.implementation_capacity,
+        training_effort: cotsBuyerAssessments.training_effort,
+        vendor_evidence_received: cotsBuyerAssessments.vendor_evidence_received,
+        monitoring_data_stance: cotsBuyerAssessments.monitoring_data_stance,
+        monitoring_data_dispute_note: cotsBuyerAssessments.monitoring_data_dispute_note,
+        audit_logs_stance: cotsBuyerAssessments.audit_logs_stance,
+        audit_logs_dispute_note: cotsBuyerAssessments.audit_logs_dispute_note,
+        data_export_capability: cotsBuyerAssessments.data_export_capability,
+        data_export_stance: cotsBuyerAssessments.data_export_stance,
+        data_export_dispute_note: cotsBuyerAssessments.data_export_dispute_note,
+        unavailability_impact: cotsBuyerAssessments.unavailability_impact,
+        contracts_in_place: cotsBuyerAssessments.contracts_in_place,
+        contract_notice_period: cotsBuyerAssessments.contract_notice_period,
+        assessor_name: cotsBuyerAssessments.assessor_name,
+        assessor_role: cotsBuyerAssessments.assessor_role,
+        answer_confidence: cotsBuyerAssessments.answer_confidence,
+        review_due_date: cotsBuyerAssessments.review_due_date,
+        unlinked_vendor: cotsBuyerAssessments.unlinked_vendor,
+        target_outcome_metric: cotsBuyerAssessments.target_outcome_metric,
+        target_outcome_baseline: cotsBuyerAssessments.target_outcome_baseline,
+        target_outcome_target: cotsBuyerAssessments.target_outcome_target,
       })
       .from(assessments)
       .leftJoin(cotsBuyerAssessments, eq(assessments.id, cotsBuyerAssessments.assessment_id))
@@ -118,6 +162,34 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Assessment not found" });
     }
     const toJson = (v: unknown) => (v != null ? (Array.isArray(v) ? v : typeof v === "object" ? JSON.stringify(v) : String(v)) : "");
+    const toStringList = (v: unknown): string[] => {
+      if (v == null || v === "") return [];
+      if (Array.isArray(v)) return v.map(String).map((x) => x.trim()).filter(Boolean);
+      const s = String(v).trim();
+      if (!s) return [];
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed.map(String).map((x) => x.trim()).filter(Boolean);
+      } catch {
+        /* comma-separated */
+      }
+      return s.split(",").map((x) => x.trim()).filter(Boolean);
+    };
+    const looksLikeFileName = (s: string) => /\.(pdf|doc|docx|ppt|pptx)$/i.test(s);
+    const evidenceOptions = toStringList(r.vendor_evidence_received).filter((s) => !looksLikeFileName(s));
+    const evidenceFilesByCategory = (() => {
+      const raw = r.compliance_document;
+      if (raw == null || String(raw).trim() === "") return {};
+      if (typeof raw === "object" && !Array.isArray(raw)) return raw;
+      const s = String(raw).trim();
+      try {
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+      } catch {
+        /* legacy comma-separated names */
+      }
+      return {};
+    })();
     const operatingRegionsVal = r.geographic_regions;
     const operatingRegions = Array.isArray(operatingRegionsVal)
       ? operatingRegionsVal
@@ -135,7 +207,23 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
       updatedAt: (r as { updated_at?: unknown }).updated_at,
       expiryAt: (r as { expiry_at?: unknown }).expiry_at,
       organizationName: r.organization_name ?? "",
-      industrySector: r.industry_sector ?? "",
+      industrySector: (() => {
+        const raw = r.industry_sector;
+        if (raw == null || String(raw).trim() === "") return [];
+        const s = String(raw).trim();
+        try {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) {
+            return parsed.map(String).map((x) => x.trim()).filter(Boolean);
+          }
+        } catch {
+          /* comma-separated varchar */
+        }
+        return s
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean);
+      })(),
       employeeCount: r.employee_count ?? "",
       operatingRegions,
       businessPainPoint: r.pain_point ?? "",
@@ -166,6 +254,7 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
       pilotRolloutPlan: r.phased_rollout_plan ?? "",
       rollbackCapability: r.rollback_capability ?? "",
       changeManagementPlan: r.management_plan ?? "",
+      vendorComplianceDocumentation: evidenceFilesByCategory,
       monitoringDataAvailable: r.vendor_usage_data ?? "",
       auditLogsAvailable: r.audit_logs ?? "",
       testingResultsAvailable: r.testing_results ?? "",
@@ -174,6 +263,49 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
       contextualMultipliers: r.contextual_multipliers ?? "",
       riskMitigation: r.buyer_risk_mitigation ?? "",
       riskMitigationMappingIds: Array.isArray(r.risk_mitigation_mapping_ids) ? r.risk_mitigation_mapping_ids : [],
+      useCaseTypes: r.use_case_types != null ? (Array.isArray(r.use_case_types) ? r.use_case_types : toJson(r.use_case_types)) : "",
+      usersInScope: r.users_in_scope ?? "",
+      currentUsageState: r.current_usage_state ?? "",
+      pilotStatus: r.pilot_status ?? "",
+      accountableOwnerName: r.accountable_owner_name ?? "",
+      accountableOwnerRole: r.accountable_owner_role ?? "",
+      dataClasses: r.data_classes != null ? (Array.isArray(r.data_classes) ? r.data_classes : toJson(r.data_classes)) : "",
+      dataSubjectJurisdictions: r.data_subject_jurisdictions != null ? (Array.isArray(r.data_subject_jurisdictions) ? r.data_subject_jurisdictions : toJson(r.data_subject_jurisdictions)) : "",
+      decisionDomains: r.decision_domains != null ? (Array.isArray(r.decision_domains) ? r.decision_domains : toJson(r.decision_domains)) : "",
+      outputExposure: r.output_exposure ?? "",
+      regulatoryRequirementsDerived: r.regulatory_requirements_derived != null ? (Array.isArray(r.regulatory_requirements_derived) ? r.regulatory_requirements_derived : toJson(r.regulatory_requirements_derived)) : "",
+      regulatoryRequirementsAdded: r.regulatory_requirements_added != null ? (Array.isArray(r.regulatory_requirements_added) ? r.regulatory_requirements_added : toJson(r.regulatory_requirements_added)) : "",
+      regulatoryRequirementsRemoved: r.regulatory_requirements_removed != null ? (Array.isArray(r.regulatory_requirements_removed) ? r.regulatory_requirements_removed : toJson(r.regulatory_requirements_removed)) : "",
+      retentionRequirement: r.retention_requirement ?? "",
+      trainingUseOfData: r.training_use_of_data ?? "",
+      trainingUseOfDataStance: r.training_use_of_data_stance ?? "",
+      trainingUseOfDataDisputeNote: r.training_use_of_data_dispute_note ?? "",
+      humanReviewLevel: r.human_review_level ?? "",
+      aiDisclosure: r.ai_disclosure ?? "",
+      deploymentModel: r.deployment_model ?? "",
+      cloudProvider: r.cloud_provider != null ? (Array.isArray(r.cloud_provider) ? r.cloud_provider : toJson(r.cloud_provider)) : "",
+      integrationAccessLevels: r.integration_access_levels != null ? toJson(r.integration_access_levels) : "",
+      implementationCapacity: r.implementation_capacity ?? "",
+      trainingEffort: r.training_effort ?? "",
+      vendorEvidenceReceived: evidenceOptions,
+      monitoringDataStance: r.monitoring_data_stance ?? "",
+      monitoringDataDisputeNote: r.monitoring_data_dispute_note ?? "",
+      auditLogsStance: r.audit_logs_stance ?? "",
+      auditLogsDisputeNote: r.audit_logs_dispute_note ?? "",
+      dataExportCapability: r.data_export_capability ?? "",
+      dataExportStance: r.data_export_stance ?? "",
+      dataExportDisputeNote: r.data_export_dispute_note ?? "",
+      unavailabilityImpact: r.unavailability_impact ?? "",
+      contractsInPlace: r.contracts_in_place != null ? (Array.isArray(r.contracts_in_place) ? r.contracts_in_place : toJson(r.contracts_in_place)) : "",
+      contractNoticePeriod: r.contract_notice_period ?? "",
+      assessorName: r.assessor_name ?? "",
+      assessorRole: r.assessor_role ?? "",
+      answerConfidence: r.answer_confidence ?? "",
+      reviewDueDate: r.review_due_date != null ? new Date(r.review_due_date as Date).toISOString().slice(0, 10) : "",
+      unlinkedVendor: r.unlinked_vendor ?? "",
+      targetOutcomeMetric: r.target_outcome_metric ?? "",
+      targetOutcomeBaseline: r.target_outcome_baseline ?? "",
+      targetOutcomeTarget: r.target_outcome_target ?? "",
       ...extractImplementationReadinessFromVendorReport(
         (r as { vendor_risk_assessment_report?: unknown }).vendor_risk_assessment_report,
       ),

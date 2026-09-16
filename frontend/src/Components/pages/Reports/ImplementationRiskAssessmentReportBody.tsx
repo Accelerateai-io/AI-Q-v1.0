@@ -1,4 +1,6 @@
 import { Banknote, CalendarClock, Gauge, Layers, ListTree } from "lucide-react";
+import { ShowMoreList } from "../../UI/ShowMoreText";
+import { ensureSpaceAfterColon } from "../../../utils/summarizeRiskPoints";
 import "../Assessments/BuyerAssessment/buyer_vendor_risk_report.css";
 
 export type IraPayload = {
@@ -56,6 +58,34 @@ export function parseImplementationRiskAssessmentJson(
   return j;
 }
 
+function GapList({ items, empty }: { items: string[]; empty: string }) {
+  if (!items.length) {
+    return <p className="ira_gap_empty_text">{empty}</p>;
+  }
+  return (
+    <ul className="ira_gap_list">
+      {items.map((item, i) => (
+        <li key={i}>{ensureSpaceAfterColon(item)}</li>
+      ))}
+    </ul>
+  );
+}
+
+function notesToPoints(notes: string): string[] {
+  const raw = notes.trim();
+  if (!raw) return [];
+  const lines = raw
+    .split(/\r?\n+/)
+    .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim())
+    .filter(Boolean);
+  if (lines.length > 1) return lines;
+  const sentences = raw
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9$])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return sentences.length > 1 ? sentences : [raw];
+}
+
 function RecBadge({ value }: { value: string }) {
   const v = (value ?? "").trim();
   const cls =
@@ -75,7 +105,7 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
   const bi = data.budgetImpactMvp ?? {};
 
   return (
-    <div className="report_vcm_wrap">
+    <div className="report_vcm_wrap ira_wrap">
       <section className="bvr_card">
         <h2 className="bvr_section_title bvr_title_with_icon" style={{ marginTop: 0 }}>
           <Gauge className="bvr_title_icon" size={22} strokeWidth={2} aria-hidden />
@@ -88,9 +118,7 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
           <span className="ira_score_label">Recommendation</span>
           <RecBadge value={sr.recommendation ?? ""} />
         </div>
-        <p className="bvr_exec_text" style={{ marginTop: "0.75rem" }}>
-          {sr.rationale ?? "—"}
-        </p>
+        <p className="bvr_exec_text ira_body_text ira_rationale">{sr.rationale ?? "—"}</p>
       </section>
 
       <section className="bvr_card">
@@ -114,19 +142,19 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
             <div className="bvr_reco_priority_col" role="cell">
               <div className="bvr_reco_priority_item">
                 <p className="ira_breakdown_score">{bd.vendorFit?.score ?? "—"}/100</p>
-                <p className="bvr_exec_text">{bd.vendorFit?.summary ?? "—"}</p>
+                <p className="bvr_exec_text ira_body_text">{bd.vendorFit?.summary ?? "—"}</p>
               </div>
             </div>
             <div className="bvr_reco_priority_col" role="cell">
               <div className="bvr_reco_priority_item">
                 <p className="ira_breakdown_score">{bd.orgReadinessGap?.score ?? "—"}/100</p>
-                <p className="bvr_exec_text">{bd.orgReadinessGap?.summary ?? "—"}</p>
+                <p className="bvr_exec_text ira_body_text">{bd.orgReadinessGap?.summary ?? "—"}</p>
               </div>
             </div>
             <div className="bvr_reco_priority_col" role="cell">
               <div className="bvr_reco_priority_item">
                 <p className="ira_breakdown_score">{bd.integrationRisk?.score ?? "—"}/100</p>
-                <p className="bvr_exec_text">{bd.integrationRisk?.summary ?? "—"}</p>
+                <p className="bvr_exec_text ira_body_text">{bd.integrationRisk?.summary ?? "—"}</p>
               </div>
             </div>
           </div>
@@ -152,25 +180,13 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
           </div>
           <div className="bvr_reco_priority_body" role="row">
             <div className="bvr_reco_priority_col" role="cell">
-              <ul className="ira_gap_list">
-                {(rg.technical ?? []).length > 0
-                  ? (rg.technical ?? []).map((x, i) => <li key={i}>{x}</li>)
-                  : <li className="ira_gap_empty">None listed</li>}
-              </ul>
+              <GapList items={rg.technical ?? []} empty="None listed" />
             </div>
             <div className="bvr_reco_priority_col" role="cell">
-              <ul className="ira_gap_list">
-                {(rg.governance ?? []).length > 0
-                  ? (rg.governance ?? []).map((x, i) => <li key={i}>{x}</li>)
-                  : <li className="ira_gap_empty">None listed</li>}
-              </ul>
+              <GapList items={rg.governance ?? []} empty="None listed" />
             </div>
             <div className="bvr_reco_priority_col" role="cell">
-              <ul className="ira_gap_list">
-                {(rg.talent ?? []).length > 0
-                  ? (rg.talent ?? []).map((x, i) => <li key={i}>{x}</li>)
-                  : <li className="ira_gap_empty">None listed</li>}
-              </ul>
+              <GapList items={rg.talent ?? []} empty="None listed" />
             </div>
           </div>
         </div>
@@ -196,24 +212,14 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
           </div>
           <div className="bvr_reco_priority_body" role="row">
             <div className="bvr_reco_priority_col" role="cell">
-              <ul className="ira_gap_list">
-                {(ti.drivers ?? []).length > 0
-                  ? (ti.drivers ?? []).map((x, i) => <li key={i}>{x}</li>)
-                  : <li className="ira_gap_empty">—</li>}
-              </ul>
+              <ShowMoreList items={ti.drivers ?? []} previewCount={4} empty="—" />
             </div>
             <div className="bvr_reco_priority_col" role="cell">
-              <ul className="ira_gap_list">
-                {(ti.assumptions ?? []).length > 0
-                  ? (ti.assumptions ?? []).map((x, i) => <li key={i}>{x}</li>)
-                  : <li className="ira_gap_empty">—</li>}
-              </ul>
+              <ShowMoreList items={ti.assumptions ?? []} previewCount={4} empty="—" />
             </div>
           </div>
         </div>
-        <p className="bvr_exec_text" style={{ marginTop: "1rem" }}>
-          {ti.narrative ?? "—"}
-        </p>
+        <p className="bvr_exec_text ira_body_text ira_narrative">{ti.narrative ?? "—"}</p>
       </section>
 
       <section className="bvr_card bvr_impl_card">
@@ -222,7 +228,7 @@ export default function ImplementationRiskAssessmentReportBody({ data }: { data:
           <span>Budget impact</span>
         </h2>
         <p className="ira_rom">{bi.roughOrderOfMagnitude ?? "—"}</p>
-        <p className="bvr_impl_text">{bi.notes ?? "—"}</p>
+        <GapList items={notesToPoints(bi.notes ?? "")} empty="—" />
       </section>
     </div>
   );

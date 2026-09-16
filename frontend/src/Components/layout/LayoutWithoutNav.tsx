@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import "../../styles/layout/layout.css";
-import onboardingLogo from "../../assets/images/mainLogo/new_logo/ai_q_logo_blue.png";
+import onboardingLogoBlue from "../../assets/images/mainLogo/new_logo/ai_q_logo_blue.png";
+import onboardingLogoGray from "../../assets/images/mainLogo/new_logo/ai_q_logo_gray.png";
 
 const LayoutWithoutNav = () => {
   return (
@@ -8,7 +9,7 @@ const LayoutWithoutNav = () => {
       {/* <div className="container onBoarding_container">
          <div className="step_form_header welcome_msg_onboarding">
            <div className="logo_sec">
-            <img src={onboardingLogo} alt="" className="onboarding-header-logo" width={40} height={40} />
+            <img src={onboardingLogoBlue} alt="" className="onboarding-header-logo" width={40} height={40} />
           </div>
           <h2>Welcome to AI-Q!</h2>
           <p className="modal_sub_title">Let's set up your account in just few steps</p>
@@ -20,13 +21,23 @@ const LayoutWithoutNav = () => {
       <div className="layout_onBoarrding">
         <header className="header_onboarding">
           <div className="logo_sec header_for_auth" aria-label="AI-Q Platform">
-            <img
-              src={onboardingLogo}
-              alt="AI-Q"
-              className="onboarding-header-logo"
-              width={56}
-              height={56}
-            />
+            <span className="onboarding-header-logo_wrap">
+              <img
+                src={onboardingLogoBlue}
+                alt="AI-Q"
+                className="onboarding-header-logo onboarding-header-logo--light"
+                width={56}
+                height={56}
+              />
+              <img
+                src={onboardingLogoGray}
+                alt=""
+                className="onboarding-header-logo onboarding-header-logo--dark"
+                width={56}
+                height={56}
+                aria-hidden
+              />
+            </span>
             <p>AI-Q Platform</p>
           </div>
           <h2>Welcome to AI-Q!</h2>

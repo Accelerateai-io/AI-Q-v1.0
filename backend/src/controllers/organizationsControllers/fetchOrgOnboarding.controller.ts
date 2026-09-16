@@ -4,7 +4,8 @@ import { createOrganization } from "../../schema/organizations/createOrganizatio
 import { buyerOnboarding } from "../../schema/buyer/addBuyer.schema.js";
 import { vendorOnboarding } from "../../schema/vendor/addVendor.schema.js";
 import { usersTable } from "../../schema/schema.js";
-import { eq, or } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
+import { loadVendorOnboardingBusinessFields } from "../../utils/normalizeVendorOnboardingBusinessFields.js";
 
 function userDisplayName(u: { user_name?: string | null; user_first_name?: string | null; user_last_name?: string | null; email?: string | null }): string {
   const name = (u.user_name ?? "").trim();
@@ -39,6 +40,20 @@ const fetchOrgOnboarding = async (req: Request, res: Response) => {
 
     const orgName = orgRow[0]?.organizationName ?? null;
 
+    try {
+      await db.execute(sql`
+        ALTER TABLE public.vendor_onboarding
+        ADD COLUMN IF NOT EXISTS funding_status varchar(50),
+        ADD COLUMN IF NOT EXISTS financial_position varchar(50),
+        ADD COLUMN IF NOT EXISTS enterprise_customers integer,
+        ADD COLUMN IF NOT EXISTS customer_retention_rate numeric(5,2),
+        ADD COLUMN IF NOT EXISTS trust_centre_url varchar(500),
+        ADD COLUMN IF NOT EXISTS security_incidents jsonb NOT NULL DEFAULT '[]'::jsonb
+      `);
+    } catch {
+      // Ignore (e.g. permission)
+    }
+
     const buyerWhere = orgName
       ? or(
           eq(buyerOnboarding.organizationId, orgIdParam),
@@ -67,6 +82,14 @@ const fetchOrgOnboarding = async (req: Request, res: Response) => {
 
     let buyer: Record<string, unknown> | null = buyerRow ? { ...buyerRow } as Record<string, unknown> : null;
     let vendor: Record<string, unknown> | null = vendorRow ? { ...vendorRow } as Record<string, unknown> : null;
+
+    const vendorBusinessFields = await loadVendorOnboardingBusinessFields(
+      orgIdParam,
+      orgName,
+    );
+    if (vendor && vendorBusinessFields) {
+      vendor = { ...vendor, ...vendorBusinessFields };
+    }
 
     if (buyer && buyer.userId != null) {
       const [buyerUser] = await db

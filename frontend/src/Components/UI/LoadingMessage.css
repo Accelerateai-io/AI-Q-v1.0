@@ -1,10 +1,24 @@
-/* Wrapper so loader is centered in the table/content area */
+/* Shared platform loading UI — spinner + message, centered */
 .loading_message_wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 280px;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.loading_message_wrapper--compact {
+  min-height: 120px;
+}
+
+/* Full page / dashboard: vertically + horizontally center in the content area */
+.loading_message_wrapper--page {
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  min-height: calc(100dvh - var(--top-nav-height, 64px) - 3rem);
+  box-sizing: border-box;
 }
 
 .loading_message {
@@ -17,7 +31,7 @@
 }
 
 .loading_message_icon {
-  color: var(--main-dark-color, #2463eb);
+  color: var(--nav-active, #225bff);
   animation: loading_message_spin 0.9s linear infinite;
 }
 
@@ -25,11 +39,19 @@
   margin: 0;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-muted, var(--light-gray-color, #64748b));
 }
 
 @keyframes loading_message_spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+html[data-theme="dark"] .loading_message_icon {
+  color: var(--nav-active, #8aafff);
+}
+
+html[data-theme="dark"] .loading_message_text {
+  color: var(--text-muted, #9c958c);
 }

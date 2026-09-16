@@ -1,6 +1,58 @@
 import { db } from "../database/db.js";
 import { vendors, vendorSelfAttestations, createOrganization } from "../schema/schema.js";
+import { generatedProfileReports } from "../schema/assessments/generatedProfileReports.js";
+import { mergeSummaryIntoReport } from "../utils/mergeProfileReportSummary.js";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+
+/**
+ * Same VTS source as Product Profile: merge latest generated_profile_reports.trust_score
+ * into attestation.generated_profile_report / latest_trust_score.
+ */
+export async function enrichAttestationWithProductProfileVts(
+  attestation: Record<string, unknown> | null,
+): Promise<Record<string, unknown> | null> {
+  if (!attestation) return null;
+  const attestationId = String(
+    attestation.id ?? attestation.vendor_self_attestation_id ?? "",
+  ).trim();
+  if (!attestationId) return attestation;
+
+  const [reportRow] = await db
+    .select({
+      report: generatedProfileReports.report,
+      summary: generatedProfileReports.summary,
+      trust_score: generatedProfileReports.trust_score,
+    })
+    .from(generatedProfileReports)
+    .where(eq(generatedProfileReports.attestation_id, attestationId))
+    .orderBy(desc(generatedProfileReports.created_at))
+    .limit(1);
+
+  const out: Record<string, unknown> = { ...attestation };
+
+  if (reportRow?.report != null || reportRow?.trust_score != null) {
+    out.generated_profile_report = mergeSummaryIntoReport(
+      reportRow.report,
+      reportRow.summary,
+      reportRow.trust_score,
+    );
+    if (
+      reportRow.trust_score != null &&
+      Number.isFinite(Number(reportRow.trust_score)) &&
+      Number(reportRow.trust_score) > 0
+    ) {
+      out.latest_trust_score = Math.round(Number(reportRow.trust_score));
+    }
+  } else if (out.latest_trust_score != null && Number.isFinite(Number(out.latest_trust_score))) {
+    out.generated_profile_report = mergeSummaryIntoReport(
+      out.generated_profile_report,
+      null,
+      Number(out.latest_trust_score),
+    );
+  }
+
+  return out;
+}
 
 /**
  * Find the vendor's completed buyer-visible attestation row matching directory vendor name + product name.
@@ -21,10 +73,14 @@ export async function findAttestationForBuyerVendorProduct(
     })
     .from(vendors)
     .innerJoin(createOrganization, joinOrg)
-    .innerJoin(vendorSelfAttestations, eq(vendorSelfAttestations.user_id, vendors.userId))
+    .innerJoin(
+      vendorSelfAttestations,
+      sql`trim(coalesce(${vendorSelfAttestations.organization_id}, '')) = trim(coalesce(${vendors.organizationId}, ''))`,
+    )
     .where(
       and(
-        eq(vendors.publicDirectoryListing, true),
+        // Public Directory Listing no longer required — visible_to_buyer on the product is enough
+        // eq(vendors.publicDirectoryListing, true),
         sql`trim(lower(${createOrganization.organizationName})) = trim(lower(${vName}))`,
         sql`trim(lower(coalesce(${vendorSelfAttestations.product_name}, ''))) = trim(lower(${pName}))`,
         sql`upper(trim(coalesce(${vendorSelfAttestations.status}, ''))) = 'COMPLETED'`,
@@ -38,7 +94,7 @@ export async function findAttestationForBuyerVendorProduct(
 
   const r = rows[0]?.row;
   if (!r) return null;
-  return { ...(r as object) } as Record<string, unknown>;
+  return enrichAttestationWithProductProfileVts({ ...(r as object) } as Record<string, unknown>);
 }
 
 const completedVisibleBuyerAttestation = and(
@@ -69,7 +125,11 @@ export async function findAttestationForBuyerAssessment(opts: {
         ),
       )
       .limit(1);
-    if (row) return { ...(row as object) } as Record<string, unknown>;
+    if (row) {
+      return enrichAttestationWithProductProfileVts({
+        ...(row as object),
+      } as Record<string, unknown>);
+    }
   }
   return findAttestationForBuyerVendorProduct(opts.vendorName, opts.productName);
 }

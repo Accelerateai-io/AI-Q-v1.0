@@ -5,6 +5,7 @@ import { usersTable } from "../../schema/schema.js";
 import { assessments } from "../../schema/assessments/assessments.js";
 import { cotsBuyerAssessments } from "../../schema/assessments/cotsBuyerAssessments.js";
 import { generalReports } from "../../schema/assessments/generalReports.js";
+import { getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
 import { expireSubmittedAssessmentsAndArchiveBuyerReports } from "../../services/expireAndArchiveCotsBuyerAssessments.js";
 import { hasCotsBuyerArchivedReportColumn } from "../../services/cotsBuyerArchivedColumn.js";
 import {
@@ -16,6 +17,7 @@ import {
   regulatorySnippetFromJson,
 } from "../agents/buyerVendorRiskReportAgent.js";
 import { generateComplianceRiskSummaryReport } from "../agents/complianceRiskSummaryReportAgent.js";
+import { sendIfTokenQuotaExceeded } from "../../services/admin/featureTokenQuota.service.js";
 
 const REPORT_TYPE = "Compliance & Risk Summary";
 
@@ -215,12 +217,14 @@ const complianceRiskSummaryReport = async (req: Request, res: Response): Promise
       buyerValidationSnippet,
     );
 
+    const llmModelId = getActiveLlmModelMeta().modelId;
     const stored = {
       version: 1 as const,
       generatedAt: new Date().toISOString(),
       assessmentId,
       vendorName,
       productName,
+      modelId: llmModelId,
       ...crsPayload,
     };
 
@@ -232,6 +236,7 @@ const complianceRiskSummaryReport = async (req: Request, res: Response): Promise
         report_type: REPORT_TYPE,
         content: JSON.stringify(stored),
         assessment_label: assessmentLabel,
+        llm_model_id: llmModelId,
         created_by: Number(userId),
       })
       .returning();
@@ -257,10 +262,15 @@ const complianceRiskSummaryReport = async (req: Request, res: Response): Promise
           generatedAt,
           briefContent: inserted.content ?? undefined,
           createdBy: inserted.created_by,
+          llmModelId:
+            typeof inserted.llm_model_id === "string" && inserted.llm_model_id.trim()
+              ? inserted.llm_model_id.trim()
+              : null,
         },
       },
     });
   } catch (err) {
+    if (sendIfTokenQuotaExceeded(res, err)) return;
     console.error("complianceRiskSummaryReport error:", err);
     res.status(500).json({
       success: false,

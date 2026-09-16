@@ -1,8 +1,18 @@
 // VENDOR ONBOARDING TYPES
 
 import type { ChangeEvent } from "react";
+
+export interface VendorSecurityIncident {
+  date: string;
+  summary: string;
+  sourceUrl: string;
+  severity: string;
+  resolved: boolean;
+}
+
 export interface VendorDataInterface {
   organization_Id?: string;
+  vendorId?: string;
   vendorType: string;
   vendorName: string;
   sector: {
@@ -20,6 +30,13 @@ export interface VendorDataInterface {
   yearFounded: number;
   headquartersLocation: string;
   operatingRegions: string[];
+  fundingStatus: string;
+  financialPosition: string;
+  enterpriseCustomers: string;
+  customerRetentionRate: string;
+  trustCentreUrl: string;
+  hasPublicSecurityIncident: string;
+  securityIncidents: VendorSecurityIncident[];
 }
 
 /** Field-level validation errors (field name -> message) from Zod */

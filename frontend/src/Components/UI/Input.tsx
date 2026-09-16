@@ -1,17 +1,21 @@
 
 type InputProps = {
-  labelName: string | React.ReactNode;
-  id: string;
+  labelName?: string | React.ReactNode;
+  id?: string;
   icon?: React.ReactNode;
-  type?: "text" | "email" | "password" | "number" | "textarea" | "file";
-  name: string;
-  value: string;
+  type?: "text" | "email" | "password" | "number" | "textarea" | "file" | "date" | "url";
+  name?: string;
+  value?: string;
+  placeholder?: string;
   onChange?: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => void;
   rows?: number;
   cols?: number;
-  required ?: boolean;
+  required?: boolean;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
 };
 
 const Input = ({

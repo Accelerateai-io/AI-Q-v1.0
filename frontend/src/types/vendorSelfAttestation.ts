@@ -2,6 +2,33 @@
  * Company profile section in Vendor Self Attestation (prefilled from vendor onboarding).
  * Matches backend vendor_onboarding / GET companyProfile shape.
  */
+export interface AttestationSubProcessor {
+  name: string;
+  purpose: string;
+  region: string;
+  source_url: string;
+}
+
+export interface VulnerabilityDisclosurePolicy {
+  status: string;
+  url: string;
+  ack_sla_hours: string;
+}
+
+export interface BugBountyProgram {
+  status: string;
+  url: string;
+  scope: string;
+}
+
+export interface FedrampAuthorization {
+  status: string;
+  level: string;
+  boundary: string;
+  marketplace_id: string;
+  authorized_at: string;
+}
+
 export interface AttestationCompanyProfile {
   vendorName?: string;
   vendorType: string;
@@ -13,6 +40,10 @@ export interface AttestationCompanyProfile {
   yearFounded: number | string;
   headquartersLocation: string;
   operatingRegions: string[];
+  fundingStatus?: string;
+  financialPosition?: string;
+  enterpriseCustomers?: string;
+  customerRetentionRate?: string;
 }
 
 /**
@@ -32,12 +63,31 @@ export interface VendorSelfAttestationPayload {
   decision_autonomy?: string | null;
   /** Yes / No — documented AI governance policy; if Yes, upload file(s) to documentUpload.aiGovernancePolicy */
   documented_ai_governance_policy?: string | null;
+  ai_ethics_governance_maturity?: string | null;
+  versions_models?: string | null;
+  model_versioning_method?: string | null;
   security_certifications?: string[] | null;
   assessment_completion_level?: string | null;
   audit_frequency?: string | null;
+  /** HIPAA BAA / GDPR / CCPA (multi-select); legacy yes/no strings still accepted */
+  hipaa_baa?: string | string[] | null;
+  fedramp_authorization?: FedrampAuthorization | null;
   pii_handling?: string | null;
   data_residency_options?: string[] | null;
   data_retention_policy?: string | null;
+  privacy_programme_scope?: string | null;
+  typical_data_volume?: string | null;
+  encryption_at_rest?: string | null;
+  encryption_at_rest_evidence_id?: string | null;
+  tls_in_transit?: string | null;
+  data_subject_rights?: string[] | null;
+  controller_or_processor?: string | null;
+  sub_processors?: AttestationSubProcessor[] | null;
+  vulnerability_disclosure_policy?: VulnerabilityDisclosurePolicy | null;
+  bug_bounty?: BugBountyProgram | null;
+  independent_pen_test_frequency?: string | null;
+  dpa_available?: string | null;
+  dpa_url?: string | null;
   bias_testing_approach?: string[] | null;
   adversarial_security_testing?: string | null;
   human_oversight?: string[] | null;
@@ -46,13 +96,34 @@ export interface VendorSelfAttestationPayload {
   support_slas?: string | null;
   change_management?: string | null;
   incident_response_plan?: string | null;
+  production_model_monitoring?: string | null;
+  critical_incident_response_target?: string | null;
+  critical_incident_resolution_target?: string | null;
+  ir_plan_test_frequency?: string | null;
+  incident_customer_communication?: string | null;
+  support_coverage?: string | null;
+  account_management?: string | null;
   rollback_capability?: string | null;
   hosting_deployment?: string[] | null;
   deployment_scale?: string | null;
   product_stage?: string | null;
+  is_multi_tenant?: string | null;
+  tenant_isolation_model?: string | null;
+  deployment_customization?: string | null;
+  integration_complexity?: string | null;
   interaction_data_available?: string | null;
   audit_logs_available?: string | null;
   testing_results_available?: string | null;
+  trust_centre_url?: string | null;
+  has_public_security_incident?: string | null;
+  security_incidents?: Array<{
+    date?: string;
+    summary?: string;
+    sourceUrl?: string;
+    source_url?: string;
+    severity?: string;
+    resolved?: boolean;
+  }> | null;
 }
 
 /**

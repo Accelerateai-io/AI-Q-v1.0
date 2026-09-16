@@ -7,6 +7,7 @@ import updateAttestationVisibility from "../controllers/vendorSelfAttestation/up
 import updateSectionVisibility from "../controllers/vendorSelfAttestation/updateSectionVisibility.controller.js";
 import generateProductProfile from "../controllers/vendorSelfAttestation/generateProductProfile.controller.js";
 import listGeneratedReports from "../controllers/vendorSelfAttestation/listGeneratedReports.controller.js";
+import getVendorScoreSummary from "../controllers/vendorSelfAttestation/getVendorScoreSummary.controller.js";
 import patchVendorSelfAttestationUserArchive from "../controllers/vendorSelfAttestation/patchVendorSelfAttestationUserArchive.controller.js";
 import authenticateToken from "../middlewares/routesProtection.js";
 
@@ -38,6 +39,13 @@ router.patch("/vendorSelfAttestation/section-visibility", authenticateToken, upd
 
 // POST: Generate product profile report from vendor data (agent; no file output). Saves to generated_profile_reports.
 router.post("/vendorSelfAttestation/generate-profile", authenticateToken, generateProductProfile);
+
+// GET: Vendor-safe VTS summary for ScoreTracePanel (mode=vendor)
+router.get(
+  "/vendorSelfAttestation/score-summary/:id",
+  authenticateToken,
+  getVendorScoreSummary,
+);
 
 // GET: List stored generated profile reports for the current user
 router.get("/vendorSelfAttestation/generated-reports", authenticateToken, listGeneratedReports);

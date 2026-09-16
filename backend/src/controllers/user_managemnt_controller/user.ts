@@ -11,6 +11,7 @@ import {
   buildOnboardingEmailHtml,
   ONBOARDING_MAIL_PLATFORM_NAME,
 } from "../../email/onboardingEmailHtml.js";
+import { getAccelerateAiLogoAttachment } from "../../email/emailBrand.js";
 import { onboardingPathSegmentFromOrgType } from "../../utils/onboardingPathFromOrgType.js";
 import {
   buildInviteUserEmailHtml,
@@ -135,6 +136,7 @@ export const inviteUser = async (req: Request, res: Response) => {
           roleCapitalized,
           confirmationLink,
         ),
+        attachments: [getAccelerateAiLogoAttachment()],
       });
     } catch (emailErr: unknown) {
       console.error("Invite user: failed to send invitation email", emailErr);
@@ -212,6 +214,7 @@ export const reinviteUser = async (req: Request, res: Response) => {
       to: email,
       subject: `You're invited to join ${INVITE_MAIL_PLATFORM_NAME}`,
       html: buildInviteUserEmailHtml(organizationNameCapitalized, roleCapitalized, confirmationLink),
+      attachments: [getAccelerateAiLogoAttachment()],
     });
     return res.status(200).json({ message: "Signup link resent successfully" });
   } catch (err: any) {
@@ -283,6 +286,7 @@ export const resendOnboardingLink = async (req: Request, res: Response) => {
       to: email,
       subject: `Welcome to ${ONBOARDING_MAIL_PLATFORM_NAME}`,
       html: buildOnboardingEmailHtml(name, roleCapitalized, onboardingLink, orgDisplayName),
+      attachments: [getAccelerateAiLogoAttachment()],
     });
     await db
       .update(usersTable)

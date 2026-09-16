@@ -9,7 +9,7 @@
   border: 1px solid #ccc;
   cursor: pointer;
   border-radius: 4px;
-  margin: 0.5em 0 0 0;
+  margin: 0.5rem 0 0 0;
 }
 .tree-dropdown-content {
   /* position: absolute;
@@ -17,7 +17,7 @@
   left: 0;
   right: 0; */
   border: 1px solid #ccc;
-  background: #fff;
+  background: var(--surface-color);
   max-height: 250px;
   overflow-y: auto;
   z-index: 1000;
@@ -33,10 +33,10 @@
 .tree_node_list {
   /* border: 1px solid red; */
 
-  /* margin: 0.5em 0; */
+  /* margin: 0.5rem 0; */
   display: flex;
   flex-direction: row;
-  gap: 0.5em;
+  gap: 0.5rem;
   align-items: center;
 }
 
@@ -44,7 +44,7 @@
   display: flex;
 }
 .tree_node_list p {
-  font-size: 1em;
+  font-size: 1rem;
 }
 
 .tree-node ul li {
@@ -53,19 +53,19 @@
 
 .tree-node input[type="checkbox"] {
   transform: scale(1.25); /* 1.5x bigger */
-  margin-right: 0.5em;
+  margin-right: 0.5rem;
   cursor: pointer;
   width: 2.25%;
 }
 
 .tree_node_sublist {
-  padding: 0 0 0 3em;
+  padding: 0 0 0 3rem;
 }
 
 .tag {
-  font-size: 0.9em;
+  font-size: 0.9rem;
   background: #dee2e6;
-  padding: 0.2em;
+  padding: 0.2rem;
   border-radius: 3px;
   /* color: white; */
   margin: 9px 9px 0px 0px;

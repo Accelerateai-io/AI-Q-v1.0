@@ -45,6 +45,10 @@ export function certificationFormTextFromGetter(get: (k: string) => unknown): st
   walk(get("security_certifications"));
   walk(get("security_compliance_certificates"));
   walk(get("regulatorycompliance_cert_material"));
+  walk(get("hipaa_baa"));
+  const hipaaBaa = String(get("hipaa_baa") ?? "").trim().toLowerCase();
+  if (hipaaBaa === "yes" || hipaaBaa === "yes_standard" || hipaaBaa === "yes_on_request")
+    parts.push("HIPAA BAA");
   return parts.join(" ");
 }
 

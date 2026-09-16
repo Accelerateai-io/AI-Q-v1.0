@@ -1,5 +1,5 @@
 export interface AssessmentRow {
-  assessmentId: number;
+  assessmentId: number | string;
   type: string;
   status: string;
   createdAt: string | null;

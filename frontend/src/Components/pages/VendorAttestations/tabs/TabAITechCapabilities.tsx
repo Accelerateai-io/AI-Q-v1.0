@@ -8,11 +8,14 @@ import { toast } from "react-toastify";
 import AttestationDynamicStep from "../AttestationDynamicStep";
 import FormField from "../../../UI/FormField";
 import FileUpload from "../../../UI/FileUpload";
+import Select from "../../../UI/Select";
 import type {
   VendorSelfAttestationPayload,
   DocumentUploadState,
 } from "../../../../types/vendorSelfAttestation";
 import { MAX_FILE_SIZE_BYTES, MAX_FILES_PER_UPLOAD } from "../../../../constants/vendorAttestationDocumentConstants";
+import { MODEL_VERSIONING_METHOD_OPTIONS } from "../../../../constants/vendorAttestationOptions";
+import { YES_NO_OPTIONS } from "../../../../constants/vendorOnboardingData";
 
 export interface TabAITechCapabilitiesProps {
   attestation: VendorSelfAttestationPayload;
@@ -101,6 +104,58 @@ function TabAITechCapabilities({
         setAttestation={setAttestation}
         fieldErrors={fieldErrors}
       />
+      <div className="form_fields_vendor">
+        <FormField
+          label="Do you version models, and how?"
+          mandatory={true}
+          tooltipText="Select whether you version models. If yes, choose the versioning method."
+          errorText={fieldErrors?.versions_models}
+        >
+          <Select
+            labelName=""
+            id="versions_models"
+            name="versions_models"
+            value={attestation.versions_models || ""}
+            onChange={(e) => {
+              const value = e.target.value
+              setAttestation((prev) => ({
+                ...prev,
+                versions_models: value,
+                model_versioning_method: value === "yes" ? prev.model_versioning_method : "",
+              }))
+            }}
+            default_option="Select Yes or No"
+            options={YES_NO_OPTIONS}
+            required
+          />
+        </FormField>
+      </div>
+      {attestation.versions_models === "yes" && (
+        <div className="form_fields_vendor">
+          <FormField
+            label="Model versioning method"
+            mandatory={true}
+            tooltipText="How models are versioned."
+            errorText={fieldErrors?.model_versioning_method}
+          >
+            <Select
+              labelName=""
+              id="model_versioning_method"
+              name="model_versioning_method"
+              value={attestation.model_versioning_method || ""}
+              onChange={(e) =>
+                setAttestation((prev) => ({
+                  ...prev,
+                  model_versioning_method: e.target.value,
+                }))
+              }
+              default_option="Select versioning method"
+              options={MODEL_VERSIONING_METHOD_OPTIONS}
+              required
+            />
+          </FormField>
+        </div>
+      )}
       {showPolicyUpload && setDocumentUpload && (
         <div className="form_fields_vendor" style={{ marginTop: "1rem" }}>
           <FormField

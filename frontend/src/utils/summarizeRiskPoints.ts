@@ -1,7 +1,22 @@
 const MAX_POINT_LEN = 200;
 
+/**
+ * "Label:Text" / "Score:38.32" → "Label: Text" / "Score: 38.32".
+ * Leaves times (12:30) and URLs (https://) unchanged.
+ */
+export function ensureSpaceAfterColon(text: string): string {
+  return String(text ?? "")
+    .replace(/(\*\*[^*]*:\*\*)(?=\S)/g, "$1 ")
+    .replace(/:(?!\/\/)([A-Za-z])/g, ": $1")
+    .replace(/:(?!\/\/)(\d)/g, (full, digit: string, offset: number, str: string) => {
+      const prev = offset > 0 ? str[offset - 1] : "";
+      if (/\d/.test(prev)) return full;
+      return `: ${digit}`;
+    });
+}
+
 function normalizeWhitespace(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
+  return ensureSpaceAfterColon(s.replace(/\s+/g, " ").trim());
 }
 
 function capAtWordBoundary(text: string, max: number): string {

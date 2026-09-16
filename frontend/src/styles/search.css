@@ -1,0 +1,238 @@
+/* Shared search field UI — matches top nav `.nav_search` look app-wide */
+
+.app_search,
+.nav_search,
+.assessments_ledger_search,
+.vd_list_search,
+.vd_premium_search_box,
+.adminPage__modelSearchWrap,
+.reports_tabs_search,
+.user_management_search_wrap,
+.product_profile_products_search,
+.assessment_search_wrap,
+.attestation_search_wrap,
+.governance_risk_search {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 1.05rem;
+  border-radius: 0;
+  background: linear-gradient(180deg, #f3f7ff 0%, #e8f0fe 100%);
+  border: 1px solid var(--auth-signin-input-border, #b8c9f3);
+  box-shadow:
+    0 1px 2px rgba(1, 74, 173, 0.06),
+    0 0 0 1px rgba(34, 91, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.app_search:hover,
+.nav_search:hover,
+.assessments_ledger_search:hover,
+.vd_list_search:hover,
+.vd_premium_search_box:hover,
+.adminPage__modelSearchWrap:hover,
+.reports_tabs_search:hover,
+.user_management_search_wrap:hover,
+.product_profile_products_search:hover,
+.assessment_search_wrap:hover,
+.attestation_search_wrap:hover,
+.governance_risk_search:hover {
+  border-color: #93b4f0;
+  background: linear-gradient(180deg, #eef4ff 0%, #e0ebfc 100%);
+  box-shadow:
+    0 2px 8px rgba(1, 74, 173, 0.08),
+    0 0 0 1px rgba(34, 91, 255, 0.08);
+}
+
+.app_search:focus-within,
+.nav_search:focus-within,
+.assessments_ledger_search:focus-within,
+.vd_list_search:focus-within,
+.vd_premium_search_box:focus-within,
+.adminPage__modelSearchWrap:focus-within,
+.reports_tabs_search:focus-within,
+.user_management_search_wrap:focus-within,
+.product_profile_products_search:focus-within,
+.assessment_search_wrap:focus-within,
+.attestation_search_wrap:focus-within,
+.governance_risk_search:focus-within {
+  border-color: var(--nav-active, #225bff);
+  background: linear-gradient(180deg, #eef4ff 0%, #e4edfc 100%);
+  box-shadow:
+    0 0 0 3px var(--focus-ring, rgba(1, 74, 173, 0.18)),
+    0 2px 10px rgba(34, 91, 255, 0.1);
+}
+
+.app_search_icon,
+.nav_search_icon,
+.assessments_ledger_search_icon,
+.vd_list_search_icon,
+.vd_premium_search_box_icon,
+.adminPage__modelSearchIcon,
+.reports_search_icon,
+.user_management_search_icon,
+.product_profile_products_search_icon,
+.assessment_search_icon,
+.attestation_search_icon,
+.governance_risk_search_icon {
+  flex-shrink: 0;
+  color: var(--nav-active, #225bff);
+}
+
+.app_search_input,
+.nav_search_input,
+.assessments_ledger_search_input,
+.vd_list_search_input,
+.vd_premium_search_box_input,
+.adminPage__modelSearchInput,
+.reports_search_input,
+.user_management_search_input,
+.product_profile_products_search_input,
+.assessment_search_input,
+.attestation_search_input,
+.governance_risk_search_input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  outline: none;
+  background: transparent !important;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary, #1a1f36);
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.app_search_input::placeholder,
+.nav_search_input::placeholder,
+.assessments_ledger_search_input::placeholder,
+.vd_list_search_input::placeholder,
+.vd_premium_search_box_input::placeholder,
+.adminPage__modelSearchInput::placeholder,
+.reports_search_input::placeholder,
+.user_management_search_input::placeholder,
+.product_profile_products_search_input::placeholder,
+.assessment_search_input::placeholder,
+.attestation_search_input::placeholder,
+.governance_risk_search_input::placeholder {
+  color: #6477a3;
+  font-weight: 450;
+}
+
+.app_search_input::-webkit-search-cancel-button,
+.nav_search_input::-webkit-search-cancel-button,
+.assessments_ledger_search_input::-webkit-search-cancel-button,
+.vd_list_search_input::-webkit-search-cancel-button,
+.adminPage__modelSearchInput::-webkit-search-cancel-button,
+.reports_search_input::-webkit-search-cancel-button,
+.user_management_search_input::-webkit-search-cancel-button,
+.product_profile_products_search_input::-webkit-search-cancel-button,
+.assessment_search_input::-webkit-search-cancel-button,
+.attestation_search_input::-webkit-search-cancel-button,
+.governance_risk_search_input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+/* Dark theme — soft blue wash matching top nav */
+html[data-theme="dark"] .app_search,
+html[data-theme="dark"] .nav_search,
+html[data-theme="dark"] .assessments_ledger_search,
+html[data-theme="dark"] .vd_list_search,
+html[data-theme="dark"] .vd_premium_search_box,
+html[data-theme="dark"] .adminPage__modelSearchWrap,
+html[data-theme="dark"] .reports_tabs_search,
+html[data-theme="dark"] .user_management_search_wrap,
+html[data-theme="dark"] .product_profile_products_search,
+html[data-theme="dark"] .assessment_search_wrap,
+html[data-theme="dark"] .attestation_search_wrap,
+html[data-theme="dark"] .governance_risk_search {
+  background: linear-gradient(180deg, rgba(138, 175, 255, 0.16) 0%, rgba(138, 175, 255, 0.1) 100%) !important;
+  border-color: rgba(138, 175, 255, 0.35) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(138, 175, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .app_search:hover,
+html[data-theme="dark"] .nav_search:hover,
+html[data-theme="dark"] .assessments_ledger_search:hover,
+html[data-theme="dark"] .vd_list_search:hover,
+html[data-theme="dark"] .vd_premium_search_box:hover,
+html[data-theme="dark"] .adminPage__modelSearchWrap:hover,
+html[data-theme="dark"] .reports_tabs_search:hover,
+html[data-theme="dark"] .user_management_search_wrap:hover,
+html[data-theme="dark"] .product_profile_products_search:hover,
+html[data-theme="dark"] .assessment_search_wrap:hover,
+html[data-theme="dark"] .attestation_search_wrap:hover,
+html[data-theme="dark"] .governance_risk_search:hover,
+html[data-theme="dark"] .app_search:focus-within,
+html[data-theme="dark"] .nav_search:focus-within,
+html[data-theme="dark"] .assessments_ledger_search:focus-within,
+html[data-theme="dark"] .vd_list_search:focus-within,
+html[data-theme="dark"] .vd_premium_search_box:focus-within,
+html[data-theme="dark"] .adminPage__modelSearchWrap:focus-within,
+html[data-theme="dark"] .reports_tabs_search:focus-within,
+html[data-theme="dark"] .user_management_search_wrap:focus-within,
+html[data-theme="dark"] .product_profile_products_search:focus-within,
+html[data-theme="dark"] .assessment_search_wrap:focus-within,
+html[data-theme="dark"] .attestation_search_wrap:focus-within,
+html[data-theme="dark"] .governance_risk_search:focus-within {
+  border-color: var(--main-auth-button-color, #8aafff) !important;
+  background: linear-gradient(180deg, rgba(138, 175, 255, 0.22) 0%, rgba(138, 175, 255, 0.14) 100%) !important;
+  box-shadow:
+    0 0 0 3px var(--focus-ring, rgba(138, 175, 255, 0.22)),
+    0 2px 10px rgba(0, 0, 0, 0.25) !important;
+}
+
+html[data-theme="dark"] .app_search_input,
+html[data-theme="dark"] .nav_search_input,
+html[data-theme="dark"] .vd_list_search_input,
+html[data-theme="dark"] .vd_premium_search_box_input,
+html[data-theme="dark"] .assessments_ledger_search_input,
+html[data-theme="dark"] .adminPage__modelSearchInput,
+html[data-theme="dark"] .reports_search_input,
+html[data-theme="dark"] .user_management_search_input,
+html[data-theme="dark"] .product_profile_products_search_input,
+html[data-theme="dark"] .assessment_search_input,
+html[data-theme="dark"] .attestation_search_input,
+html[data-theme="dark"] .governance_risk_search_input {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .app_search_icon,
+html[data-theme="dark"] .nav_search_icon,
+html[data-theme="dark"] .vd_list_search_icon,
+html[data-theme="dark"] .vd_premium_search_box_icon,
+html[data-theme="dark"] .assessments_ledger_search_icon,
+html[data-theme="dark"] .adminPage__modelSearchIcon,
+html[data-theme="dark"] .reports_search_icon,
+html[data-theme="dark"] .user_management_search_icon,
+html[data-theme="dark"] .product_profile_products_search_icon,
+html[data-theme="dark"] .assessment_search_icon,
+html[data-theme="dark"] .attestation_search_icon,
+html[data-theme="dark"] .governance_risk_search_icon,
+html[data-theme="dark"] .app_search_input::placeholder,
+html[data-theme="dark"] .nav_search_input::placeholder,
+html[data-theme="dark"] .vd_list_search_input::placeholder,
+html[data-theme="dark"] .vd_premium_search_box_input::placeholder,
+html[data-theme="dark"] .assessments_ledger_search_input::placeholder,
+html[data-theme="dark"] .adminPage__modelSearchInput::placeholder,
+html[data-theme="dark"] .reports_search_input::placeholder,
+html[data-theme="dark"] .user_management_search_input::placeholder,
+html[data-theme="dark"] .product_profile_products_search_input::placeholder,
+html[data-theme="dark"] .assessment_search_input::placeholder,
+html[data-theme="dark"] .attestation_search_input::placeholder,
+html[data-theme="dark"] .governance_risk_search_input::placeholder {
+  color: #9eb0d4 !important;
+}

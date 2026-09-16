@@ -6,7 +6,9 @@ import { customerRiskAssessmentReports } from "../../schema/assessments/customer
 import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssessments.js";
 import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
 import { generalReports } from "../../schema/assessments/generalReports.js";
+import { getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
 import { generateImplementationRoadmapProposal } from "../agents/implementationRoadmapProposalAgent.js";
+import { sendIfTokenQuotaExceeded } from "../../services/admin/featureTokenQuota.service.js";
 
 function toStr(v: unknown): string {
   if (v == null) return "";
@@ -121,6 +123,7 @@ const implementationRoadmapProposal = async (req: Request, res: Response): Promi
         report_type: REPORT_TYPE_IMPLEMENTATION_ROADMAP,
         content,
         assessment_label: assessmentLabel,
+        llm_model_id: getActiveLlmModelMeta().modelId,
         created_by: userId,
       })
       .returning();
@@ -146,10 +149,15 @@ const implementationRoadmapProposal = async (req: Request, res: Response): Promi
           generatedAt,
           briefContent: inserted.content ?? undefined,
           createdBy: inserted.created_by,
+          llmModelId:
+            typeof inserted.llm_model_id === "string" && inserted.llm_model_id.trim()
+              ? inserted.llm_model_id.trim()
+              : null,
         },
       },
     });
   } catch (err) {
+    if (sendIfTokenQuotaExceeded(res, err)) return;
     console.error("implementationRoadmapProposal error:", err);
     res.status(500).json({
       success: false,

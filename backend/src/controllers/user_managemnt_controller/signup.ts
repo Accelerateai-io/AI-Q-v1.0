@@ -10,6 +10,7 @@ import {
   buildOnboardingEmailHtml,
   ONBOARDING_MAIL_PLATFORM_NAME,
 } from "../../email/onboardingEmailHtml.js";
+import { getAccelerateAiLogoAttachment } from "../../email/emailBrand.js";
 import { onboardingPathSegmentFromOrgType } from "../../utils/onboardingPathFromOrgType.js";
 
 const userSignup = async (req: Request, res: Response) => {
@@ -214,6 +215,7 @@ const userSignup = async (req: Request, res: Response) => {
             onboardingLink,
             capitalizeFirstLetter(String(orgDisplayName ?? "")),
           ),
+          attachments: [getAccelerateAiLogoAttachment()],
         });
 
         console.log("Onboarding email sent to admin:", email);

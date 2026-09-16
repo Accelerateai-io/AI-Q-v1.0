@@ -8,6 +8,7 @@ import {
   buildInviteUserEmailHtml,
   INVITE_MAIL_PLATFORM_NAME,
 } from "../email/inviteUserEmailHtml.js";
+import { getAccelerateAiLogoAttachment } from "../email/emailBrand.js";
 
 function capitalizeFirstLetter(str: string): string {
   if (!str || typeof str !== "string") return str;
@@ -21,8 +22,9 @@ function capitalizeFirstLetter(str: string): string {
 export type CustomerOrgPlatformRole = "vendor" | "buyer";
 
 /**
- * Sends signup invite email and inserts invited admin for a customer organization.
- * Call only after the organization row exists. Caller should roll back the org on failure.
+ * Sends signup invite email, then inserts the invited admin.
+ * The user row is written only after the email send succeeds. The caller rolls
+ * back the new organization if this throws EMAIL_FAILED.
  */
 export async function inviteCustomerOrganizationAdmin(params: {
     email: string;
@@ -75,11 +77,12 @@ export async function inviteCustomerOrganizationAdmin(params: {
       to: email,
       subject: `You're invited to join ${INVITE_MAIL_PLATFORM_NAME}`,
       html: buildInviteUserEmailHtml(organizationNameCapitalized, roleCapitalized, confirmationLink),
+      attachments: [getAccelerateAiLogoAttachment()],
     });
   } catch (emailErr: unknown) {
     console.error("inviteCustomerOrganizationAdmin: failed to send invitation email", emailErr);
     throw Object.assign(
-      new Error("Failed to send invitation email. No user was created. Please try again or contact support."),
+      new Error("Failed to send invitation email. The organization was not saved."),
       { code: "EMAIL_FAILED" },
     );
   }

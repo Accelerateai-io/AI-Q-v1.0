@@ -3,30 +3,40 @@ import {
   useState,
   useCallback,
   useMemo,
-  type ComponentPropsWithoutRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
+  ClipboardList,
+  Code2,
   Cpu,
   Database,
   FileCheck,
+  FileText,
+  Filter,
   FlaskConical,
+  FolderKanban,
   Search,
   ShieldCheck,
   CircleX,
+  ChevronDown,
   ChevronRight,
+  SlidersHorizontal,
+  SearchX,
+  MapPin,
+  Award,
+  Box,
 } from "lucide-react";
 import "../../../styles/page_tabs.css";
 import "../Assessments/assessments.css";
-import "./VendorDirectory.css";
 import "../ProductProfile/product_profile.css";
+import "./VendorDirectory.css";
 import GeneratedProductProfileCards from "../ProductProfile/GeneratedProductProfileCards";
+import LoadingMessage from "../../UI/LoadingMessage";
 import {
   ReportsPagination,
   REPORTS_PAGE_SIZE,
 } from "../Reports/ReportsPagination";
-import ClickTooltip from "../../UI/ClickTooltip";
 import type { GeneratedProductProfileReport } from "../../../types/generatedProductProfile";
 import { mergeMissingProfileSectionsFromAttestation } from "../../../utils/mergeProductProfileReportFromAttestation";
 import { vendorTrustGradeColorFromTrustScore } from "../../../utils/completeReportGrade";
@@ -54,16 +64,13 @@ const SECTION_ID_TO_VIS_KEY: Record<number, keyof typeof defaultSectionVis> = {
   2: "companyIdentity",
   3: "dataPrivacy",
   4: "compliance",
-  5: "modelRisk",
+  5: "securityPosture",
   6: "dataPractices",
   7: "complianceCertifications",
   8: "operationsSupport",
   9: "vendorManagement",
-  /** AI Safety & Testing — same visibility flag as AI Models & Technology (dataPrivacy) */
   10: "dataPrivacy",
-  /** Evidence & Trust — same visibility flag as Compliance & Certifications */
   11: "complianceCertifications",
-  /** Company reach — same toggle as Company reach in product profile */
   12: "companyReach",
 };
 
@@ -91,6 +98,9 @@ function parseGeneratedReport(
         | undefined,
     },
     sections: o.sections as GeneratedProductProfileReport["sections"],
+    scoringSource: String(
+      o.scoring_source ?? o.scoringSource ?? (o.scoringResult as { scoring_source?: string } | undefined)?.scoring_source ?? "",
+    ) || undefined,
   };
 }
 
@@ -287,6 +297,52 @@ function formatSector(
     .join(" • ");
 }
 
+/** Flat list of individual sector labels for the hover popover pills. */
+function listSectorLabels(
+  sector: string | Record<string, unknown> | null | undefined,
+): string[] {
+  const p = parseSectorStructure(sector);
+  if (p.kind === "empty") return [];
+  if (p.kind === "plain") {
+    return p.text
+      .split(/,\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return p.buckets.flat().map((s) => s.trim()).filter(Boolean);
+}
+
+const SECTOR_PILL_TONES = [
+  "rose",
+  "violet",
+  "amber",
+  "slate",
+  "teal",
+  "indigo",
+  "zinc",
+] as const;
+
+function sectorPillTone(index: number): (typeof SECTOR_PILL_TONES)[number] {
+  return SECTOR_PILL_TONES[index % SECTOR_PILL_TONES.length];
+}
+
+/** Overlapping sector avatar-stack colors — avoid pale yellow on light cards. */
+const SECTOR_STACK_COLORS = [
+  "#7dd3fc",
+  "#5b21b6",
+  "#ef4444",
+  "#34d399",
+  "#0284c7",
+  "#818cf8",
+  "#fb7185",
+] as const;
+
+const MAX_SECTOR_STACK_DOTS = 3;
+
+function sectorStackColor(index: number): string {
+  return SECTOR_STACK_COLORS[index % SECTOR_STACK_COLORS.length];
+}
+
 /** Card line: at most the first {@link MAX_SECTORS_ON_CARD} individual sectors, with "+N more" when truncated. */
 function formatSectorCard(
   sector: string | Record<string, unknown> | null | undefined,
@@ -318,14 +374,79 @@ type IndustryFilterId =
   | "finance"
   | "cybersecurity";
 
+type CertificationFilterId = "all" | "soc2" | "hipaa" | "iso27001";
+
+type BadgeFilterId = "all" | "verified" | "listed" | "under_review";
+
+type ToolbarMenuId = "industry" | "certification" | "badges" | null;
+
 const INDUSTRY_FILTERS: { id: IndustryFilterId; label: string }[] = [
-  { id: "all", label: "All Vendors" },
+  { id: "all", label: "All industries" },
   { id: "generative", label: "Generative AI" },
   { id: "healthcare", label: "Healthcare" },
   { id: "technology", label: "Technology" },
   { id: "finance", label: "Finance" },
   { id: "cybersecurity", label: "Cybersecurity" },
 ];
+
+const CERTIFICATION_FILTERS: { id: CertificationFilterId; label: string }[] = [
+  { id: "all", label: "All certifications" },
+  { id: "soc2", label: "SOC2 Type II" },
+  { id: "hipaa", label: "HIPAA Compliant" },
+  { id: "iso27001", label: "ISO 27001" },
+];
+
+const BADGE_FILTERS: { id: BadgeFilterId; label: string }[] = [
+  { id: "all", label: "All badges" },
+  { id: "verified", label: "Verified" },
+  { id: "listed", label: "Listed" },
+  { id: "under_review", label: "Under review" },
+];
+
+type DirectoryStatusTone = "verified" | "listed" | "review" | "closed";
+
+function directoryStatusForProduct(
+  revealTrustScore: boolean,
+  trustNumeric: number | undefined,
+): { label: string; tone: DirectoryStatusTone; icon: "check" | "eye" | "x" | "circle" } {
+  if (!revealTrustScore || trustNumeric == null) {
+    return { label: "Under review", tone: "review", icon: "eye" };
+  }
+  const rounded = Math.round(trustNumeric);
+  if (rounded >= 90) return { label: "Verified", tone: "verified", icon: "check" };
+  if (rounded >= 80) return { label: "Listed", tone: "listed", icon: "eye" };
+  return { label: "Needs info", tone: "closed", icon: "x" };
+}
+
+function matchesCertificationFilter(
+  productId: string,
+  id: CertificationFilterId,
+): boolean {
+  if (id === "all") return true;
+  const badge = complianceBadgeForProduct(productId).toLowerCase();
+  if (id === "soc2") return badge.includes("soc2");
+  if (id === "hipaa") return badge.includes("hipaa");
+  if (id === "iso27001") return badge.includes("iso");
+  return true;
+}
+
+function matchesBadgeFilter(
+  dp: DirectoryProduct,
+  id: BadgeFilterId,
+  revealTrust: boolean,
+): boolean {
+  if (id === "all") return true;
+  const trustNumeric =
+    dp.trustScore != null && Number.isFinite(Number(dp.trustScore))
+      ? Number(dp.trustScore)
+      : undefined;
+  const status = directoryStatusForProduct(revealTrust, trustNumeric);
+  if (id === "verified") return status.tone === "verified";
+  if (id === "listed") return status.tone === "listed";
+  if (id === "under_review")
+    return status.tone === "review" || status.tone === "closed";
+  return true;
+}
 
 function displayVendorName(v: PublicVendor): string {
   if (v.organizationName && String(v.organizationName).trim()) {
@@ -356,11 +477,24 @@ function trustGradeFromScore(score: number | undefined): {
   letterColor: string | null;
 } {
   const PRODUCT_PROFILE_GREEN = "#16a34a";
+  /** Pale yellow/neon greens wash out on #fcfcfc directory cards — use stronger hues. */
+  const withVisibleDirectoryColor = (hex: string): string => {
+    const h = hex.toLowerCase();
+    if (h === "#ffba08" || h === "#facc15" || h === "#fbbf24" || h === "#f59e0b") {
+      return "#c2410c";
+    }
+    if (h === "#ff8700") {
+      return "#ea580c";
+    }
+    return hex;
+  };
   if (score == null || Number.isNaN(score)) {
     return { letter: "—", scoreText: "—", gradeClass: "vd_premium_grade_na", letterColor: null };
   }
   const rounded = Math.round(score);
-  const letterColor = vendorTrustGradeColorFromTrustScore(rounded);
+  const letterColor = withVisibleDirectoryColor(
+    vendorTrustGradeColorFromTrustScore(rounded),
+  );
   if (rounded >= 90)
     return {
       letter: "A",
@@ -519,13 +653,25 @@ const VendorDirectory = () => {
   } | null>(null);
   const [productDetailLoading, setProductDetailLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  /** Flat list of products for directory grid (one card per product). */
-  const [directoryProducts, setDirectoryProducts] = useState<
+  /** Catalog products (All / Listed tabs). */
+  const [catalogDirectoryProducts, setCatalogDirectoryProducts] = useState<
+    DirectoryProduct[]
+  >([]);
+  /** Assessment-linked products (My Products tab). Kept separate so sidebar counts stay correct. */
+  const [myDirectoryProducts, setMyDirectoryProducts] = useState<
     DirectoryProduct[]
   >([]);
   const [directoryProductsLoading, setDirectoryProductsLoading] =
-    useState(false);
+    useState(true);
+  /** After first successful load, keep page chrome mounted to avoid open/blink remounts. */
+  const [shellReady, setShellReady] = useState(false);
   const [industryFilter, setIndustryFilter] = useState<IndustryFilterId>("all");
+  const [certificationFilter, setCertificationFilter] =
+    useState<CertificationFilterId>("all");
+  const [badgeFilter, setBadgeFilter] = useState<BadgeFilterId>("all");
+  const [openToolbarMenu, setOpenToolbarMenu] = useState<ToolbarMenuId>(null);
+  const [industriesExpanded, setIndustriesExpanded] = useState(true);
+  const [listingExpanded, setListingExpanded] = useState(true);
   const [directoryListPage, setDirectoryListPage] = useState(1);
   const [directoryListPageSize, setDirectoryListPageSize] =
     useState(REPORTS_PAGE_SIZE);
@@ -536,10 +682,13 @@ const VendorDirectory = () => {
     if (!token) {
       setError("Please log in to view the vendor directory.");
       setLoading(false);
+      setDirectoryProductsLoading(false);
       return;
     }
     setError(null);
     setLoading(true);
+    // Keep continuous loading through the products phase (avoids loader → empty → loader blink).
+    setDirectoryProductsLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/vendorDirectory?scope=all`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -548,27 +697,38 @@ const VendorDirectory = () => {
       if (!res.ok) {
         setError(data?.message ?? "Failed to load vendors");
         setVendors([]);
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
         return;
       }
-      setVendors(data?.vendors ?? []);
+      const nextVendors = data?.vendors ?? [];
+      setVendors(nextVendors);
+      if (!Array.isArray(nextVendors) || nextVendors.length === 0) {
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
+      }
     } catch {
       setError("Network or server error");
       setVendors([]);
+      setCatalogDirectoryProducts([]);
+      setDirectoryProductsLoading(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  /** Listed Vendors: only vendors who have turned on Public Directory Listing. */
+  /** Listed Vendors: vendors with at least one product marked Visible to buyers. */
   const fetchListedVendors = useCallback(async () => {
     const token = sessionStorage.getItem("bearerToken");
     if (!token) {
       setError("Please log in to view the vendor directory.");
       setLoading(false);
+      setDirectoryProductsLoading(false);
       return;
     }
     setError(null);
     setLoading(true);
+    setDirectoryProductsLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/vendorDirectory`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -577,28 +737,41 @@ const VendorDirectory = () => {
       if (!res.ok) {
         setError(data?.message ?? "Failed to load vendors");
         setVendors([]);
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
         return;
       }
-      setVendors(data?.vendors ?? []);
+      const nextVendors = data?.vendors ?? [];
+      setVendors(nextVendors);
+      if (!Array.isArray(nextVendors) || nextVendors.length === 0) {
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
+      }
     } catch {
       setError("Network or server error");
       setVendors([]);
+      setCatalogDirectoryProducts([]);
+      setDirectoryProductsLoading(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
   /** My Products tab: COTS assessments (buyer vendor+product, or vendor assessment product). */
-  const fetchMyAssessmentProducts = useCallback(async () => {
+  const fetchMyAssessmentProducts = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     const token = sessionStorage.getItem("bearerToken");
     if (!token) {
-      setMyProductsTabError("Please log in to view your assessment products.");
-      setDirectoryProducts([]);
+      if (!silent) {
+        setMyProductsTabError("Please log in to view your assessment products.");
+      }
+      setMyDirectoryProducts([]);
       return;
     }
-    setMyProductsTabError(null);
-    setMyProductsTabLoading(true);
-    setDirectoryProducts([]);
+    if (!silent) {
+      setMyProductsTabError(null);
+      setMyProductsTabLoading(true);
+    }
     try {
       const res = await fetch(
         `${BASE_URL}/vendorDirectory/assessment-products`,
@@ -608,15 +781,17 @@ const VendorDirectory = () => {
       );
       const data = await res.json();
       if (!res.ok) {
-        setMyProductsTabError(
-          data?.message ?? "Failed to load assessment products",
-        );
-        setDirectoryProducts([]);
+        if (!silent) {
+          setMyProductsTabError(
+            data?.message ?? "Failed to load assessment products",
+          );
+        }
+        setMyDirectoryProducts([]);
         return;
       }
       const raw = data?.products as unknown;
       if (!Array.isArray(raw)) {
-        setDirectoryProducts([]);
+        setMyDirectoryProducts([]);
         return;
       }
       const mapped: DirectoryProduct[] = raw.map((item: unknown) => {
@@ -651,12 +826,16 @@ const VendorDirectory = () => {
         };
       });
       const list = mapped.filter((dp) => dp.productId && dp.vendorId);
-      setDirectoryProducts(list);
+      setMyDirectoryProducts(list);
     } catch {
-      setMyProductsTabError("Network or server error");
-      setDirectoryProducts([]);
+      if (!silent) {
+        setMyProductsTabError("Network or server error");
+      }
+      setMyDirectoryProducts([]);
     } finally {
-      setMyProductsTabLoading(false);
+      if (!silent) {
+        setMyProductsTabLoading(false);
+      }
     }
   }, []);
 
@@ -737,11 +916,13 @@ const VendorDirectory = () => {
     async (vendorList: PublicVendor[]) => {
       const token = sessionStorage.getItem("bearerToken");
       if (!token) {
-        setDirectoryProducts([]);
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
         return;
       }
       if (vendorList.length === 0) {
-        setDirectoryProducts([]);
+        setCatalogDirectoryProducts([]);
+        setDirectoryProductsLoading(false);
         return;
       }
       setDirectoryProductsLoading(true);
@@ -782,9 +963,18 @@ const VendorDirectory = () => {
           }),
         );
         const flat = results.flat();
-        setDirectoryProducts(flat);
+        // Guard against duplicate cards when multiple vendor rows share ownership data.
+        const seen = new Set<string>();
+        const deduped = flat.filter((dp) => {
+          const key = String(dp.productId ?? "").trim();
+          if (!key) return true;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setCatalogDirectoryProducts(deduped);
       } catch {
-        setDirectoryProducts([]);
+        setCatalogDirectoryProducts([]);
       } finally {
         setDirectoryProductsLoading(false);
       }
@@ -920,18 +1110,27 @@ const VendorDirectory = () => {
     fetchMyAssessmentProducts,
   ]);
 
+  /** Prefetch My Products so the Listing sidebar count stays accurate on All / Listed tabs. */
+  useEffect(() => {
+    void fetchMyAssessmentProducts({ silent: true });
+  }, [fetchMyAssessmentProducts]);
+
   /** When vendor list tabs load, build flat product list. My Products tab loads products via assessment API. */
   useEffect(() => {
     if (vendorTab === "my") return;
     if (vendorTab === "all" || vendorTab === "listed") {
       if (vendors.length > 0) fetchDirectoryProducts(vendors);
       else if (!loading) {
-        setDirectoryProducts([]);
+        setCatalogDirectoryProducts([]);
       }
     }
   }, [vendorTab, vendors, fetchDirectoryProducts, loading]);
 
-  /** Product counts per industry pill (full current list; not narrowed by search). */
+  /** Active tab product list for the main grid / filters. */
+  const directoryProducts =
+    vendorTab === "my" ? myDirectoryProducts : catalogDirectoryProducts;
+
+  /** Product counts per industry (full current list; not narrowed by search). */
   const industryFilterCounts = useMemo(() => {
     const next = {} as Record<IndustryFilterId, number>;
     for (const { id } of INDUSTRY_FILTERS) {
@@ -941,6 +1140,16 @@ const VendorDirectory = () => {
     }
     return next;
   }, [directoryProducts]);
+
+  const listingTabCounts = useMemo(
+    () => ({
+      all: catalogDirectoryProducts.length,
+      listed: catalogDirectoryProducts.filter((dp) => dp.visibleToBuyer === true)
+        .length,
+      my: myDirectoryProducts.length,
+    }),
+    [catalogDirectoryProducts, myDirectoryProducts],
+  );
 
   const filteredDirectoryProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -952,16 +1161,56 @@ const VendorDirectory = () => {
       if (sectorText && sectorText.toLowerCase().includes(q)) return true;
       if ((dp.vendor.companyDescription ?? "").toLowerCase().includes(q))
         return true;
+      if ((dp.vendor.headquartersLocation ?? "").toLowerCase().includes(q))
+        return true;
       return false;
     };
     return directoryProducts
       .filter((dp) => matchesIndustryFilter(dp, industryFilter))
+      .filter((dp) =>
+        matchesCertificationFilter(dp.productId, certificationFilter),
+      )
+      .filter((dp) => {
+        const canShowBuyerFields = dp.visibleToBuyer === true;
+        const trustNumeric =
+          dp.trustScore != null && Number.isFinite(Number(dp.trustScore))
+            ? Number(dp.trustScore)
+            : undefined;
+        const revealTrustScore =
+          trustNumeric != null && (vendorTab === "my" || canShowBuyerFields);
+        return matchesBadgeFilter(dp, badgeFilter, revealTrustScore);
+      })
       .filter(matchesProductSearch);
-  }, [directoryProducts, industryFilter, searchQuery]);
+  }, [
+    directoryProducts,
+    industryFilter,
+    certificationFilter,
+    badgeFilter,
+    searchQuery,
+    vendorTab,
+  ]);
 
   useEffect(() => {
     setDirectoryListPage(1);
-  }, [vendorTab, industryFilter, searchQuery]);
+  }, [vendorTab, industryFilter, certificationFilter, badgeFilter, searchQuery]);
+
+  useEffect(() => {
+    if (openToolbarMenu == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenToolbarMenu(null);
+    };
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.(".vd_list_toolbar_dropdown")) return;
+      setOpenToolbarMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointer);
+    };
+  }, [openToolbarMenu]);
 
   const directoryTotalPages = Math.max(
     1,
@@ -982,193 +1231,352 @@ const VendorDirectory = () => {
     );
   }, [filteredDirectoryProducts, directoryListPage, directoryListPageSize]);
 
-  const renderPremiumCards = (
-    items: DirectoryProduct[],
-    panelProps: Pick<
-      ComponentPropsWithoutRef<"div">,
-      "id" | "role" | "aria-labelledby"
-    >,
-  ) => (
-    <div
-      className="vendor_directory_grid vendor_directory_grid--premium vd_premium_grid--grid"
-      {...panelProps}
-    >
-      {items.map((dp) => {
-        const canShowBuyerFields = dp.visibleToBuyer === true;
-        const trustNumeric =
-          dp.trustScore != null && Number.isFinite(Number(dp.trustScore))
-            ? Number(dp.trustScore)
-            : undefined;
-        /** My Products (COTS) always shows own trust/grade; directory uses buyer-visibility. */
-        const revealTrustScore =
-          trustNumeric != null &&
-          (vendorTab === "my" || canShowBuyerFields);
-        const g = trustGradeFromScore(
-          revealTrustScore ? trustNumeric : undefined,
-        );
-        const descRaw = canShowBuyerFields
-          ? dp.summary?.trim() || dp.productDescription?.trim() || ""
-          : "";
-        const desc = descRaw ? truncate(descRaw, 200) : "";
-        const vendorName = displayVendorName(dp.vendor);
-        const sectorTitle =
-          formatSectorCard(dp.sector ?? dp.vendor.sector) || "Not specified";
-        return (
-          <article
-            key={`${dp.vendorId}-${dp.productId}`}
-            className="vd_premium_card"
-          >
-            <div className="vd_premium_card_top">
-              <div
-                className={`vd_premium_grade ${g.gradeClass}`}
-                aria-label={
-                  revealTrustScore
-                    ? `Trust grade ${g.letter}, score ${g.scoreText}`
-                    : "Trust score not available"
-                }
-              >
-                <div className="vd_premium_grade_row">
-                  <span
-                    className="vd_premium_grade_letter"
-                    style={g.letterColor ? { color: g.letterColor } : undefined}
-                  >
-                    {g.letter}
-                  </span>
-                  <div className="vd_premium_grade_col">
-                    <span className="vd_premium_grade_label">Trust score</span>
-                    <span
-                      className="vd_premium_grade_num"
-                      style={g.letterColor ? { color: g.letterColor } : undefined}
-                    >
-                      {g.scoreText}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <span className="vd_premium_cat_tag">{vendorName}</span>
-            </div>
-            <div className="vd_premium_card_main">
-              <ClickTooltip
-                content={formatSector(dp.sector ?? dp.vendor.sector) || "—"}
-                position="top"
-                showOn="hover"
-              >
-                <p className="vd_premium_card_product">{dp.productName}</p>
-                <span
-                  className="vd_premium_card_title vd_premium_card_title--sector"
-                  role="heading"
-                  aria-level={2}
-                >
-                  {sectorTitle}
-                </span>
-              </ClickTooltip>
-              
-              {desc ? <p className="vd_premium_card_desc">{desc}</p> : null}
-            </div>
-            <div className="vd_premium_card_footer">
-              <span className="vd_premium_compliance">
-                <ShieldCheck
-                  size={14}
-                  className="vd_premium_compliance_icon"
-                  aria-hidden
-                />
-                {complianceBadgeForProduct(dp.productId)}
-              </span>
-              <div className="vd_premium_actions">
-                <button
-                  type="button"
-                  className="vd_premium_cta"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDirectoryProductClick(dp);
-                  }}
-                  aria-label={`View intelligence for ${dp.productName}`}
-                >
-                  View Intelligence
-                  <ChevronRight size={16} aria-hidden />
-                </button>
-              </div>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  );
+  const industryLabel =
+    INDUSTRY_FILTERS.find((f) => f.id === industryFilter)?.label ?? "Industry";
+  const certificationLabel =
+    CERTIFICATION_FILTERS.find((f) => f.id === certificationFilter)?.label ??
+    "Certifications";
+  const badgeLabel =
+    BADGE_FILTERS.find((f) => f.id === badgeFilter)?.label ?? "Badges";
 
-  const directorySearchField = (
-    <div className="assessments_ledger_search">
-      <Search size={18} className="assessments_ledger_search_icon" aria-hidden />
-      <input
-        type="search"
-        className="assessments_ledger_search_input"
-        placeholder="Search for products specific to your use case (e.g., 'HIPAA compliant medical imaging')..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        aria-label="Search directory by use case"
-      />
-    </div>
-  );
+  const listingItems: {
+    id: VendorTab;
+    label: string;
+    icon: "filter" | "file" | "code";
+    count: number;
+    hint: string;
+  }[] = [
+    {
+      id: "all",
+      label: "All Products",
+      icon: "filter",
+      count: listingTabCounts.all,
+      hint: "Full catalog",
+    },
+    ...(!isBuyer
+      ? [
+          {
+            id: "listed" as const,
+            label: "Listed Products",
+            icon: "file" as const,
+            count: listingTabCounts.listed,
+            hint: "Buyer-visible",
+          },
+        ]
+      : []),
+    {
+      id: "my",
+      label: "My Products",
+      icon: "code",
+      count: listingTabCounts.my,
+      hint: "From assessments",
+    },
+  ];
 
-  const industryFilterPills = (
-    <div
-      className="vd_premium_filter_row vd_premium_filter_row--inline"
-      role="tablist"
-      aria-label="Industry focus"
-    >
-      {INDUSTRY_FILTERS.map(({ id, label }) => {
-        const count = industryFilterCounts[id];
-        return (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={industryFilter === id}
-            aria-label={`${label}, ${count} product${count === 1 ? "" : "s"}`}
-            className={`vd_premium_filter_pill ${industryFilter === id ? "vd_premium_filter_pill--active" : ""}${id === "all" ? " vd_premium_filter_pill--all_vendors" : ""}`}
-            onClick={() => setIndustryFilter(id)}
-          >
-            <span className="vd_premium_filter_pill_row">
-              <span className="vd_premium_filter_pill_label">{label}</span>
-              <span className="vd_premium_filter_pill_count" aria-hidden>
-                {count}
-              </span>
-            </span>
-            {id !== "all" ? (
-              <span className="vd_premium_filter_pill_includes">Includes</span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
+  const listingSidebarTotal =
+    listingItems.find((item) => item.id === vendorTab)?.count ??
+    listingTabCounts.all;
 
-  /** One persistent search + body shell for All/Listed and My avoids unmount/remount layout shake on tab switch. */
-  const vendorsListTabReady =
-    (vendorTab === "all" || vendorTab === "listed") &&
-    !loading &&
-    !error &&
-    vendors.length > 0;
-  const showUnifiedDirectoryChrome =
-    vendorsListTabReady || (vendorTab === "my" && !myProductsTabError);
-
-  const directoryBodyShowsGrid =
+  const isDirectoryLoading =
     vendorTab === "my"
-      ? !myProductsTabLoading &&
-        directoryProducts.length > 0 &&
-        filteredDirectoryProducts.length > 0
-      : !directoryProductsLoading &&
-        directoryProducts.length > 0 &&
-        filteredDirectoryProducts.length > 0;
+      ? myProductsTabLoading
+      : loading || directoryProductsLoading;
+  const directoryError =
+    vendorTab === "my" ? myProductsTabError : error;
+  const showDirectoryWorkspace =
+    !directoryError &&
+    (vendorTab === "my" ||
+      (!(vendorTab === "all" || vendorTab === "listed") || !error));
 
-  const directoryBodyClassName = directoryBodyShowsGrid
-    ? "vd_premium_directory_body"
-    : "vd_premium_directory_body vd_premium_directory_body--reserve";
+  /** Reveal page chrome once; later tab refreshes load in-panel only (no full remount blink). */
+  useEffect(() => {
+    if (!isDirectoryLoading && !shellReady) {
+      setShellReady(true);
+    }
+  }, [isDirectoryLoading, shellReady]);
+
+  const showPageLoader = isDirectoryLoading && !shellReady;
+
+  const renderDirectoryList = (items: DirectoryProduct[]) => (
+    <div className="vd_list_ledger">
+      <div className="vd_list_colhead" aria-hidden>
+        <span className="vd_list_colhead_cell">Product</span>
+        <span className="vd_list_colhead_cell">Organization</span>
+        <span className="vd_list_colhead_cell">Country</span>
+        <span className="vd_list_colhead_cell">Grade - Score</span>
+        <span className="vd_list_colhead_cell">Compliance</span>
+      </div>
+      <ul className="vd_list_rows" role="list">
+        {items.map((dp) => {
+          const canShowBuyerFields = dp.visibleToBuyer === true;
+          const trustNumeric =
+            dp.trustScore != null && Number.isFinite(Number(dp.trustScore))
+              ? Number(dp.trustScore)
+              : undefined;
+          const revealTrustScore =
+            trustNumeric != null && (vendorTab === "my" || canShowBuyerFields);
+          const g = trustGradeFromScore(
+            revealTrustScore ? trustNumeric : undefined,
+          );
+          const vendorName = displayVendorName(dp.vendor);
+          const hq =
+            (dp.vendor.headquartersLocation || "").trim() || "HQ not listed";
+          const sectorLabels = listSectorLabels(dp.sector ?? dp.vendor.sector);
+          const sectorCount = sectorLabels.length;
+          const compliance = complianceBadgeForProduct(dp.productId);
+
+          return (
+            <li key={`${dp.vendorId}-${dp.productId}`}>
+              <button
+                type="button"
+                className="vd_list_row"
+                onClick={() => handleDirectoryProductClick(dp)}
+                aria-label={`View intelligence for ${dp.productName}`}
+              >
+                <span className="vd_list_cell vd_list_cell--product">
+                  <span className="vd_list_row_icon" aria-hidden>
+                    <Box size={18} />
+                  </span>
+                  <span className="vd_list_name_block">
+                    <span className="vd_list_row_title">{dp.productName}</span>
+                    <span
+                      className={`vd_list_row_labels${sectorCount > 0 ? " vd_list_row_labels--has_popover" : ""}`}
+                    >
+                      {sectorCount > 0 ? (
+                        <span
+                          className="vd_list_row_label_dots"
+                          aria-hidden
+                          title={sectorLabels.join(", ")}
+                        >
+                          {sectorLabels
+                            .slice(0, MAX_SECTOR_STACK_DOTS)
+                            .map((label, i) => (
+                              <i
+                                key={`${label}-dot-${i}`}
+                                className="vd_list_dot"
+                                style={{
+                                  backgroundColor: sectorStackColor(i),
+                                  zIndex: i + 1,
+                                }}
+                              />
+                            ))}
+                        </span>
+                      ) : null}
+                      <span className="vd_list_row_labels_text">
+                        {sectorCount > 0
+                          ? `${sectorCount} sector${sectorCount === 1 ? "" : "s"}`
+                          : "No sectors"}
+                      </span>
+                      {sectorCount > 0 ? (
+                        <span className="vd_list_labels_popover" role="tooltip">
+                          <span className="vd_list_labels_popover_title">
+                            Sectors
+                          </span>
+                          <span className="vd_list_labels_popover_pills">
+                            {sectorLabels.map((label, i) => (
+                              <span
+                                key={`${label}-${i}`}
+                                className={`vd_list_sector_pill vd_list_sector_pill--${sectorPillTone(i)}`}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </span>
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                </span>
+
+                <span className="vd_list_cell vd_list_cell--org">
+                  <Building2 size={15} className="vd_list_cell_icon" aria-hidden />
+                  <span className="vd_list_cell_text" title={vendorName}>
+                    {vendorName}
+                  </span>
+                </span>
+
+                <span className="vd_list_cell vd_list_cell--country">
+                  <MapPin size={15} className="vd_list_cell_icon" aria-hidden />
+                  <span className="vd_list_cell_text" title={hq}>
+                    {hq}
+                  </span>
+                </span>
+
+                <span className="vd_list_cell vd_list_cell--grade">
+                  {revealTrustScore ? (
+                    <span
+                      className={`vd_list_grade_badge ${g.gradeClass}`}
+                      title={`Trust grade ${g.letter} · score ${g.scoreText}`}
+                    >
+                      <Award size={12} className="vd_list_grade_badge_icon" aria-hidden />
+                      <span className="vd_list_grade_badge_letter">{g.letter}</span>
+                      <span className="vd_list_grade_badge_sep" aria-hidden>
+                        -
+                      </span>
+                      <span className="vd_list_grade_badge_score">{g.scoreText}</span>
+                    </span>
+                  ) : (
+                    <span className="vd_list_grade_badge vd_premium_grade_na" title="Grade not available">
+                      <Award size={12} className="vd_list_grade_badge_icon" aria-hidden />
+                      <span className="vd_list_grade_badge_letter">—</span>
+                      <span className="vd_list_grade_badge_sep" aria-hidden>
+                        -
+                      </span>
+                      <span className="vd_list_grade_badge_score">N/A</span>
+                    </span>
+                  )}
+                </span>
+
+                <span className="vd_list_cell vd_list_cell--compliance">
+                  <span className="vd_list_row_compliance" title={compliance}>
+                    <ShieldCheck size={13} aria-hidden />
+                    {compliance}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  const renderDirectoryBody = () => {
+    if (isDirectoryLoading) {
+      return (
+        <div
+          className="vd_premium_directory_body_loading"
+          role="status"
+          aria-live="polite"
+        >
+          <LoadingMessage
+            message={
+              vendorTab === "my"
+                ? "Loading your assessment products…"
+                : loading
+                  ? "Loading vendors…"
+                  : "Loading products…"
+            }
+          />
+        </div>
+      );
+    }
+    if (vendorTab !== "my" && !loading && vendors.length === 0) {
+      return (
+        <div
+          className="vd_empty_state vd_premium_directory_empty_fill"
+          role="status"
+        >
+          <span className="vd_empty_state__icon" aria-hidden>
+            <Building2 size={26} strokeWidth={1.75} />
+          </span>
+          <h3 className="vd_empty_state__title">No vendors yet</h3>
+          <p className="vd_empty_state__desc">
+            {vendorTab === "listed" || (vendorTab === "all" && isBuyer)
+              ? "No vendors have products visible to buyers yet. Check back once listings are published."
+              : "No vendors have completed onboarding yet. The directory will populate as vendors finish setup."}
+          </p>
+        </div>
+      );
+    }
+    if (directoryProducts.length === 0) {
+      if (vendorTab === "my") {
+        return (
+          <div
+            className="vd_empty_state vd_premium_directory_empty_fill"
+            role="status"
+          >
+            <span className="vd_empty_state__icon" aria-hidden>
+              <ClipboardList size={26} strokeWidth={1.75} />
+            </span>
+            <h3 className="vd_empty_state__title">
+              No assessment products yet
+            </h3>
+            <p className="vd_empty_state__desc">
+              Products appear here after you use them in a buyer or vendor COTS
+              assessment.
+            </p>
+          </div>
+        );
+      }
+      return (
+        <div
+          className="vd_empty_state vd_premium_directory_empty_fill"
+          role="status"
+        >
+          <span className="vd_empty_state__icon" aria-hidden>
+            <FolderKanban size={26} strokeWidth={1.75} />
+          </span>
+          <h3 className="vd_empty_state__title">No products available</h3>
+          <p className="vd_empty_state__desc">
+            No products are currently visible from these vendors.
+          </p>
+        </div>
+      );
+    }
+    if (filteredDirectoryProducts.length === 0) {
+      return (
+        <div
+          className="vd_empty_state vd_premium_directory_empty_fill"
+          role="status"
+        >
+          <span className="vd_empty_state__icon" aria-hidden>
+            <SearchX size={26} strokeWidth={1.75} />
+          </span>
+          <h3 className="vd_empty_state__title">No matching products</h3>
+          <p className="vd_empty_state__desc">
+            Nothing matches your current search or filters. Try a different
+            keyword, or clear filters to see the full directory.
+          </p>
+          <button
+            type="button"
+            className="vd_empty_state__action"
+            onClick={() => {
+              setIndustryFilter("all");
+              setCertificationFilter("all");
+              setBadgeFilter("all");
+              setSearchQuery("");
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      );
+    }
+    return (
+      <>
+        {renderDirectoryList(paginatedDirectoryProducts)}
+        <footer className="vd_premium_index_footer">
+          <ReportsPagination
+            totalItems={filteredDirectoryProducts.length}
+            currentPage={directoryListPage}
+            pageSize={directoryListPageSize}
+            onPageChange={setDirectoryListPage}
+            onPageSizeChange={(size) => {
+              setDirectoryListPageSize(size);
+              setDirectoryListPage(1);
+            }}
+          />
+        </footer>
+      </>
+    );
+  };
 
   return (
-    <div
-      className="vendor_directory_page vendor_directory_page--premium sec_user_page"
-      style={{ paddingRight: "15px" }}
-    >
+    <div className="vendor_directory_page vendor_directory_page--list sec_user_page">
+      {showPageLoader ? (
+        <LoadingMessage
+          message={
+            vendorTab === "my"
+              ? "Loading your assessment products…"
+              : loading
+                ? "Loading vendors…"
+                : "Loading products…"
+          }
+          className="loading_message_wrapper--page"
+        />
+      ) : (
+        <>
       <div className="vendor_directory_header page_header_align">
         <div className="page_header_row">
           <span className="icon_size_header" aria-hidden>
@@ -1177,200 +1585,326 @@ const VendorDirectory = () => {
           <div className="page_header_title_block">
             <h1 className="page_header_title">AI Vendor Directory</h1>
             <p className="page_header_subtitle">
-              Explore premier AI solutions with trust scores, compliance
-              signals, and sector intelligence. Browse vendors who have enabled
-              public directory listing and surface products aligned to your use
-              case.
+              Explore AI products with trust scores, compliance signals, and
+              sector intelligence — filter by industry, certification, and
+              trust badges.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="vd_premium_tabs_search_row">
-        <div className="vd_premium_tabs_cluster">
-          <div
-            className="page_tabs vendor_directory_tabs"
-            role="tablist"
-            aria-label="Vendor list type"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={vendorTab === "all"}
-              aria-controls="vendor-directory-panel-all"
-              id="vendor-tab-all"
-              className={`page_tab ${vendorTab === "all" ? "page_tab_active" : ""}`}
-              onClick={() => setVendorTab("all")}
-            >
-              All Products
-            </button>
-            {!isBuyer && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={vendorTab === "listed"}
-                aria-controls="vendor-directory-panel-listed"
-                id="vendor-tab-listed"
-                className={`page_tab ${vendorTab === "listed" ? "page_tab_active" : ""}`}
-                onClick={() => setVendorTab("listed")}
-              >
-                Listed Products
-              </button>
-            )}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={vendorTab === "my"}
-              aria-controls="vendor-directory-panel-my"
-              id="vendor-tab-my"
-              className={`page_tab ${vendorTab === "my" ? "page_tab_active" : ""}`}
-              onClick={() => setVendorTab("my")}
-            >
-              My Products
-            </button>
-          </div>
-          {/* {vendorTab === "listed" || vendorTab === "my" ? (
-            <div className="vd_premium_all_products_scope" aria-live="polite">
-              <span className="vd_premium_all_products_scope_label">Includes</span>
-              <p className="vd_premium_all_products_scope_text">
-                Control coverage derived from the selected product&apos;s attestation (compliance certificate
-                uploads) and stored on your complete analysis report.
-              </p>
+      {directoryError && (
+        <div className="vendor_directory_error">{directoryError}</div>
+      )}
+
+      {showDirectoryWorkspace && (
+        <div className="vd_list_workspace">
+          <div className="vd_list_card vd_list_card--filters">
+            <div className="vd_list_toolbar">
+            <div className="vd_list_toolbar_filters">
+              <div className="vd_list_toolbar_dropdown">
+                <button
+                  type="button"
+                  className={`vd_list_filter_btn${industryFilter !== "all" ? " vd_list_filter_btn--active" : ""}`}
+                  aria-haspopup="listbox"
+                  aria-expanded={openToolbarMenu === "industry"}
+                  onClick={() =>
+                    setOpenToolbarMenu((m) =>
+                      m === "industry" ? null : "industry",
+                    )
+                  }
+                >
+                  {industryFilter === "all" ? "Industry" : industryLabel}
+                  <ChevronDown size={14} aria-hidden />
+                </button>
+                {openToolbarMenu === "industry" && (
+                  <ul className="vd_list_filter_menu" role="listbox">
+                    {INDUSTRY_FILTERS.map(({ id, label }) => (
+                      <li key={id} role="option" aria-selected={industryFilter === id}>
+                        <button
+                          type="button"
+                          className={
+                            industryFilter === id
+                              ? "vd_list_filter_option vd_list_filter_option--active"
+                              : "vd_list_filter_option"
+                          }
+                          onClick={() => {
+                            setIndustryFilter(id);
+                            setOpenToolbarMenu(null);
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span className="vd_list_filter_option_count">
+                            {industryFilterCounts[id]}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="vd_list_toolbar_dropdown">
+                <button
+                  type="button"
+                  className={`vd_list_filter_btn${certificationFilter !== "all" ? " vd_list_filter_btn--active" : ""}`}
+                  aria-haspopup="listbox"
+                  aria-expanded={openToolbarMenu === "certification"}
+                  onClick={() =>
+                    setOpenToolbarMenu((m) =>
+                      m === "certification" ? null : "certification",
+                    )
+                  }
+                >
+                  {certificationFilter === "all"
+                    ? "Certifications"
+                    : certificationLabel}
+                  <ChevronDown size={14} aria-hidden />
+                </button>
+                {openToolbarMenu === "certification" && (
+                  <ul className="vd_list_filter_menu" role="listbox">
+                    {CERTIFICATION_FILTERS.map(({ id, label }) => (
+                      <li
+                        key={id}
+                        role="option"
+                        aria-selected={certificationFilter === id}
+                      >
+                        <button
+                          type="button"
+                          className={
+                            certificationFilter === id
+                              ? "vd_list_filter_option vd_list_filter_option--active"
+                              : "vd_list_filter_option"
+                          }
+                          onClick={() => {
+                            setCertificationFilter(id);
+                            setOpenToolbarMenu(null);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="vd_list_toolbar_dropdown">
+                <button
+                  type="button"
+                  className={`vd_list_filter_btn${badgeFilter !== "all" ? " vd_list_filter_btn--active" : ""}`}
+                  aria-haspopup="listbox"
+                  aria-expanded={openToolbarMenu === "badges"}
+                  onClick={() =>
+                    setOpenToolbarMenu((m) => (m === "badges" ? null : "badges"))
+                  }
+                >
+                  {badgeFilter === "all" ? "Badges" : badgeLabel}
+                  <ChevronDown size={14} aria-hidden />
+                </button>
+                {openToolbarMenu === "badges" && (
+                  <ul className="vd_list_filter_menu" role="listbox">
+                    {BADGE_FILTERS.map(({ id, label }) => (
+                      <li key={id} role="option" aria-selected={badgeFilter === id}>
+                        <button
+                          type="button"
+                          className={
+                            badgeFilter === id
+                              ? "vd_list_filter_option vd_list_filter_option--active"
+                              : "vd_list_filter_option"
+                          }
+                          onClick={() => {
+                            setBadgeFilter(id);
+                            setOpenToolbarMenu(null);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          ) : null} */}
-        </div>
-      </div>
-
-      {(vendorTab === "all" || vendorTab === "listed") && loading && (
-        <div className="vendor_directory_loading">Loading vendors…</div>
-      )}
-      {(vendorTab === "all" || vendorTab === "listed") && error && (
-        <div className="vendor_directory_error">{error}</div>
-      )}
-      {(vendorTab === "all" || vendorTab === "listed") &&
-        !loading &&
-        !error &&
-        vendors.length === 0 && (
-          <div className="vendor_directory_empty">
-            {vendorTab === "listed" || (vendorTab === "all" && isBuyer)
-              ? "No vendors have enabled Public Directory Listing yet."
-              : "No vendors have completed onboarding yet."}
+            <div className="vd_list_toolbar_search_wrap">
+              {/* <button
+                type="button"
+                className="vd_list_toolbar_icon_btn"
+                aria-label="Clear filters"
+                title="Clear filters"
+                onClick={() => {
+                  setIndustryFilter("all");
+                  setCertificationFilter("all");
+                  setBadgeFilter("all");
+                  setSearchQuery("");
+                }}
+              >
+                <SlidersHorizontal size={16} aria-hidden />
+              </button> */}
+              <div className="vd_list_search">
+                <Search size={16} className="vd_list_search_icon" aria-hidden />
+                <input
+                  type="search"
+                  className="vd_list_search_input"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search directory products"
+                />
+              </div>
+            </div>
           </div>
-        )}
-
-      {vendorTab === "my" && myProductsTabError && (
-        <div className="vendor_directory_error">{myProductsTabError}</div>
-      )}
-
-      {showUnifiedDirectoryChrome && (
-        <div className="vd_premium_directory_shell">
-          <div className="vd_premium_search_filter_row">
-            {industryFilterPills}
-            {directorySearchField}
           </div>
-          <div className={directoryBodyClassName}>
-            {vendorTab === "my" ? (
-              <>
-                {myProductsTabLoading && (
-                  <div
-                    className="vendor_directory_loading vd_premium_directory_body_loading"
-                    role="status"
-                  >
-                    Loading your assessment products…
-                  </div>
+
+          <div className="vd_list_layout">
+            <aside className="vd_list_sidebar" aria-label="Directory filters">
+              <div className="vd_list_card vd_list_sidebar_panel">
+              <section
+                className={`vd_list_sidebar_group${listingExpanded ? " vd_list_sidebar_group--open" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="vd_list_sidebar_group_header"
+                  aria-expanded={listingExpanded}
+                  onClick={() => setListingExpanded((v) => !v)}
+                >
+                  <span className="vd_list_sidebar_group_left">
+                    <FolderKanban
+                      size={16}
+                      className="vd_list_sidebar_group_icon"
+                      aria-hidden
+                    />
+                    <span className="vd_list_sidebar_group_title">Listing</span>
+                  </span>
+                  <span className="vd_list_sidebar_group_right">
+                    <span className="vd_list_sidebar_group_count">
+                      {listingSidebarTotal}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className="vd_list_sidebar_chevron"
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+                {listingExpanded ? (
+                  <ul className="vd_list_sidebar_sublist">
+                    {listingItems.map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className={`vd_list_sidebar_subitem${vendorTab === item.id ? " vd_list_sidebar_subitem--active" : ""}`}
+                          onClick={() => setVendorTab(item.id)}
+                          id={
+                            item.id === "all"
+                              ? "vendor-tab-all"
+                              : item.id === "listed"
+                                ? "vendor-tab-listed"
+                                : "vendor-tab-my"
+                          }
+                        >
+                          <span className="vd_list_sidebar_subitem_label">
+                            {item.icon === "filter" ? (
+                              <Filter size={14} aria-hidden />
+                            ) : item.icon === "file" ? (
+                              <FileText size={14} aria-hidden />
+                            ) : (
+                              <Code2 size={14} aria-hidden />
+                            )}
+                            {item.label}
+                          </span>
+                          <span className="vd_list_sidebar_subcount">
+                            {item.count}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="vd_list_sidebar_collapsed_hint">
+                    {listingItems.length} scopes
+                  </p>
                 )}
-                {!myProductsTabLoading && directoryProducts.length === 0 && (
-                  <div className="vendor_directory_empty vd_premium_directory_empty_fill">
-                    No products found from your assessments yet. Products appear
-                    here after you use them in a buyer or vendor COTS
-                    assessment.
-                  </div>
+              </section>
+
+              <section
+                className={`vd_list_sidebar_group${industriesExpanded ? " vd_list_sidebar_group--open" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="vd_list_sidebar_group_header"
+                  aria-expanded={industriesExpanded}
+                  onClick={() => setIndustriesExpanded((v) => !v)}
+                >
+                  <span className="vd_list_sidebar_group_left">
+                    <Filter size={16} className="vd_list_sidebar_group_icon" aria-hidden />
+                    <span className="vd_list_sidebar_group_title">Industries</span>
+                  </span>
+                  <span className="vd_list_sidebar_group_right">
+                    <span className="vd_list_sidebar_group_count">
+                      {industryFilterCounts.all}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className="vd_list_sidebar_chevron"
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+                {industriesExpanded && (
+                  <ul className="vd_list_sidebar_sublist">
+                    {INDUSTRY_FILTERS.filter((f) => f.id !== "all").map(
+                      ({ id, label }) => (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            className={`vd_list_sidebar_subitem${industryFilter === id ? " vd_list_sidebar_subitem--active" : ""}`}
+                            onClick={() => setIndustryFilter(id)}
+                          >
+                            <span>{label}</span>
+                            <span className="vd_list_sidebar_subcount">
+                              {industryFilterCounts[id]}
+                            </span>
+                          </button>
+                        </li>
+                      ),
+                    )}
+                    <li>
+                      <button
+                        type="button"
+                        className={`vd_list_sidebar_subitem${industryFilter === "all" ? " vd_list_sidebar_subitem--active" : ""}`}
+                        onClick={() => setIndustryFilter("all")}
+                      >
+                        <span>All industries</span>
+                        <span className="vd_list_sidebar_subcount">
+                          {industryFilterCounts.all}
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
                 )}
-                {!myProductsTabLoading &&
-                  directoryProducts.length > 0 &&
-                  filteredDirectoryProducts.length === 0 && (
-                    <div className="vendor_directory_empty vd_premium_directory_empty_fill">
-                      No products match your search or filters.
-                    </div>
-                  )}
-                {!myProductsTabLoading &&
-                  directoryProducts.length > 0 &&
-                  filteredDirectoryProducts.length > 0 && (
-                    <>
-                      {renderPremiumCards(paginatedDirectoryProducts, {
-                        id: "vendor-directory-panel-my",
-                        role: "tabpanel",
-                        "aria-labelledby": "vendor-tab-my",
-                      })}
-                      <footer className="vd_premium_index_footer">
-                        <ReportsPagination
-                          totalItems={filteredDirectoryProducts.length}
-                          currentPage={directoryListPage}
-                          pageSize={directoryListPageSize}
-                          onPageChange={setDirectoryListPage}
-                          onPageSizeChange={(size) => {
-                            setDirectoryListPageSize(size);
-                            setDirectoryListPage(1);
-                          }}
-                        />
-                      </footer>
-                    </>
-                  )}
-              </>
-            ) : (
-              <>
-                {directoryProductsLoading && (
-                  <div
-                    className="vendor_directory_loading vd_premium_directory_body_loading"
-                    role="status"
-                  >
-                    Loading products…
-                  </div>
-                )}
-                {!directoryProductsLoading &&
-                  directoryProducts.length === 0 && (
-                    <div className="vendor_directory_empty vd_premium_directory_empty_fill">
-                      No products are currently visible from these vendors.
-                    </div>
-                  )}
-                {!directoryProductsLoading &&
-                  directoryProducts.length > 0 &&
-                  filteredDirectoryProducts.length === 0 && (
-                    <div className="vendor_directory_empty vd_premium_directory_empty_fill">
-                      No products match your search or filters.
-                    </div>
-                  )}
-                {!directoryProductsLoading &&
-                  directoryProducts.length > 0 &&
-                  filteredDirectoryProducts.length > 0 && (
-                    <>
-                      {renderPremiumCards(paginatedDirectoryProducts, {
-                        id:
-                          vendorTab === "all"
-                            ? "vendor-directory-panel-all"
-                            : "vendor-directory-panel-listed",
-                        role: "tabpanel",
-                        "aria-labelledby":
-                          vendorTab === "all"
-                            ? "vendor-tab-all"
-                            : "vendor-tab-listed",
-                      })}
-                      <footer className="vd_premium_index_footer">
-                        <ReportsPagination
-                          totalItems={filteredDirectoryProducts.length}
-                          currentPage={directoryListPage}
-                          pageSize={directoryListPageSize}
-                          onPageChange={setDirectoryListPage}
-                          onPageSizeChange={(size) => {
-                            setDirectoryListPageSize(size);
-                            setDirectoryListPage(1);
-                          }}
-                        />
-                      </footer>
-                    </>
-                  )}
-              </>
-            )}
+              </section>
+              </div>
+            </aside>
+
+            <div
+              className="vd_list_card vd_list_card--products vd_list_main"
+              id={
+                vendorTab === "all"
+                  ? "vendor-directory-panel-all"
+                  : vendorTab === "listed"
+                    ? "vendor-directory-panel-listed"
+                    : "vendor-directory-panel-my"
+              }
+              role="tabpanel"
+              aria-labelledby={
+                vendorTab === "all"
+                  ? "vendor-tab-all"
+                  : vendorTab === "listed"
+                    ? "vendor-tab-listed"
+                    : "vendor-tab-my"
+              }
+            >
+              {renderDirectoryBody()}
+            </div>
           </div>
         </div>
       )}
@@ -1416,9 +1950,7 @@ const VendorDirectory = () => {
             </div>
             <div className="vendor_directory_modal_body">
               {vendorProductsLoading && (
-                <div className="vendor_directory_loading">
-                  Loading products…
-                </div>
+                <LoadingMessage message="Loading products…" compact />
               )}
               {!vendorProductsLoading && vendorProducts.length === 0 && (
                 <p className="vendor_directory_empty_products">
@@ -1447,6 +1979,10 @@ const VendorDirectory = () => {
                           {p.productName}
                         </span>
                         <span className="vendor_directory_product_card_status">
+                          <span
+                            className="vendor_directory_product_card_status_dot"
+                            aria-hidden
+                          />
                           Completed
                         </span>
                         {formatSectorCard(p.sector) ? (
@@ -1528,9 +2064,7 @@ const VendorDirectory = () => {
             </div>
             <div className="vendor_directory_modal_body">
               {productDetailLoading && (
-                <div className="vendor_directory_loading">
-                  Loading product details…
-                </div>
+                <LoadingMessage message="Loading product details…" compact />
               )}
               {!productDetailLoading && productDetail && (
                 <>
@@ -1576,6 +2110,7 @@ const VendorDirectory = () => {
                               report={{
                                 trustScore: mergedReport.trustScore,
                                 sections: filteredSections,
+                                scoringSource: mergedReport.scoringSource,
                               }}
                             />
                           </div>
@@ -1714,7 +2249,7 @@ const VendorDirectory = () => {
                           {vis.modelRisk && (
                             <div className="product_profile_detail_card product_profile_detail_card_span_2">
                               <div className="product_profile_detail_card_header">
-                                <Cpu
+                                <Box
                                   className="product_profile_detail_icon product_profile_icon_purple"
                                   size={24}
                                   aria-hidden
@@ -1760,6 +2295,8 @@ const VendorDirectory = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

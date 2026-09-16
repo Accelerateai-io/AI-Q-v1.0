@@ -1,17 +1,24 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   CheckCircle2,
-  AlertCircle,
   ClipboardList,
   User,
   Download,
   Loader2,
   CircleChevronLeft,
   TrendingUp,
+  FileText,
+  Shield,
+  Layers,
+  AlertTriangle,
 } from "lucide-react";
 import LoadingMessage from "../../../UI/LoadingMessage";
+import {
+  AdminLlmModelLabel,
+  resolveStoredLlmModelId,
+} from "../../../UI/AdminLlmModelInfo";
 import {
   frameworkControlsDisplayLinesTopRanked,
   FRAMEWORK_MAPPING_TOP_CONTROLS_MAX,
@@ -26,6 +33,7 @@ import "../../Reports/reports.css";
 import "./buyer_vendor_risk_report.css";
 import { buildReportPdfFilename, downloadElementAsPdf } from "../../../../utils/reportPdfExport";
 import { mixSrgbHex } from "../../../../utils/mixSrgbHex";
+import { ensureSpaceAfterColon } from "../../../../utils/summarizeRiskPoints";
 
 const BASE_URL =
   import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
@@ -127,6 +135,11 @@ function FrameworkMappingControlsCell({ value }: { value: unknown }) {
 
 export default function BuyerVendorRiskReport() {
   const { assessmentId } = useParams<{ assessmentId: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const autoExportPdf =
+    (location.state as { autoExportPdf?: boolean } | null)?.autoExportPdf === true;
+  const autoExportTriggeredRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -134,6 +147,7 @@ export default function BuyerVendorRiskReport() {
   const [productName, setProductName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [report, setReport] = useState<ReportPayload | null>(null);
+  const [llmModelId, setLlmModelId] = useState<string | null>(null);
   const [frameworkMappingRows, setFrameworkMappingRows] = useState<FrameworkMappingRow[]>([]);
   const [archived, setArchived] = useState(false);
   /** True when the assessment is user-archived in the ledger but not yet past assessment expiry. */
@@ -190,6 +204,13 @@ export default function BuyerVendorRiskReport() {
       } else if (data.report && typeof data.report === "object") {
         setPending(false);
         setReport(data.report as ReportPayload);
+        setLlmModelId(
+          resolveStoredLlmModelId({
+            llmModelId:
+              typeof data.llmModelId === "string" ? data.llmModelId : null,
+            report: data.report,
+          }),
+        );
       } else {
         setError("Report data unavailable");
       }
@@ -289,23 +310,48 @@ export default function BuyerVendorRiskReport() {
     }
   }, [orgName, productName, vendorName]);
 
+  useEffect(() => {
+    if (!autoExportPdf || loading || pending || error || !report || autoExportTriggeredRef.current) {
+      return;
+    }
+    autoExportTriggeredRef.current = true;
+    navigate(location.pathname, { replace: true, state: {} });
+    const t = window.setTimeout(() => {
+      void handleExportPdf();
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [
+    autoExportPdf,
+    loading,
+    pending,
+    error,
+    report,
+    handleExportPdf,
+    navigate,
+    location.pathname,
+  ]);
+
   const implementationRiskScore = Number(report?.implementationRiskScore ?? NaN);
   const hasImplementationScore = Number.isFinite(implementationRiskScore);
-  const score = hasImplementationScore
+  const storedScore = hasImplementationScore
     ? implementationRiskScore
     : report?.overallRiskScore ?? 0;
+  // Stored IRS is readiness (higher = better). Show residual implementation risk for buyers.
+  const score = hasImplementationScore
+    ? Math.round(Math.max(0, Math.min(100, 100 - implementationRiskScore)))
+    : storedScore;
 
   if (loading && !report && !error) {
     return (
-      <div className="bvr_page">
-        <LoadingMessage message="Loading your report…" />
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
+        <LoadingMessage message="Loading your report…" className="loading_message_wrapper--page" />
       </div>
     );
   }
 
   if (pending && !report) {
     return (
-      <div className="bvr_page">
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
         <div className="bvr_pending">
           <Loader2 className="bvr_pending_icon" size={40} aria-hidden />
           <h1>Generating your report</h1>
@@ -320,7 +366,7 @@ export default function BuyerVendorRiskReport() {
 
   if (error && !report) {
     return (
-      <div className="bvr_page">
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
         <div className="bvr_error">{error}</div>
         <Link
           to="/reports"
@@ -337,9 +383,9 @@ export default function BuyerVendorRiskReport() {
 
   /** Circle color: IRS lower is better; vendor trust score higher is better. */
   const scoreClass = hasImplementationScore
-    ? score < 50
+    ? implementationRiskScore < 50
       ? "bvr_score_high"
-      : score < 75
+      : implementationRiskScore < 75
         ? "bvr_score_mid"
         : "bvr_score_low"
     : score >= 80
@@ -384,7 +430,7 @@ export default function BuyerVendorRiskReport() {
     : "default";
   const recommendationAccentColor = completeReportRiskMeterColor(
     { source: hasImplementationScore ? "buyer_vendor_risk" : "customer" },
-    Math.round(score),
+    Math.round(hasImplementationScore ? implementationRiskScore : storedScore),
     recommendationGrading,
   );
   const recommendationAccentStyle = {
@@ -394,7 +440,7 @@ export default function BuyerVendorRiskReport() {
   } as Record<string, string>;
 
   return (
-    <div className="bvr_page">
+    <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
       <header className="bvr_header no-print">
         <Link
           to="/reports"
@@ -417,7 +463,7 @@ export default function BuyerVendorRiskReport() {
 
       <article ref={pdfArticleRef} className="bvr_document">
         <header className="bvr_doc_header">
-          <div>
+          <div className="bvr_doc_header_main">
             <h1 className="bvr_doc_title">{title}</h1>
             <p className="bvr_doc_meta">
               Vendor assessment
@@ -425,6 +471,13 @@ export default function BuyerVendorRiskReport() {
               <span className="bvr_ai_badge">AI Generated</span>
             </p>
           </div>
+          <AdminLlmModelLabel
+            className="report_llm_model_tag bvr_doc_llm_model"
+            showIcon={false}
+            preferModelId
+            fallbackToActive
+            modelName={llmModelId}
+          />
         </header>
 
         {archived ? (
@@ -457,31 +510,40 @@ export default function BuyerVendorRiskReport() {
           </section>
 
           <section className="bvr_card">
-            <h2 className="bvr_section_title">Executive Summary</h2>
+            <h2 className="bvr_section_title bvr_title_with_icon">
+              <FileText size={22} className="bvr_title_icon" aria-hidden />
+              Executive Summary
+            </h2>
             <p className="bvr_exec_text">{report.executiveSummary}</p>
           </section>
         </div>
 
         <div className="bvr_mid_row">
           <section className="bvr_card">
-            <h2 className="bvr_section_title">Key Strengths</h2>
+            <h2 className="bvr_section_title bvr_title_with_icon">
+              <CheckCircle2 size={22} className="bvr_title_icon" aria-hidden />
+              Key Strengths
+            </h2>
             <ul className="bvr_strengths_list">
               {(report.keyStrengths ?? []).map((s, i) => (
                 <li key={i} className="bvr_strength_item">
                   <CheckCircle2 className="bvr_strength_icon" size={20} aria-hidden />
-                  <span>{s}</span>
+                  <span>{ensureSpaceAfterColon(s)}</span>
                 </li>
               ))}
             </ul>
           </section>
 
           <section className="bvr_card bvr_warnings_card">
-            <h2 className="bvr_section_title">Areas for Improvement</h2>
+            <h2 className="bvr_section_title bvr_title_with_icon">
+              <AlertTriangle size={22} className="bvr_title_icon" aria-hidden />
+              Areas for Improvement
+            </h2>
             <ul className="bvr_warnings_list">
               {(report.areasForImprovement ?? []).map((w, i) => (
                 <li key={i} className="bvr_warning_item">
                   <TrendingUp className="bvr_warning_icon" size={20} aria-hidden />
-                  <span>{w}</span>
+                  <span>{ensureSpaceAfterColon(w)}</span>
                 </li>
               ))}
             </ul>
@@ -489,7 +551,10 @@ export default function BuyerVendorRiskReport() {
         </div>
 
         <section className="bvr_card">
-          <h2 className="bvr_section_title">Risk Analysis</h2>
+          <h2 className="bvr_section_title bvr_title_with_icon">
+            <Shield size={22} className="bvr_title_icon" aria-hidden />
+            Risk Analysis
+          </h2>
           {isBuyerOrganizationPortal ? (
             <div className="bvr_risk_scope_split">
               {RISK_ANALYSIS_DISPLAY_SECTIONS_BUYER.map(({ scope, title, tagClass }) => {
@@ -624,7 +689,10 @@ export default function BuyerVendorRiskReport() {
 
         {!isBuyerOrganizationPortal ? (
           <section className="bvr_card">
-            <h2 className="bvr_section_title">Framework Mapping</h2>
+            <h2 className="bvr_section_title bvr_title_with_icon">
+              <Layers size={22} className="bvr_title_icon" aria-hidden />
+              Framework Mapping
+            </h2>
             <div className="report_table_wrap">
               <table className="report_table">
                 <thead>

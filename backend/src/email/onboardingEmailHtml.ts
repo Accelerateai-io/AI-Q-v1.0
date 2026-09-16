@@ -3,7 +3,8 @@
 import {
   EMAIL_BRAND_PRIMARY,
   EMAIL_PAGE_BG,
-  emailSignatureCheckmarkHtml,
+  emailClosingSignatureHtml,
+  emailCopyrightYear,
 } from "./emailBrand.js";
 
 export const ONBOARDING_MAIL_PLATFORM_NAME = "AI-Q Platform";
@@ -46,9 +47,8 @@ export function buildOnboardingEmailHtml(
               <li style="margin:0 0 8px;">Explore ${ONBOARDING_MAIL_PLATFORM_NAME} features for your role</li>
               <li style="margin:0;">Invite teammates to collaborate</li>
             </ul>
-            <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#333333;">Cheers,<br>The ${ONBOARDING_MAIL_PLATFORM_NAME} Team</p>
-            ${emailSignatureCheckmarkHtml()}
-            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; 2026 ${ONBOARDING_MAIL_PLATFORM_NAME}. All rights reserved.</p>
+            ${emailClosingSignatureHtml(ONBOARDING_MAIL_PLATFORM_NAME)}
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; ${emailCopyrightYear()} ${ONBOARDING_MAIL_PLATFORM_NAME}. All rights reserved.</p>
           </td>
         </tr>
       </table>

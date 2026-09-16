@@ -30,7 +30,7 @@ import Input from "../../UI/Input";
 import Select from "../../UI/Select";
 import UserDataTable from "./UserDataTable";
 import { toast } from "react-toastify";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../../../Context/hooks";
 import { getOrganizations } from "../../../Context/OrganizationsData";
 
 type RoleCategory = "system" | "vendor" | "buyer";
@@ -45,22 +45,19 @@ const ROLE_CATEGORIES: {
     id: "system",
     label: "System Administrator",
     icon: Shield,
-    description:
-      "Platform-level roles for system administration and directory curation.",
+    description: "Platform-wide roles for admins and directory managers.",
   },
   {
     id: "vendor",
     label: "Vendor",
     icon: Store,
-    description:
-      "Organization roles for vendors: Trust & Sales Acceleration (T&SA) and org administration.",
+    description: "Roles for vendor teams managing trust, sales, and the organization.",
   },
   {
     id: "buyer",
     label: "Buyer",
     icon: ShoppingCart,
-    description:
-      "Organization roles for buyers: AI Adoption and org administration.",
+    description: "Roles for buyer teams managing AI adoption and the organization.",
   },
 ];
 
@@ -73,92 +70,87 @@ const ROLE_DEFINITIONS: {
   // System Roles
   {
     title: "System Admin",
-    description: "Full access across the platform.",
+    description: "Full access to everything on the platform.",
     icon: ShieldCheck,
     category: "system",
   },
   {
     title: "System Manager",
-    description: "Full access to select modules; view-only for others.",
+    description: "Can manage key modules; view-only on the rest.",
     icon: LayoutDashboard,
     category: "system",
   },
   {
     title: "System Viewer",
-    description: "View-only access across platform; no access to Sales Agent .",
+    description: "View-only across the platform. No Sales Agent access.",
     icon: Eye,
     category: "system",
   },
   {
     title: "AI Directory Curator",
-    description:
-      "Full access to Attestations and AI Vendor Directory; view-only for dashboard and no access elsewhere.",
+    description: "Manages Attestations and the AI Vendor Directory. View-only Dashboard.",
     icon: BookOpen,
     category: "system",
   },
   // Vendor Roles
   {
     title: "T&SA Admin",
-    description: "Full access across vendor platform.",
+    description: "Full access to all vendor tools and settings.",
     icon: Settings,
     category: "vendor",
   },
   {
     title: "T&SA Manager",
-    description: "Full access across vendor platform; view-only for Reports",
+    description: "Full access to vendor tools. View-only Reports.",
     icon: ClipboardList,
     category: "vendor",
   },
   {
     title: "T&SA Lead",
-    description: "Full access across vendor platform except user management; view-only for Reports",
+    description: "Full access except User Management. View-only Reports.",
     icon: UserCheck,
     category: "vendor",
   },
   {
     title: "T&SA Engineer",
-    description: "Full access to Dashboard, Attestation and Assessmnet; view-only for Reports and product profile",
+    description: "Works in Dashboard, Attestations, and Assessments. View-only Reports and Product Profile.",
     icon: Wrench,
     category: "vendor",
   },
   {
     title: "T&SA Viewer",
-    description: "Read-only access to Dashboard,Assessments,published reports and Product Profile.",
+    description: "View-only access to Dashboard, Assessments, Reports, and Product Profile.",
     icon: Eye,
     category: "vendor",
   },
   // Buyer Roles
   {
     title: "AI Adoption Admin",
-    description: "Full access across AI Adoption platform.",
+    description: "Full access to all AI Adoption tools and settings.",
     icon: Settings,
     category: "buyer",
   },
   {
     title: "AI Adoption Manager",
-    description:
-      "Full access for Dashboard, AI Vendor Directory, Assessments, Risk Mapping, Reports, and User Management pages.",
+    description: "Full access to core AI Adoption pages, including User Management.",
     icon: Sparkles,
     category: "buyer",
   },
   {
     title: "AI Adoption Lead",
-    description:
-      "Full access for Dashboard, AI Vendor Directory, Assessments, Risk Mapping, and Reports; no access to User Management.",
+    description: "Full access to core AI Adoption pages. No User Management.",
     icon: UserCheck,
     category: "buyer",
   },
   {
     title: "AI Adoption Engineer",
-    description:
-      "Full access for Dashboard, AI Vendor Directory, and Assessments; limited access for Risk Mapping and Reports (user-based details only); no access to User Management.",
+    description: "Works in Dashboard, Directory, and Assessments. Limited Risk Mapping and Reports.",
     icon: Wrench,
     category: "buyer",
   },
   {
     title: "AI Adoption Viewer",
-    description:
-      "View-only access for Dashboard, AI Vendor Directory, and Reports pages.",
+    description: "View-only access to Dashboard, Directory, and Reports.",
     icon: Eye,
     category: "buyer",
   },
@@ -166,7 +158,7 @@ const ROLE_DEFINITIONS: {
 
 const UserManagement = () => {
   useEffect(() => {
-    document.title = "AI-Q | User Management Settings";
+    document.title = "AI-Q | User Management";
   }, []);
 
   const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -177,8 +169,8 @@ const UserManagement = () => {
   const [organization, setOrganization] = useState("");
   const [role, setRole] = useState("");
   const [userListRefreshKey, setUserListRefreshKey] = useState(0);
-  const dispatch = useDispatch();
-  const { data } = useSelector((state) => state.organizations);
+  const dispatch = useAppDispatch();
+  const { data } = useAppSelector((state) => state.organizations);
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -284,7 +276,7 @@ const UserManagement = () => {
     selectedOrg?.hasAdmin === true
       ? orgRoleOptions.filter((r) => r.value !== "admin")
       : orgRoleOptions;
-  const isSystemOrgSelected = organization === "1" || organization === 1;
+  const isSystemOrgSelected = String(organization) === "1";
 
   const systemRoleOptions = [
     { value: "system admin", label: "System Admin" },
@@ -293,23 +285,28 @@ const UserManagement = () => {
     { value: "ai directory curator", label: "AI Directory Curator" },
   ];
 
+  const canInvite =
+    email.trim().length > 0 &&
+    String(organization).trim().length > 0 &&
+    role.trim().length > 0;
+
   return (
-    <div className="sec_user_page org_settings_page">
+    <div className="sec_user_page org_settings_page org_admin_page">
       <div className="org_settings_header page_header_align">
         <div className="org_settings_headers page_header_row">
           <span className="icon_size_header" aria-hidden>
-            <Settings size={24} className="header_icon_svg" />
+            <Users size={24} className="header_icon_svg" />
           </span>
           <div className="page_header_title_block">
-            <h1 className="org_settings_title">User Management Settings</h1>
+            <h1 className="org_settings_title">User Management</h1>
             <p className="org_settings_subtitle sub_title_card">
-              Manage users and roles.
+              Invite teammates, assign roles, and review access.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="page_tabs">
+      <div className="page_tabs org_admin_tabs">
         <button
           type="button"
           className={`page_tab ${activeTab === "users" ? "page_tab_active" : ""}`}
@@ -324,13 +321,13 @@ const UserManagement = () => {
           onClick={() => setActiveTab("general")}
         >
           <Info size={18} />
-          General Info
+          Role Guide
         </button>
       </div>
 
       {activeTab === "users" && (
         <>
-          <div className="org_settings_card team_members_card">
+          <div className="org_settings_card team_members_card org_admin_ledger_card">
             <div className="team_members_card_header">
               <div>
                 <h2 className="org_settings_card_title">Team Members</h2>
@@ -350,7 +347,7 @@ const UserManagement = () => {
                 </Button>
               )}
             </div>
-            <div className="team_members_table_wrapper">
+            <div className="team_members_table_wrapper org_admin_table_shell">
               <UserDataTable refreshKey={userListRefreshKey} viewOnly={isUserManagementViewOnly} />
             </div>
           </div>
@@ -358,30 +355,20 @@ const UserManagement = () => {
       )}
 
       {activeTab === "general" && (
-        <div className="org_settings_card">
-          {/* <h2 className="org_settings_card_title">General</h2>
-          <p className="org_settings_card_subtitle">
-            Organization name and general preferences.
-          </p> */}
+        <div className="org_settings_card org_admin_roles_panel org_admin_ledger_card">
           <div className="role_definitions_section">
-            <h3
-              className="org_settings_card_title"
-              style={{
-                fontSize: "1rem",
-                marginTop: "1.25rem",
-                marginBottom: "0.5rem",
-              }}
-            >
-              Role Definitions
-            </h3>
-            <p
-              className="org_settings_card_subtitle"
-              style={{ marginBottom: "1rem" }}
-            >
-              {isSystemUserWithAccess
-                ? "Permissions matrix for available roles by user type."
-                : "Permissions matrix for your organization's roles."}
-            </p>
+            <div className="team_members_card_header role_definitions_header">
+              <div>
+                <h2 className="org_settings_card_title role_definitions_heading">
+                  Role Definitions
+                </h2>
+                <p className="org_settings_card_subtitle role_definitions_lead">
+                  {isSystemUserWithAccess
+                    ? "A quick guide to what each role can do."
+                    : "A quick guide to the roles in your organization."}
+                </p>
+              </div>
+            </div>
             {visibleRoleCategories.map((cat) => {
               const CategoryIcon = cat.icon;
               const rolesInCategory = ROLE_DEFINITIONS.filter(
@@ -395,10 +382,10 @@ const UserManagement = () => {
                 >
                   <div className="role_category_header">
                     <div className="role_category_icon_wrapper">
-                      <CategoryIcon size={24} aria-hidden />
+                      <CategoryIcon size={18} aria-hidden />
                     </div>
                     <div>
-                      <h4 className="role_category_title">{cat.label}</h4>
+                      <h3 className="role_category_title">{cat.label}</h3>
                       <p className="role_category_desc">{cat.description}</p>
                     </div>
                   </div>
@@ -406,21 +393,18 @@ const UserManagement = () => {
                     {rolesInCategory.map((r) => {
                       const Icon = r.icon;
                       return (
-                        <div
+                        <article
                           key={`${cat.id}-${r.title}`}
                           className="role_definition_card"
                         >
                           <div className="role_heading_icon">
+                            <h4 className="role_definition_title">{r.title}</h4>
                             <div className="role_definition_icon">
-                              <Icon size={18} />
+                              <Icon size={16} aria-hidden />
                             </div>
-                            <h3 className="role_definition_title">{r.title}</h3>
                           </div>
-
-                          <p className="role_definition_desc">
-                            {r.description}
-                          </p>
-                        </div>
+                          <p className="role_definition_desc">{r.description}</p>
+                        </article>
                       );
                     })}
                   </div>
@@ -506,7 +490,7 @@ const UserManagement = () => {
             <Button
               type="submit"
               className="orgCreateBtn"
-              disabled={isInviteLoading}
+              disabled={isInviteLoading || !canInvite}
               aria-busy={isInviteLoading}
             >
               <span>

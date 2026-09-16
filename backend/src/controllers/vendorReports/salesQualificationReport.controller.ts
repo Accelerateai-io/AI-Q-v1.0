@@ -6,7 +6,9 @@ import { customerRiskAssessmentReports } from "../../schema/assessments/customer
 import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssessments.js";
 import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
 import { generalReports } from "../../schema/assessments/generalReports.js";
+import { getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
 import { generateSalesQualificationReport } from "../agents/salesQualificationReportAgent.js";
+import { sendIfTokenQuotaExceeded } from "../../services/admin/featureTokenQuota.service.js";
 
 function toStr(v: unknown): string {
   if (v == null) return "";
@@ -122,6 +124,7 @@ const salesQualificationReport = async (req: Request, res: Response): Promise<vo
         report_type: REPORT_TYPE_SALES_QUALIFICATION,
         content,
         assessment_label: assessmentLabel,
+        llm_model_id: getActiveLlmModelMeta().modelId,
         created_by: userId,
       })
       .returning();
@@ -147,10 +150,15 @@ const salesQualificationReport = async (req: Request, res: Response): Promise<vo
           generatedAt,
           briefContent: inserted.content ?? undefined,
           createdBy: inserted.created_by,
+          llmModelId:
+            typeof inserted.llm_model_id === "string" && inserted.llm_model_id.trim()
+              ? inserted.llm_model_id.trim()
+              : null,
         },
       },
     });
   } catch (err) {
+    if (sendIfTokenQuotaExceeded(res, err)) return;
     console.error("salesQualificationReport error:", err);
     res.status(500).json({
       success: false,

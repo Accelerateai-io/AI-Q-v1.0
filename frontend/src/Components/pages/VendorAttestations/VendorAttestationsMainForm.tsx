@@ -12,16 +12,19 @@ import {
   FileCheck,
   Info,
   X,
-  Loader2,
 } from "lucide-react";
 import Modal from "../../UI/Modal";
+import LoadingMessage from "../../UI/LoadingMessage";
+import SubmitProgressOverlay from "../../UI/SubmitProgressOverlay";
 import { toast } from "react-toastify";
+import { apiErrorMessage, isTokenQuotaExceeded, isTokenQuotaExceededMessage } from "../../../utils/tokenQuotaError";
 import MultiStepTabs from "../../UI/MultiStepTabs";
 import StepVendorSelfAttestationPrev, {
   type ComplianceDocumentExpiryMeta,
 } from "./StepVendorSelfAttestationPrev";
 import { VENDOR_SELF_ATTESTATION } from "../../../constants/vendorAttestionData";
 import { ATTESTATION_SECTION_FIELDS } from "../../../constants/vendorAttestationFields";
+import { DOCUMENT_CATEGORIES } from "../../../constants/vendorAttestationDocumentConstants";
 import type {
   AttestationCompanyProfile,
   VendorSelfAttestationPayload,
@@ -39,6 +42,7 @@ import {
   TabAiSafetyTesting,
   TabOperationsReliability,
   TabDeploymentArchitecture,
+  TabVendorManagement,
   TabEvidenceSupportingDoc,
 } from "./tabs";
 import "../VendorOnboarding/vendor_onboarding.css";
@@ -56,6 +60,10 @@ const defaultCompanyProfile: AttestationCompanyProfile = {
   yearFounded: "",
   headquartersLocation: "",
   operatingRegions: [],
+  fundingStatus: "",
+  financialPosition: "",
+  enterpriseCustomers: "",
+  customerRetentionRate: "",
 };
 
 const defaultAttestation: VendorSelfAttestationPayload = {};
@@ -82,6 +90,7 @@ const ATTESTATION_SECTION_KEYS = [
   "ai_safety_testing",
   "operations_reliability",
   "deployment_architecture",
+  "vendor_management",
   "evidence_supporting_documentation",
 ] as const;
 
@@ -91,6 +100,14 @@ function hasValue(v: unknown): boolean {
   if (typeof v === "string") return v.trim().length > 0;
   if (Array.isArray(v)) return v.length > 0;
   return true;
+}
+
+const CERTIFICATION_CATEGORY_VALUES = new Set<string>(DOCUMENT_CATEGORIES.map((c) => c.value));
+
+function selectedCertificationCategories(formState: VendorSelfAttestationFormState): string[] {
+  return (formState.documentUpload?.["2"]?.categories ?? []).filter((c) =>
+    CERTIFICATION_CATEGORY_VALUES.has(c),
+  );
 }
 
 /** Validate one attestation step (2–9) using required flags from VENDOR_SELF_ATTESTATION. */
@@ -117,6 +134,48 @@ function isAttestationStepValid(
     const value = attestation[mapping.key];
     if (!hasValue(value)) return false;
   }
+  if (sectionKey === "compliance_certifications") {
+    const fedramp = attestation.fedramp_authorization;
+    if (!(fedramp?.status ?? "").trim()) return false;
+    if (
+      (fedramp?.status === "authorized" || fedramp?.status === "in_process") &&
+      (!(fedramp.level ?? "").trim() || !(fedramp.boundary ?? "").trim())
+    )
+      return false;
+  }
+  if (sectionKey === "ai_technical_capabilities") {
+    if (!(attestation.versions_models ?? "").trim()) return false;
+    if (
+      attestation.versions_models === "yes" &&
+      !(attestation.model_versioning_method ?? "").trim()
+    )
+      return false;
+  }
+  if (sectionKey === "deployment_architecture") {
+    if (!(attestation.is_multi_tenant ?? "").trim()) return false;
+    if (
+      attestation.is_multi_tenant === "yes" &&
+      !(attestation.tenant_isolation_model ?? "").trim()
+    )
+      return false;
+  }
+  if (sectionKey === "data_handling_privacy") {
+    if (!(attestation.encryption_at_rest ?? "").trim()) return false;
+    if (!(attestation.data_subject_rights?.length ?? 0)) return false;
+    if (!(attestation.controller_or_processor ?? "").trim()) return false;
+  }
+  if (sectionKey === "ai_safety_testing") {
+    if (!(attestation.vulnerability_disclosure_policy?.status ?? "").trim()) return false;
+    if (!(attestation.bug_bounty?.status ?? "").trim()) return false;
+  }
+  if (sectionKey === "operations_reliability") {
+    if (!(attestation.has_public_security_incident ?? "").trim()) return false;
+    if (
+      attestation.has_public_security_incident === "yes" &&
+      !(attestation.security_incidents?.length ?? 0)
+    )
+      return false;
+  }
   return true;
 }
 
@@ -127,6 +186,8 @@ function isCompanyProfileValid(
   if (!(companyProfile.vendorType ?? "").trim()) return false;
   if (!(companyProfile.companyWebsite ?? "").trim()) return false;
   if (!(companyProfile.companyDescription ?? "").trim()) return false;
+  if (!(companyProfile.fundingStatus ?? "").trim()) return false;
+  if (!(companyProfile.financialPosition ?? "").trim()) return false;
   const sector = companyProfile.sector;
   if (sector && typeof sector === "object" && !Array.isArray(sector)) {
     const s = sector as Record<string, string[]>;
@@ -162,7 +223,7 @@ function isVendorAttestationStepValid(
   if (!sectionData) return true;
   // Compliance & Certifications: also require at least one Regulatory/Compliance certification category selected
   if (sectionKey === "compliance_certifications") {
-    const regulatoryCategories = formState.documentUpload?.["2"]?.categories ?? [];
+    const regulatoryCategories = selectedCertificationCategories(formState);
     if (regulatoryCategories.length === 0) return false;
   }
   if (sectionKey === "ai_technical_capabilities") {
@@ -210,6 +271,8 @@ function getStepFieldErrors(
       errors.headquartersLocation = "Required";
     if (!(cp.operatingRegions?.length ?? 0))
       errors.operatingRegions = "Select at least one region";
+    if (!(cp.fundingStatus ?? "").trim()) errors.fundingStatus = "Required";
+    if (!(cp.financialPosition ?? "").trim()) errors.financialPosition = "Required";
     return errors;
   }
   if (stepIndex === 1) return {};
@@ -230,7 +293,7 @@ function getStepFieldErrors(
   if (!sectionData || !mappings) return {};
   // Compliance: require at least one Regulatory/Compliance certification category
   if (sectionKey === "compliance_certifications") {
-    const regulatoryCategories = formState.documentUpload?.["2"]?.categories ?? [];
+    const regulatoryCategories = selectedCertificationCategories(formState);
     if (regulatoryCategories.length === 0) {
       errors.regulatoryCertificationMaterial = "Select at least one certification type and upload materials";
     }
@@ -242,6 +305,36 @@ function getStepFieldErrors(
     ) {
       errors.aiGovernancePolicy = "Upload your AI governance policy document";
     }
+    if (!(formState.attestation.versions_models ?? "").trim())
+      errors.versions_models = "This field is required";
+    if (
+      formState.attestation.versions_models === "yes" &&
+      !(formState.attestation.model_versioning_method ?? "").trim()
+    )
+      errors.model_versioning_method = "This field is required";
+  }
+  if (sectionKey === "deployment_architecture") {
+    if (!(formState.attestation.is_multi_tenant ?? "").trim())
+      errors.is_multi_tenant = "This field is required";
+    if (
+      formState.attestation.is_multi_tenant === "yes" &&
+      !(formState.attestation.tenant_isolation_model ?? "").trim()
+    )
+      errors.tenant_isolation_model = "This field is required";
+  }
+  if (sectionKey === "data_handling_privacy") {
+    if (!(formState.attestation.encryption_at_rest ?? "").trim())
+      errors.encryption_at_rest = "This field is required";
+    if (!(formState.attestation.data_subject_rights?.length ?? 0))
+      errors.data_subject_rights = "Select at least one data subject right";
+    if (!(formState.attestation.controller_or_processor ?? "").trim())
+      errors.controller_or_processor = "Select controller, processor, or both";
+  }
+  if (sectionKey === "ai_safety_testing") {
+    if (!(formState.attestation.vulnerability_disclosure_policy?.status ?? "").trim())
+      errors.vulnerability_disclosure_policy = "This field is required";
+    if (!(formState.attestation.bug_bounty?.status ?? "").trim())
+      errors.bug_bounty = "This field is required";
   }
   const dataEntries = Object.entries(sectionData).filter(
     ([k]) =>
@@ -255,6 +348,26 @@ function getStepFieldErrors(
     if (!mapping?.key) continue;
     const value = formState.attestation[mapping.key];
     if (!hasValue(value)) errors[mapping.key] = "This field is required";
+  }
+  if (sectionKey === "compliance_certifications") {
+    const fedramp = formState.attestation.fedramp_authorization;
+    if (!(fedramp?.status ?? "").trim())
+      errors.fedramp_authorization = "This field is required";
+    if (fedramp?.status === "authorized" || fedramp?.status === "in_process") {
+      if (!(fedramp.level ?? "").trim())
+        errors.fedramp_level = "This field is required";
+      if (!(fedramp.boundary ?? "").trim())
+        errors.fedramp_boundary = "This field is required";
+    }
+  }
+  if (sectionKey === "operations_reliability") {
+    if (!(formState.attestation.has_public_security_incident ?? "").trim())
+      errors.has_public_security_incident = "This field is required";
+    if (
+      formState.attestation.has_public_security_incident === "yes" &&
+      !(formState.attestation.security_incidents?.length ?? 0)
+    )
+      errors.security_incidents = "Add at least one publicly disclosed incident";
   }
   return errors;
 }
@@ -284,7 +397,7 @@ function mapApiCompanyProfile(
     };
   }
   return {
-    vendorName: (api.vendorName as string) ?? "",
+    vendorName: (api.vendorName as string) ?? (api.vendor_name as string) ?? "",
     vendorType: (api.vendorType as string) ?? "",
     sector: sectorNorm,
     vendorMaturity: (api.vendorMaturity as string) ?? "",
@@ -296,6 +409,16 @@ function mapApiCompanyProfile(
     operatingRegions: Array.isArray(api.operatingRegions)
       ? (api.operatingRegions as string[])
       : [],
+    fundingStatus: (api.fundingStatus as string) ?? "",
+    financialPosition: (api.financialPosition as string) ?? "",
+    enterpriseCustomers:
+      api.enterpriseCustomers != null && api.enterpriseCustomers !== ""
+        ? String(api.enterpriseCustomers)
+        : "",
+    customerRetentionRate:
+      api.customerRetentionRate != null && api.customerRetentionRate !== ""
+        ? String(api.customerRetentionRate)
+        : "",
   };
 }
 
@@ -382,6 +505,7 @@ const VendorAttestationsMainForm = () => {
     import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
 
   const [currentStep, setCurrentStep] = useState<number>(0);
+  const [visitedSteps, setVisitedSteps] = useState<Set<number>>(() => new Set([0]));
   const [allStepsFilled, setAllStepsFilled] = useState<boolean>(false);
   const [formState, setFormState] =
     useState<VendorSelfAttestationFormState>(defaultFormState);
@@ -416,7 +540,7 @@ const VendorAttestationsMainForm = () => {
   const pendingFilesRef = useRef<PendingDocFiles>({ ...defaultPending });
   const storePendingFiles = useCallback(
     (
-      slot: "0" | "1" | "evidenceTestingPolicy" | "aiGovernancePolicy",
+      slot: "0" | "1" | "2" | "evidenceTestingPolicy" | "aiGovernancePolicy",
       files: File[],
       category?: string,
     ) => {
@@ -625,11 +749,12 @@ const VendorAttestationsMainForm = () => {
               ? mapApiCompanyProfile(result.companyProfile)
               : defaultCompanyProfile;
 
+          const missingVendorName = !(companyProfile.vendorName ?? "").trim();
           const hasCompanyProfileData =
             (companyProfile.vendorType ?? "").trim() !== "" ||
             (companyProfile.companyWebsite ?? "").trim() !== "" ||
             (companyProfile.companyDescription ?? "").trim() !== "";
-          if (!hasCompanyProfileData && token) {
+          if ((!hasCompanyProfileData || missingVendorName) && token) {
             try {
               const onboardingRes = await fetch(`${BASE_URL}/vendorOnboarding`, {
                 method: "GET",
@@ -647,9 +772,18 @@ const VendorAttestationsMainForm = () => {
                 typeof onboardingJson.data === "object" &&
                 Object.keys(onboardingJson.data).length > 0
               ) {
-                companyProfile = mapApiCompanyProfile(
+                const fromOnboarding = mapApiCompanyProfile(
                   onboardingJson.data as Record<string, unknown>,
                 );
+                companyProfile = hasCompanyProfileData
+                  ? {
+                      ...companyProfile,
+                      vendorName:
+                        (companyProfile.vendorName ?? "").trim() ||
+                        fromOnboarding.vendorName ||
+                        "",
+                    }
+                  : fromOnboarding;
                 if (
                   onboardingJson.data.organizationId &&
                   !sessionStorage.getItem("organizationId")
@@ -724,6 +858,16 @@ const VendorAttestationsMainForm = () => {
               aiGovernancePolicy: Array.isArray(d.aiGovernancePolicy)
                 ? (d.aiGovernancePolicy as string[])
                 : defaultDocumentUpload.aiGovernancePolicy,
+            };
+          }
+          const orgNameFallback =
+            (typeof sessionStorage !== "undefined"
+              ? sessionStorage.getItem("organizationName")
+              : "") ?? "";
+          if (!(companyProfile.vendorName ?? "").trim() && orgNameFallback.trim()) {
+            companyProfile = {
+              ...companyProfile,
+              vendorName: orgNameFallback.trim(),
             };
           }
           setFormState((prev) => ({
@@ -816,16 +960,27 @@ const VendorAttestationsMainForm = () => {
     setCurrentStep((prev) => Math.max(0, prev - 1));
   };
 
+  useEffect(() => {
+    setVisitedSteps((prev) => {
+      if (prev.has(currentStep)) return prev;
+      const next = new Set(prev);
+      next.add(currentStep);
+      return next;
+    });
+  }, [currentStep]);
+
   const disabledSteps = useMemo(() => {
     const disabled: number[] = [];
     for (let i = 0; i < totalSteps; i++) {
       if (!isVendorAttestationStepValid(i, formState)) {
-        for (let j = i + 1; j < totalSteps; j++) disabled.push(j);
+        for (let j = i + 1; j < totalSteps; j++) {
+          if (!visitedSteps.has(j)) disabled.push(j);
+        }
         break;
       }
     }
     return disabled;
-  }, [formState, totalSteps]);
+  }, [formState, totalSteps, visitedSteps]);
 
   const stepFieldErrors = useMemo(
     () => getStepFieldErrors(currentStep, formState),
@@ -852,7 +1007,7 @@ const VendorAttestationsMainForm = () => {
           content: (() => {
             if (index === 0) {
               return currentStep === 0 && !fetchDone ? (
-                <p style={{ padding: "1rem" }}>Loading company profile…</p>
+                <LoadingMessage message="Loading company profile…" compact />
               ) : (
                 <TabCompanyProfile
                   companyProfile={formState.companyProfile}
@@ -942,6 +1097,8 @@ const VendorAttestationsMainForm = () => {
                   title={stepHeaderProps.title}
                   subTitle={stepHeaderProps.subTitle}
                   icon={stepHeaderProps.icon}
+                  attestationId={attestationId}
+                  onUploadDocument={uploadDocument}
                 />
               );
             }
@@ -986,6 +1143,19 @@ const VendorAttestationsMainForm = () => {
             }
             if (index === 9) {
               return (
+                <TabVendorManagement
+                  attestation={formState.attestation}
+                  setAttestation={setAttestation}
+                  data={VENDOR_SELF_ATTESTATION.vendor_management}
+                  fieldErrors={effectiveFieldErrors}
+                  title={stepHeaderProps.title}
+                  subTitle={stepHeaderProps.subTitle}
+                  icon={stepHeaderProps.icon}
+                />
+              );
+            }
+            if (index === 10) {
+              return (
                 <TabEvidenceSupportingDoc
                   attestation={formState.attestation}
                   setAttestation={setAttestation}
@@ -1006,13 +1176,18 @@ const VendorAttestationsMainForm = () => {
                 />
               );
             }
-            // index === 10: Review
+            // index === 11: Review
             return (
               <StepVendorSelfAttestationPrev
                 formState={formState}
                 attestationId={attestationId}
                 onOpenDocument={handleOpenDocument}
                 onNavigateToStep={setCurrentStep}
+                vendorNameFallback={
+                  (typeof sessionStorage !== "undefined"
+                    ? sessionStorage.getItem("organizationName")
+                    : "") || null
+                }
                 complianceDocumentExpiries={(() => {
                   const raw = (formState.attestation as unknown as Record<string, unknown>)
                     ?.compliance_document_expiries;
@@ -1061,6 +1236,22 @@ const VendorAttestationsMainForm = () => {
     let currentAttestationId = attestationId;
     const pending = pendingFilesRef.current;
 
+    const applySavedAttestationId = (savedId: string) => {
+      currentAttestationId = savedId;
+      setAttestationId(savedId);
+      setFetchError(null);
+      if (window.history.replaceState) {
+        const params = new URLSearchParams(window.location.search);
+        params.delete("new");
+        params.set("edit", savedId);
+        const url =
+          window.location.pathname +
+          `?${params.toString()}` +
+          (window.location.hash || "");
+        window.history.replaceState(null, "", url);
+      }
+    };
+
     const doPost = async (
       attId: string | null,
       docUpload: DocumentUploadState,
@@ -1093,6 +1284,9 @@ const VendorAttestationsMainForm = () => {
       let result: {
         success?: boolean;
         message?: string;
+        detail?: string;
+        code?: string;
+        status?: string;
         attestation?: { id?: string; status?: string };
       } = {};
       try {
@@ -1101,22 +1295,34 @@ const VendorAttestationsMainForm = () => {
         setSubmitError("Invalid response from server");
         return { ok: false };
       }
+      const savedId = result.attestation?.id
+        ? String(result.attestation.id)
+        : undefined;
+      if (savedId) applySavedAttestationId(savedId);
       if (!response.ok) {
-        const msg =
-          (result.message as string) ||
-          (isDraft ? "Save draft failed" : "Submit failed");
-        if (response.status === 403) {
+        const quotaMessage =
+          typeof result.message === "string" ? result.message : "";
+        if (
+          isTokenQuotaExceeded(result) ||
+          isTokenQuotaExceededMessage(quotaMessage)
+        ) {
+          setSubmitError(apiErrorMessage(result, "Submit failed"));
+        } else if (response.status === 403) {
           setSubmitError(
             'Completed attestations cannot be modified. Please use "New Attestation" to create a new one.',
           );
         } else {
-          setSubmitError(msg);
+          const msg =
+            (result.message as string) ||
+            (isDraft ? "Save draft failed" : "Submit failed");
+          const detail =
+            typeof result.detail === "string" && result.detail.trim()
+              ? ` (${result.detail.trim()})`
+              : "";
+          setSubmitError(`${msg}${detail}`);
         }
         return { ok: false };
       }
-      const savedId = result.success && result.attestation?.id
-        ? String(result.attestation.id)
-        : undefined;
       return { ok: true, savedId };
     };
 
@@ -1128,19 +1334,7 @@ const VendorAttestationsMainForm = () => {
           return false;
         }
         if (first.savedId) {
-          currentAttestationId = first.savedId;
-          setAttestationId(first.savedId);
-          if (isDraft) setFetchError(null);
-          if (window.history.replaceState) {
-            const params = new URLSearchParams(window.location.search);
-            params.delete("new");
-            params.set("edit", first.savedId);
-            const url =
-              window.location.pathname +
-              `?${params.toString()}` +
-              (window.location.hash || "");
-            window.history.replaceState(null, "", url);
-          }
+          applySavedAttestationId(first.savedId);
         }
       }
 
@@ -1215,18 +1409,7 @@ const VendorAttestationsMainForm = () => {
         return false;
       }
       if (single.savedId && !currentAttestationId) {
-        setAttestationId(single.savedId);
-        if (isDraft) setFetchError(null);
-        if (window.history.replaceState) {
-          const params = new URLSearchParams(window.location.search);
-          params.delete("new");
-          params.set("edit", single.savedId);
-          const url =
-            window.location.pathname +
-            `?${params.toString()}` +
-            (window.location.hash || "");
-          window.history.replaceState(null, "", url);
-        }
+        applySavedAttestationId(single.savedId);
       }
       return true;
     } catch {
@@ -1246,7 +1429,8 @@ const VendorAttestationsMainForm = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Full submit only: is_draft: false → backend sets status COMPLETED and generates product profile report
+    // Full submit: is_draft false → backend generates the product profile, then sets COMPLETED.
+    // If tokens run out mid-generation, the attestation stays a draft.
     const ok = await saveDraftOrSubmit(false);
     if (ok) {
       toast.success("Attestation submitted. Product profile report has been generated.");
@@ -1260,20 +1444,7 @@ const VendorAttestationsMainForm = () => {
 
   return (
     <div className="sec_user_page org_settings_page">
-      {submitting && (
-        <div
-          className="vendor_attestation_submit_overlay"
-          role="status"
-          aria-live="polite"
-          aria-label="Submitting attestation and generating product profile"
-        >
-          <div className="vendor_attestation_submit_overlay_content">
-            <Loader2 size={32} className="vendor_attestation_submit_overlay_loader" aria-hidden />
-            <p>Submitting attestation and generating product profile…</p>
-            <p className="vendor_attestation_submit_overlay_hint">Please wait. Do not close or refresh.</p>
-          </div>
-        </div>
-      )}
+      {submitting && <SubmitProgressOverlay variant="attestation" />}
 
       <Modal
         isOpen={documentViewerOpen}
@@ -1297,10 +1468,7 @@ const VendorAttestationsMainForm = () => {
           </div>
           <div className="vendor_attestation_doc_viewer_body">
             {documentViewerLoading ? (
-              <div className="vendor_attestation_doc_viewer_loading">
-                <Loader2 size={32} className="spin" aria-hidden />
-                <p>Loading document…</p>
-              </div>
+              <LoadingMessage message="Loading document…" compact />
             ) : documentViewerUrl ? (
               <iframe
                 title={documentViewerFileName ?? "Document"}

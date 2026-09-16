@@ -10,7 +10,7 @@
   color: inherit;
   /*
    * Uniform scale vs web: same typography ratios as the report UI.
-   * ~2px smaller than the prior PDF preset (16px × 0.88 − 2px ≈ 12.1px body equivalent).
+   * Keep in sync with spacer math (`--report-pdf-uniform-scale` in reportPdfFlowSpacers).
    */
   --report-pdf-uniform-scale: 0.755;
   transform: scale(var(--report-pdf-uniform-scale));
@@ -25,12 +25,95 @@
   box-sizing: border-box;
 }
 
-/* Clear frame for the PDF; drop shadow does not rasterize reliably */
+/* Clear frame for the PDF — no tinted card behind the Analysis Report title */
 .report_pdf_capture.report_detail_body_shell,
 .report_pdf_capture.bvr_document {
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 4pt 0 !important;
+}
+
+.report_pdf_capture .report_assessment_doc_header,
+.report_pdf_capture .report_assessment_doc_header_main,
+.report_pdf_capture .report_assessment_title,
+.report_pdf_capture .report_assessment_subtitle {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Dense section layout — avoid large blank bands between blocks in the PDF. */
+.report_pdf_capture .report_section_card,
+.report_pdf_capture .bvr_card,
+.report_pdf_capture .general_report_info_card {
+  margin-bottom: 5pt;
+  padding: 5pt 8pt;
   box-shadow: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+}
+
+.report_pdf_capture .report_section_card:last-child,
+.report_pdf_capture .bvr_card:last-child {
+  margin-bottom: 0;
+}
+
+.report_pdf_capture .report_section_heading {
+  margin: 0 0 4pt 0;
+}
+
+.report_pdf_capture .report_context_panel,
+.report_pdf_capture .report_exec_brief_section,
+.report_pdf_capture .report_approval_summary_banner {
+  margin-bottom: 5pt;
+}
+
+.report_pdf_capture .report_deployment_roi_row {
+  gap: 4pt;
+  margin-bottom: 5pt;
+}
+
+.report_pdf_capture .report_deployment_roi_titles,
+.report_pdf_capture .report_deployment_roi_pair {
+  gap: 4pt;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+}
+
+.report_pdf_capture .report_deployment_roi_pair > .report_deployment_item,
+.report_pdf_capture .report_deployment_roi_pair > .report_roi_card {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  height: auto !important;
+  padding: 5pt 6pt !important;
+}
+
+.report_pdf_capture .report_compliance_summary {
+  margin-bottom: 4pt;
+}
+
+.report_pdf_capture .report_appendix_cards {
+  gap: 5pt;
+}
+
+.report_pdf_capture .bvr_risk_block,
+.report_pdf_capture .report_blocker_item,
+.report_pdf_capture .report_impl_plan_chunk,
+.report_pdf_capture .report_compliance_card,
+.report_pdf_capture .report_appendix_card {
+  margin-bottom: 4pt;
+}
+
+/* Hide interactive / non-print chrome during capture */
+.report_pdf_capture .report_detail_export_btn,
+.report_pdf_capture .user_table_actions,
+.report_pdf_capture .report_assessment_actions_row,
+.report_pdf_capture .map_action_toolbar,
+.report_pdf_capture .bvr_export_btn,
+.report_pdf_capture .no-print {
+  display: none !important;
 }
 
 /* Tables: predictable grid without changing type scale (transform already scales text) */
@@ -50,6 +133,43 @@
   vertical-align: top;
 }
 
+.report_pdf_capture .report_table_wrap,
+.report_pdf_capture .report_appendix_table_wrap,
+.report_pdf_capture .map_action_table_wrap {
+  overflow: visible;
+  max-width: 100%;
+  margin: 0 0 6pt 0;
+}
+
+/* Risk assessment table: denser cells so more rows fit without mid-row splits */
+.report_pdf_capture .report_risk_assessment_table th,
+.report_pdf_capture .report_risk_assessment_table td {
+  padding: 5pt 6pt !important;
+  font-size: 8.5pt !important;
+  line-height: 1.35 !important;
+}
+
+.report_pdf_capture .report_risk_assessment_icon_list,
+.report_pdf_capture .report_table_cell_list {
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+
+.report_pdf_capture .report_risk_assessment_icon_list li,
+.report_pdf_capture .report_table_cell_list li {
+  margin: 0 0 3pt 0 !important;
+  font-size: 8pt !important;
+  line-height: 1.45 !important;
+}
+
+.report_pdf_capture .report_risk_assessment_table tbody tr,
+.report_pdf_capture .report_table_wrap tbody tr,
+.report_pdf_capture .report_appendix_table_wrap tbody tr {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+}
+
 /* Wide tables: keep content inside capture width for canvas */
 .report_pdf_capture .map_action_table_wrap,
 .report_pdf_capture .map_action_table_wrap .map_action_table {
@@ -57,24 +177,78 @@
 }
 
 /*
- * Keep card-like blocks on one PDF page when they fit (html2pdf `css` + `avoid` list).
- * Very tall sections may still span pages — browser/pdf limits apply.
+ * Keep mid-size / leaf blocks together. Large shells (section/bvr cards) may split;
+ * spacers push only smaller units so pages stay dense.
  */
-.report_pdf_capture .report_section_card,
+.report_pdf_capture .report_assessment_doc_header,
+.report_pdf_capture .bvr_doc_header,
 .report_pdf_capture .report_context_panel,
 .report_pdf_capture .report_exec_brief_section,
 .report_pdf_capture .report_approval_summary_banner,
-.report_pdf_capture .bvr_card,
+.report_pdf_capture .report_section_heading,
 .report_pdf_capture .report_risk_category_block,
 .report_pdf_capture .report_framework_notice,
-.report_pdf_capture .report_table_wrap,
-.report_pdf_capture .report_appendix_table_wrap,
-.report_pdf_capture .map_action_table_wrap,
 .report_pdf_capture .report_detail_info_grid,
-.report_pdf_capture .report_vcm_wrap > section,
-.report_pdf_capture .report_summary_body > .report_exec_brief_section {
-  break-inside: avoid;
-  page-break-inside: avoid;
+.report_pdf_capture .report_summary_body > .report_exec_brief_section,
+.report_pdf_capture .report_compliance_card,
+.report_pdf_capture .report_appendix_card,
+.report_pdf_capture .report_blocker_item,
+.report_pdf_capture .report_crm_field,
+.report_pdf_capture .report_crm_phase_col,
+.report_pdf_capture .report_crm_mitigation_card,
+.report_pdf_capture .report_crm_validation_card,
+.report_pdf_capture .report_impl_plan_chunk,
+.report_pdf_capture .report_deployment_roi_pair,
+.report_pdf_capture .report_deployment_roi_titles,
+.report_pdf_capture .report_deployment_roi_pair > .report_deployment_item,
+.report_pdf_capture .report_deployment_roi_pair > .report_roi_card,
+.report_pdf_capture .bvr_risk_block,
+.report_pdf_capture .bvr_risk_scope_block,
+.report_pdf_capture .bvr_risk_scope_split_col,
+.report_pdf_capture .bvr_reco_priority_item,
+.report_pdf_capture .bvr_recommendation_row,
+.report_pdf_capture .bvr_priority_item,
+.report_pdf_capture .bvr_strength_item,
+.report_pdf_capture .bvr_warning_item,
+.report_pdf_capture .bvr_vcm_priority_item,
+.report_pdf_capture .report_table_wrap table tr,
+.report_pdf_capture .report_appendix_table_wrap table tr,
+.report_pdf_capture .map_action_table_wrap table tr,
+.report_pdf_capture .bvr_matrix_table tr,
+.report_pdf_capture .report_framework_table tr,
+.report_pdf_capture .crs_risk_item,
+.report_pdf_capture .crs_mapping_table tr,
+.report_pdf_capture .report_appendix_risk_table tr {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+}
+
+/* Metric labels/values/source lines + body text must stay on one page when possible */
+.report_pdf_capture .report_roi_sub,
+.report_pdf_capture .report_roi_value,
+.report_pdf_capture .report_roi_label,
+.report_pdf_capture .report_deployment_value,
+.report_pdf_capture .report_deployment_label,
+.report_pdf_capture .bvr_reco_title,
+.report_pdf_capture .bvr_reco_desc,
+.report_pdf_capture .bvr_reco_time,
+.report_pdf_capture .bvr_risk_summary,
+.report_pdf_capture .bvr_exec_text,
+.report_pdf_capture .report_exec_brief_para,
+.report_pdf_capture .report_exec_brief_bullet,
+.report_pdf_capture .report_exec_brief_section_title,
+.report_pdf_capture .report_framework_notice_text,
+.report_pdf_capture p,
+.report_pdf_capture li,
+.report_pdf_capture h1,
+.report_pdf_capture h2,
+.report_pdf_capture h3,
+.report_pdf_capture h4 {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  orphans: 4;
+  widows: 4;
 }
 
 /* Buyer vendor risk — Risk Analysis cards (domain + summary must stay together) */
@@ -82,8 +256,150 @@
   display: flow-root;
   break-inside: avoid;
   page-break-inside: avoid;
-  /* Fragmentation: keep the flex card box atomic for html2pdf slicing */
   -webkit-column-break-inside: avoid;
   column-break-inside: avoid;
+  margin-bottom: 6pt;
 }
 
+/* Flow spacers should never paint */
+.report_pdf_capture [data-report-pdf-flow-spacer] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/*
+ * Grade + circular score gauge — keep the on-screen look in PDF.
+ * "Grade:" on top; letter + ring side by side (same as UI).
+ * Ring is SVG (not conic-gradient) so html2canvas captures the progress arc.
+ */
+.report_pdf_capture .report_context_rating {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2pt !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.report_pdf_capture .report_context_grade_label {
+  display: block !important;
+  position: static !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 8pt !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: #111827 !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_context_rating_row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4pt !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_context_grade,
+.report_pdf_capture .report_context_panel_vendor_portal .report_context_grade {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 28pt !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_context_grade_value {
+  display: inline !important;
+  font-size: inherit !important;
+  line-height: 1 !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_context_score {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_risk_score_circle,
+.report_pdf_capture .report_context_score_circle {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 34pt !important;
+  height: 34pt !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.report_pdf_capture .report_risk_score_circle_svg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.report_pdf_capture .report_risk_score_circle_inner,
+.report_pdf_capture .report_context_score_circle .report_risk_score_circle_inner {
+  position: relative !important;
+  z-index: 1 !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  color: var(--score-color, #d97706) !important;
+  font-size: 8.5pt !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+.report_pdf_capture .report_context_right,
+.report_pdf_capture .report_context_panel_vendor_portal .report_context_right {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.report_pdf_capture .report_show_more_body {
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.report_pdf_capture .report_show_more_btn {
+  display: none !important;
+}
+
+.report_pdf_capture .report_show_more_item_hidden {
+  display: list-item !important;
+}

@@ -1,14 +1,18 @@
 import type { Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../../database/db.js";
-import { usersTable, generatedProfileReports } from "../../schema/schema.js";
+import { usersTable, generatedProfileReports, vendorSelfAttestations } from "../../schema/schema.js";
 import { generateVendorAttestationReport, buildReportPayloadAndSummary } from "../agents/vendorAttestation.js";
+import { stampActiveLlmModel, getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
+import {
+  assertFeatureTokenQuota,
+  sendIfTokenQuotaExceeded,
+} from "../../services/admin/featureTokenQuota.service.js";
 
 /**
  * POST /vendorSelfAttestation/generate-profile
- * Body: { vendorData: string, attestationId?: string }
- * Returns structured product profile report (trust score + sections) for display in UI cards.
- * Stores the report in generated_profile_reports (user_id, organization_id, optional attestation_id, trust_score, report).
+ * Body: { vendorData: string, formData: object, attestationId?: string }
+ * VTS is calculated by Python; Node stores trust_score + report in generated_profile_reports.
  */
 const generateProductProfile = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -17,6 +21,18 @@ const generateProductProfile = async (req: Request, res: Response): Promise<void
       res.status(400).json({
         success: false,
         message: "vendorData is required and must be a non-empty string",
+      });
+      return;
+    }
+
+    const formulaPayload =
+      req.body?.formData && typeof req.body.formData === "object"
+        ? (req.body.formData as Record<string, unknown>)
+        : null;
+    if (!formulaPayload) {
+      res.status(400).json({
+        success: false,
+        message: "formData is required; Vendor Trust Score is calculated by the Python scoring service",
       });
       return;
     }
@@ -52,41 +68,96 @@ const generateProductProfile = async (req: Request, res: Response): Promise<void
       .limit(1);
     const organizationIdStr = userRow?.organization_id != null ? String(userRow.organization_id) : null;
 
-    const formulaPayload =
-      req.body?.formData && typeof req.body.formData === "object"
-        ? (req.body.formData as Record<string, unknown>)
-        : undefined;
-    const report = await generateVendorAttestationReport(vendorData, formulaPayload);
-    const { reportPayload, trustScoreNum, summaryToStore } = buildReportPayloadAndSummary(report);
-
     const attestationIdRaw = req.body?.attestationId ?? req.body?.attestation_id;
     const attestationId =
       typeof attestationIdRaw === "string" && attestationIdRaw.trim() ? attestationIdRaw.trim() : null;
 
+    let scoringPayload: Record<string, unknown> = { ...formulaPayload };
+    if (attestationId) {
+      const [attest] = await db
+        .select({ assessment_id: vendorSelfAttestations.assessment_id })
+        .from(vendorSelfAttestations)
+        .where(eq(vendorSelfAttestations.id, attestationId))
+        .limit(1);
+      const linked = attest?.assessment_id ? String(attest.assessment_id) : "";
+      if (linked) {
+        scoringPayload = { ...scoringPayload, assessment_id: linked, assessmentId: linked };
+      }
+    }
+
+    await assertFeatureTokenQuota("attestation");
+
+    // Python calculates VTS; Node persists trust_score + report
+    const report = await generateVendorAttestationReport(vendorData, scoringPayload);
+    const built = buildReportPayloadAndSummary(report);
+    const reportPayload = stampActiveLlmModel(
+      built.reportPayload as unknown as Record<string, unknown>,
+    );
+    const llmMeta = getActiveLlmModelMeta();
+    const { trustScoreNum, summaryToStore } = built;
+
     const summaryForDb = summaryToStore && summaryToStore.length > 0 ? summaryToStore : null;
-    console.log("[Summary] Step: generateProductProfile (controller) — before DB insert | summaryToStore:", summaryToStore == null ? "undefined" : "length " + summaryToStore.length, "| summary column value:", summaryForDb == null ? "null" : "length " + summaryForDb.length);
-    if (summaryForDb) console.log("[Summary] Step: generateProductProfile — complete summary being stored:", summaryForDb);
 
     const trustScoreForDb = Number.isFinite(trustScoreNum) ? Math.round(trustScoreNum) : 0;
-    await db.insert(generatedProfileReports).values({
-      user_id: userId,
-      organization_id: organizationIdStr,
-      attestation_id: attestationId ?? undefined,
-      trust_score: trustScoreForDb,
-      summary: summaryForDb,
-      report: reportPayload,
-    });
+    const scoring = report.scoringResult;
+    const gradeForDb = scoring?.grade?.trim() || String(report.trustScore?.grade ?? "").trim() || null;
+    const scoreRationaleForDb =
+      typeof reportPayload.scoreRationale === "string" && reportPayload.scoreRationale.trim()
+        ? reportPayload.scoreRationale.trim()
+        : typeof scoring?.rationale === "string" && scoring.rationale.trim()
+          ? scoring.rationale.trim()
+          : null;
 
-    console.log("[Summary] Step: generateProductProfile (controller) — inserted into generated_profile_reports | attestation_id:", attestationId ?? "(none)", "| summary stored:", summaryForDb != null);
+    const [inserted] = await db
+      .insert(generatedProfileReports)
+      .values({
+        user_id: userId,
+        organization_id: organizationIdStr,
+        attestation_id: attestationId ?? undefined,
+        trust_score: trustScoreForDb,
+        summary: summaryForDb,
+        report: reportPayload,
+        product_risk: scoring?.product_risk,
+        governance_risk: scoring?.governance_risk,
+        operational_risk: scoring?.operational_risk,
+        weighted_risk: scoring?.weighted_risk,
+        grade: gradeForDb ?? undefined,
+        classification: scoring?.classification || undefined,
+        formula_detail: scoring?.detail ?? undefined,
+        scoring_version: scoring?.scoring_version || undefined,
+        score_rationale: scoreRationaleForDb ?? undefined,
+        score_rationale_type: scoreRationaleForDb ? "VTS" : undefined,
+        llm_model_id: llmMeta.modelId,
+        llm_model_label: llmMeta.modelLabel,
+      })
+      .returning({ id: generatedProfileReports.id });
+
+    if (attestationId && inserted?.id) {
+      await db
+        .update(vendorSelfAttestations)
+        .set({
+          generated_profile_report: reportPayload,
+          latest_trust_score: trustScoreForDb,
+          latest_trust_grade: gradeForDb ?? undefined,
+          latest_profile_report_id: inserted.id,
+          llm_model_id: llmMeta.modelId,
+          llm_model_label: llmMeta.modelLabel,
+          updated_at: new Date(),
+        })
+        .where(eq(vendorSelfAttestations.id, attestationId));
+    }
 
     res.status(200).json({
       success: true,
       data: {
         trustScore: reportPayload.trustScore,
         sections: report.sections,
+        modelId: llmMeta.modelId,
+        modelLabel: llmMeta.modelLabel,
       },
     });
   } catch (error) {
+    if (sendIfTokenQuotaExceeded(res, error)) return;
     console.error("generateProductProfile error:", error);
     res.status(500).json({
       success: false,

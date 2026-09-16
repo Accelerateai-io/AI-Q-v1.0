@@ -1,11 +1,9 @@
 import "dotenv/config";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import * as readline from "readline";
+import { getActiveBedrockModelId } from "../../utils/bedrockModelId.js";
 
 const REGION = process.env.AWS_DEFAULT_REGION || "us-east-1";
-
-// ✅ USE INFERENCE PROFILE ARN OR ID
-const MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0";
 
 const client = new BedrockRuntimeClient({ region: REGION });
 
@@ -30,7 +28,7 @@ async function chat(userInput: string) {
   });
 
   const command = new InvokeModelCommand({
-    modelId: MODEL_ID, // ← inference profile here
+    modelId: getActiveBedrockModelId(), // ← Controls-selected model / inference profile
     contentType: "application/json",
     accept: "application/json",
     body,

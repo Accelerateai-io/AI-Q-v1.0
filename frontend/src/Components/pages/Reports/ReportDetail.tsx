@@ -20,13 +20,19 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js"
+import { formatPreviewValueAsString } from "../../../utils/formatPreviewValue"
 import {
   customerRiskReportApprovalHeading,
   alignmentScoreFromRiskScore,
   gradeFromOverallRiskScore,
   normalizeDisplayLetterGrade,
   completeReportRiskMeterColor,
+  overallRiskScoreFromReportJson,
 } from "../../../utils/completeReportGrade"
+import {
+  AdminLlmModelLabel,
+  resolveStoredLlmModelId,
+} from "../../UI/AdminLlmModelInfo"
 import { mixSrgbHex } from "../../../utils/mixSrgbHex"
 import { riskScopeFromRow, type ReportRiskScope } from "../../../utils/reportRiskScope"
 import {
@@ -39,7 +45,11 @@ import type {
 } from "../../frameworkMapping/FrameworkMappingCardGrid"
 import { sanitizeFrameworkMappingNotesForDisplay } from "../../../utils/frameworkMappingNotesDisplay"
 import { formatFrameworkMappingFrameworkForDisplay } from "../../../utils/frameworkMappingFrameworkDisplay"
-import { riskRowsToSummaryPoints, stringsToSummaryPoints } from "../../../utils/summarizeRiskPoints"
+import {
+  ensureSpaceAfterColon,
+  riskRowsToSummaryPoints,
+  stringsToSummaryPoints,
+} from "../../../utils/summarizeRiskPoints"
 import LoadingMessage from "../../UI/LoadingMessage"
 import {
   buildReportPdfFilename,
@@ -278,7 +288,7 @@ function buildAppendixRiskTableRows(
     return flat.map((r) => {
       const id = stripMarkdownBold(String(r.mitigation_action_id ?? "").trim())
       const name = stripMarkdownBold(String(r.mitigation_action_name ?? "").trim())
-      const mitigationRef = id || name || "—"
+      const mitigationRef = name || id || "—"
       return {
         riskId: stripMarkdownBold(String(r.risk_id ?? "")) || "—",
         riskDomain:
@@ -321,9 +331,23 @@ function buildAppendixRiskTableRows(
 
 function formatReportValue(val: unknown): string {
   if (val == null || val === "") return "—"
-  if (Array.isArray(val)) return val.map((v) => stripMarkdownBold(String(v))).join(", ")
-  if (typeof val === "object") return JSON.stringify(val)
-  return stripMarkdownBold(String(val))
+  if (Array.isArray(val)) {
+    const joined = val
+      .map((v) => {
+        if (v != null && typeof v === "object") {
+          return stripMarkdownArtifacts(formatPreviewValueAsString(v))
+        }
+        return stripMarkdownArtifacts(String(v))
+      })
+      .filter((s) => s.length > 0 && s !== "N/A")
+      .join(", ")
+    return joined || "—"
+  }
+  if (typeof val === "object") {
+    const s = formatPreviewValueAsString(val)
+    return s === "N/A" ? "—" : stripMarkdownArtifacts(s)
+  }
+  return stripMarkdownArtifacts(String(val)) || "—"
 }
 
 /** ROI time-saved source line: show as "Source: …" unless already prefixed. */
@@ -334,9 +358,23 @@ function formatRoiTimeSavedSourceLine(val: unknown): string {
   return `Source: ${s}`
 }
 
-/** Remove markdown bold markers (**) from report text so they are not shown in the UI. */
+/** Remove markdown bold (**) and horizontal rules (---) from report text so they are not shown in the UI. */
+function stripMarkdownArtifacts(s: string): string {
+  return ensureSpaceAfterColon(
+    String(s)
+      .replace(/\*\*/g, "")
+      .replace(/^[ \t]*-{3,}[ \t]*$/gm, "")
+      .replace(/\s*-{3,}\s*/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim(),
+  )
+}
+
+/** @deprecated use stripMarkdownArtifacts */
 function stripMarkdownBold(s: string): string {
-  return String(s).replace(/\*\*/g, "")
+  return stripMarkdownArtifacts(s)
 }
 
 function partitionComplianceRequirements(
@@ -665,7 +703,7 @@ function mitigationLinesForRow(
     const bot = m.mitigation_summary_points
     if (Array.isArray(bot) && bot.length > 0) {
       for (const pt of bot) {
-        const line = String(pt ?? "").trim()
+        const line = ensureSpaceAfterColon(String(pt ?? "").trim())
         if (line.length > 1) lines.push(line)
       }
       continue
@@ -772,14 +810,55 @@ function renderRiskScoreCircle(
 ): React.ReactNode {
   const value = scorePercentValueFromDisplay(display)
   if (value == null) return "—"
+  const color = options?.color || "#4f6bff"
+  const clamped = Math.min(100, Math.max(0, value))
   const style = {
-    "--score": String(value),
-    ...(options?.color ? { "--score-color": options.color } : {}),
+    "--score": String(clamped),
+    "--score-color": color,
   } as React.CSSProperties
   const label =
     options?.labelFormat === "fraction" ? scoreFractionLabelFromDisplay(display) : `${value}%`
+  /* SVG ring (not conic-gradient) so html2canvas / PDF keeps the gauge look. */
+  const size = 100
+  const stroke = 10
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const dashOffset = circumference * (1 - clamped / 100)
   return (
-    <span className={`report_risk_score_circle${options?.className ? ` ${options.className}` : ""}`} style={style}>
+    <span
+      className={`report_risk_score_circle${options?.className ? ` ${options.className}` : ""}`}
+      style={style}
+    >
+      <svg
+        className="report_risk_score_circle_svg"
+        viewBox={`0 0 ${size} ${size}`}
+        width="100%"
+        height="100%"
+        aria-hidden
+      >
+        <circle
+          className="report_risk_score_circle_track"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#e8eef5"
+          strokeWidth={stroke}
+        />
+        <circle
+          className="report_risk_score_circle_progress"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="butt"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
       <span className="report_risk_score_circle_inner">{label}</span>
     </span>
   )
@@ -948,18 +1027,23 @@ function ReportDetail() {
   const reportNavState = location.state as {
     reportTitle?: string
     hideFrameworkMapping?: boolean
+    autoExportPdf?: boolean
   } | null
   const reportTitleFromNavState = (reportNavState?.reportTitle ?? "").trim()
   const hideFrameworkMapping = reportNavState?.hideFrameworkMapping === true || isSystemUserRole()
+  const autoExportPdf = reportNavState?.autoExportPdf === true
   const usePortalStyleUi = isVendorViewer() || isSystemUserRole()
   const cachedTitleKey = reportId ? `completeReportTitle:${reportId}` : ""
   const cachedReportTitle = cachedTitleKey ? (sessionStorage.getItem(cachedTitleKey) ?? "").trim() : ""
+  const autoExportTriggeredRef = useRef(false)
   const showExportPdf = !isSystemUserRole()
   const [report, setReport] = useState<{
     id: string
     assessmentId?: string
     title: string
     report: Record<string, unknown>
+    llmModelId?: string | null
+    llmModelLabel?: string | null
     createdAt: string
     expiryAt?: string | null
     attestationExpiryAt?: string | null
@@ -1009,6 +1093,8 @@ function ReportDetail() {
             assessmentId: data.data.assessmentId,
             title: data.data.title,
             report: data.data.report ?? {},
+            llmModelId: data.data.llmModelId ?? null,
+            llmModelLabel: data.data.llmModelLabel ?? null,
             createdAt: data.data.createdAt ?? "",
             expiryAt: data.data.expiryAt ?? null,
             attestationExpiryAt: data.data.attestationExpiryAt ?? null,
@@ -1074,17 +1160,44 @@ function ReportDetail() {
     }
   }, [report])
 
+  // Card download icon: open report then auto-export PDF once content is ready
+  useEffect(() => {
+    if (!autoExportPdf || loading || notFound || !report || autoExportTriggeredRef.current) return
+    autoExportTriggeredRef.current = true
+    navigate(location.pathname, {
+      replace: true,
+      state: {
+        reportTitle: reportTitleFromNavState || undefined,
+        hideFrameworkMapping: reportNavState?.hideFrameworkMapping,
+      },
+    })
+    const t = window.setTimeout(() => {
+      void handleExportPdf()
+    }, 600)
+    return () => window.clearTimeout(t)
+  }, [
+    autoExportPdf,
+    loading,
+    notFound,
+    report,
+    handleExportPdf,
+    navigate,
+    location.pathname,
+    reportTitleFromNavState,
+    reportNavState?.hideFrameworkMapping,
+  ])
+
   if (loading) {
     return (
-      <div className="sec_user_page org_settings_page reports_page report_detail_page">
-        <LoadingMessage message="Loading report…" />
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout">
+        <LoadingMessage message="Loading report…" className="loading_message_wrapper--page" />
       </div>
     )
   }
 
   if (notFound || !report) {
     return (
-      <div className="sec_user_page org_settings_page reports_page report_detail_page">
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout">
         <div className="report_detail_empty">
           <h2 className="report_detail_empty_title">Report not found</h2>
           <p className="report_detail_empty_text">This report does not exist or has been removed.</p>
@@ -1152,13 +1265,13 @@ function ReportDetail() {
   )
 
   const deployment = data.deploymentOverview as DeploymentOverview | undefined
-  const overallScore = generated?.overallRiskScore ?? 0
+  const overallScore = generated?.overallRiskScore ?? overallRiskScoreFromReportJson(data) ?? 0
   const overallLevel = normalizeResidualRiskLabel(formatReportValue(generated?.riskLevel ?? "Low"))
   const alignmentScoreDisplay = alignmentScoreFromRiskScore(overallScore)
   const contextSummaryPreview = (() => {
     const raw = generated?.executiveSummary ?? generated?.summary
     if (raw == null || String(raw).trim() === "") return ""
-    return stripMarkdownBold(String(raw)).replace(/\s*---+\s*/g, " ").replace(/\s+/g, " ").trim()
+    return stripMarkdownBold(String(raw)).replace(/\s+/g, " ").trim()
   })()
 
   const recsWithPriority = generated?.recommendationsWithPriority ?? []
@@ -1306,16 +1419,46 @@ function ReportDetail() {
       </header>
 
       <div ref={pdfBodyRef} className="report_detail_body_shell">
-        <header className="report_assessment_doc_header">
-          <h1 className="report_assessment_title">{title}</h1>
-          <p className="report_assessment_subtitle">Analysis Report • {assessmentDate} • AI Generated</p>
+        <header className="report_assessment_doc_header report_assessment_doc_header--with_llm">
+          <div className="report_assessment_doc_header_main">
+            <h1 className="report_assessment_title">{title}</h1>
+            <p className="report_assessment_subtitle">Analysis Report • {assessmentDate} • AI Generated</p>
+          </div>
+          <AdminLlmModelLabel
+            className="report_llm_model_tag"
+            showIcon={false}
+            preferModelId
+            fallbackToActive
+            modelName={resolveStoredLlmModelId({
+              llmModelId: report?.llmModelId,
+              report: report?.report,
+            })}
+          />
         </header>
+        {!hideFrameworkMapping && frameworkAttestationBannerContent ? (
+          <div
+            className={
+              frameworkAttestationBannerContent.variant === "warn"
+                ? "report_framework_notice report_framework_notice_warn report_framework_notice_page"
+                : "report_framework_notice report_framework_notice_info report_framework_notice_page"
+            }
+            role="status"
+          >
+            {frameworkAttestationBannerContent.variant === "warn" ? (
+              <AlertCircle size={18} className="report_framework_notice_icon" aria-hidden />
+            ) : (
+              <Info size={18} className="report_framework_notice_icon" aria-hidden />
+            )}
+            <p className="report_framework_notice_text">{frameworkAttestationBannerContent.text}</p>
+          </div>
+        ) : null}
         {/* Vendor-Side Assessment Context Panel — vendors: score box + short context line (full narrative in Executive Summary only); buyers: preview + approval banner below */}
         <section
           className={`report_context_panel${usePortalStyleUi ? " report_context_panel_vendor_portal" : ""}`}
         >
-          <span className="report_context_pill">Customer-Specific Risk Assessment (Vendor-Side)</span>
-          <span className="report_context_grade_label">Grade:</span>{" "}
+          <div className="report_context_panel_top">
+            <span className="report_context_pill">Customer-Specific Risk Assessment (Vendor-Side)</span>
+          </div>
           <div className="report_context_inner">
             <div className="report_context_left">
               <h2 className="report_context_entity">{orgName !== "—" ? orgName : "Customer"}</h2>
@@ -1340,18 +1483,21 @@ function ReportDetail() {
                   style={contextRatingStyle}
                   aria-label="Overall assessment grade and alignment score"
                 >
-                  <span className="report_context_grade" style={{ color: contextMeterColor }}>
-                    <span className="report_context_grade_value">
-                      {normalizeDisplayLetterGrade(gradeFromOverallRiskScore(overallScore))}
+                  <span className="report_context_grade_label">Grade:</span>
+                  <div className="report_context_rating_row">
+                    <span className="report_context_grade" style={{ color: contextMeterColor }}>
+                      <span className="report_context_grade_value">
+                        {normalizeDisplayLetterGrade(gradeFromOverallRiskScore(overallScore))}
+                      </span>
                     </span>
-                  </span>
-                  <span className="report_context_score">
-                    {renderRiskScoreCircle(`${alignmentScoreDisplay}/100`, {
-                      color: contextMeterColor,
-                      labelFormat: "percent",
-                      className: "report_context_score_circle",
-                    })}
-                  </span>
+                    <span className="report_context_score">
+                      {renderRiskScoreCircle(`${alignmentScoreDisplay}/100`, {
+                        color: contextMeterColor,
+                        labelFormat: "percent",
+                        className: "report_context_score_circle",
+                      })}
+                    </span>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1381,18 +1527,21 @@ function ReportDetail() {
           {generated?.executiveSummary ? (
             (() => {
               const text = stripMarkdownBold(generated.executiveSummary)
-                .replace(/\s*---+\s*/g, " ")
                 .trim();
               return text
-                ? text
+                ? (
+                  <>
+                    {text
                     .split(/\n\n/)
-                    .map((p) => stripMarkdownBold(p).replace(/\s*---+\s*/g, " ").trim())
+                    .map((p) => stripMarkdownBold(p).trim())
                     .filter((p) => p.length > 0 && !/^\s*-{2,}\s*$/.test(p))
-                    .map((p, i) => <p key={i}>{p}</p>)
+                    .map((p, i) => <p key={i}>{p}</p>)}
+                  </>
+                )
                 : <p>No executive summary generated.</p>;
             })()
           ) : generated?.summary ? (
-            <p>{stripMarkdownBold(String(generated.summary)).replace(/\s*---+\s*/g, " ").trim()}</p>
+            <p>{stripMarkdownBold(String(generated.summary)).trim()}</p>
           ) : (
             <p>No executive summary generated.</p>
           )}
@@ -1400,62 +1549,195 @@ function ReportDetail() {
       </section>
 
       <div className="report_deployment_roi_row">
-        {/* Deployment Overview — six field cards, single column within this column */}
-        <section className="report_section_card">
+        <div className="report_deployment_roi_titles">
           <h2 className="report_section_heading">
             <Building2 size={20} aria-hidden /> Deployment Overview
           </h2>
-          <div className="report_deployment_grid">
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_use_case"><FileText size={12} className="report_metric_label_icon" aria-hidden />USE CASE</span><span className="report_deployment_value">{formatReportValue(deployment?.useCase || data.expectedOutcomes || data.primaryPainPoint)}</span></div>
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_product_tier"><Layers size={12} className="report_metric_label_icon" aria-hidden />PRODUCT TIER</span><span className="report_deployment_value">{formatReportValue(deployment?.productTier)}</span></div>
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_target_users"><User size={12} className="report_metric_label_icon" aria-hidden />TARGET USERS</span><span className="report_deployment_value">{formatReportValue(deployment?.targetUsers)}</span></div>
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_infra"><Shield size={12} className="report_metric_label_icon" aria-hidden />INFRASTRUCTURE</span><span className="report_deployment_value">{formatReportValue(deployment?.infrastructure || data.integrationComplexity)}</span></div>
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_timeline"><List size={12} className="report_metric_label_icon" aria-hidden />DEPLOYMENT TIMELINE</span><span className="report_deployment_value">{formatReportValue(deployment?.deploymentTimeline || data.implementationTimeline)}</span></div>
-            <div className="report_deployment_item"><span className="report_deployment_label report_deployment_label_contract"><TrendingUp size={12} className="report_metric_label_icon" aria-hidden />ANNUAL CONTRACT VALUE</span><span className="report_deployment_value">{formatReportValue(deployment?.annualContractValue || data.customerBudgetRange)}</span></div>
-          </div>
-        </section>
-
-        {/* ROI Analysis — six metric cards, single column (comparison table is a separate section below) */}
-        <section className="report_section_card">
           <h2 className="report_section_heading">
             <TrendingUp size={20} aria-hidden /> ROI Analysis
           </h2>
-          {/* <p className="report_roi_heading">{roiAnalysisHeadingText}</p> */}
-          <div className="report_roi_grid">
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_time_saved"><User size={12} className="report_metric_label_icon" aria-hidden />TIME SAVED PER EMPLOYEE</span>
-              <span className="report_roi_value">{formatReportValue(fullReport?.roiAnalysis?.timeSavedPerEmployee)}</span>
-              <span className="report_roi_sub">{formatRoiTimeSavedSourceLine(fullReport?.roiAnalysis?.timeSavedSource)}</span>
-            </div>
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_hours_recovered"><Clock3 size={12} className="report_metric_label_icon" aria-hidden />ANNUAL HOURS RECOVERED</span>
-              <span className="report_roi_value">{formatReportValue(fullReport?.roiAnalysis?.annualHoursRecovered)}</span>
-              <span className="report_roi_sub">{formatReportValue(fullReport?.roiAnalysis?.annualHoursRecoveredCalculation)}</span>
-            </div>
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_productivity"><TrendingUp size={12} className="report_metric_label_icon" aria-hidden />PRODUCTIVITY VALUE</span>
-              <span className="report_roi_value">{formatReportValue(fullReport?.roiAnalysis?.productivityValue)}</span>
-              <span className="report_roi_sub">{formatReportValue(fullReport?.roiAnalysis?.productivityValueCalculation)}</span>
-            </div>
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_cost"><DollarSign size={12} className="report_metric_label_icon" aria-hidden />ANNUAL COST</span>
-              <span className="report_roi_value">
-                {formatReportValue(fullReport?.roiAnalysis?.annualCost || deployment?.annualContractValue || data.customerBudgetRange)}
-              </span>
-              <span className="report_roi_sub">{formatReportValue(fullReport?.roiAnalysis?.annualCostCalculation)}</span>
-            </div>
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_multiple"><BarChart3 size={12} className="report_metric_label_icon" aria-hidden />ROI MULTIPLE</span>
-              <span className="report_roi_value">{formatReportValue(fullReport?.roiAnalysis?.roiMultiple)}</span>
-              <span className="report_roi_sub">{formatReportValue(fullReport?.roiAnalysis?.roiMultipleCalculation)}</span>
-            </div>
-            <div className="report_roi_card">
-              <span className="report_roi_label report_roi_label_payback"><Clock3 size={12} className="report_metric_label_icon" aria-hidden />PAYBACK PERIOD</span>
-              <span className="report_roi_value">{formatReportValue(fullReport?.roiAnalysis?.paybackPeriod)}</span>
-              <span className="report_roi_sub">{formatRoiTimeSavedSourceLine(fullReport?.roiAnalysis?.paybackSource)}</span>
-            </div>
+        </div>
+        {(
+          [
+            {
+              key: "use-case",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_use_case">
+                    <FileText size={12} className="report_metric_label_icon" aria-hidden />
+                    USE CASE
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.useCase || data.expectedOutcomes || data.primaryPainPoint)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_time_saved">
+                    <User size={12} className="report_metric_label_icon" aria-hidden />
+                    TIME SAVED PER EMPLOYEE
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(fullReport?.roiAnalysis?.timeSavedPerEmployee)}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatRoiTimeSavedSourceLine(fullReport?.roiAnalysis?.timeSavedSource)}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "product-tier",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_product_tier">
+                    <Layers size={12} className="report_metric_label_icon" aria-hidden />
+                    PRODUCT TIER
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.productTier)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_hours_recovered">
+                    <Clock3 size={12} className="report_metric_label_icon" aria-hidden />
+                    ANNUAL HOURS RECOVERED
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(fullReport?.roiAnalysis?.annualHoursRecovered)}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatReportValue(fullReport?.roiAnalysis?.annualHoursRecoveredCalculation)}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "target-users",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_target_users">
+                    <User size={12} className="report_metric_label_icon" aria-hidden />
+                    TARGET USERS
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.targetUsers)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_productivity">
+                    <TrendingUp size={12} className="report_metric_label_icon" aria-hidden />
+                    PRODUCTIVITY VALUE
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(fullReport?.roiAnalysis?.productivityValue)}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatReportValue(fullReport?.roiAnalysis?.productivityValueCalculation)}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "infra",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_infra">
+                    <Shield size={12} className="report_metric_label_icon" aria-hidden />
+                    INFRASTRUCTURE
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.infrastructure || data.integrationComplexity)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_cost">
+                    <DollarSign size={12} className="report_metric_label_icon" aria-hidden />
+                    ANNUAL COST
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(
+                      fullReport?.roiAnalysis?.annualCost ||
+                        deployment?.annualContractValue ||
+                        data.customerBudgetRange,
+                    )}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatReportValue(fullReport?.roiAnalysis?.annualCostCalculation)}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "timeline",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_timeline">
+                    <List size={12} className="report_metric_label_icon" aria-hidden />
+                    DEPLOYMENT TIMELINE
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.deploymentTimeline || data.implementationTimeline)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_multiple">
+                    <BarChart3 size={12} className="report_metric_label_icon" aria-hidden />
+                    ROI MULTIPLE
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(fullReport?.roiAnalysis?.roiMultiple)}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatReportValue(fullReport?.roiAnalysis?.roiMultipleCalculation)}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "contract",
+              deployment: (
+                <div className="report_deployment_item">
+                  <span className="report_deployment_label report_deployment_label_contract">
+                    <TrendingUp size={12} className="report_metric_label_icon" aria-hidden />
+                    ANNUAL CONTRACT VALUE
+                  </span>
+                  <span className="report_deployment_value">
+                    {formatReportValue(deployment?.annualContractValue || data.customerBudgetRange)}
+                  </span>
+                </div>
+              ),
+              roi: (
+                <div className="report_roi_card">
+                  <span className="report_roi_label report_roi_label_payback">
+                    <Clock3 size={12} className="report_metric_label_icon" aria-hidden />
+                    PAYBACK PERIOD
+                  </span>
+                  <span className="report_roi_value">
+                    {formatReportValue(fullReport?.roiAnalysis?.paybackPeriod)}
+                  </span>
+                  <span className="report_roi_sub">
+                    {formatRoiTimeSavedSourceLine(fullReport?.roiAnalysis?.paybackSource)}
+                  </span>
+                </div>
+              ),
+            },
+          ] as const
+        ).map((pair) => (
+          <div key={pair.key} className="report_deployment_roi_pair">
+            {pair.deployment}
+            {pair.roi}
           </div>
-        </section>
+        ))}
       </div>
 
       {/* Comparison to Alternatives — same data as ROI appendix, own section (not inside ROI Analysis) */}
@@ -1485,8 +1767,14 @@ function ReportDetail() {
           </h2>
           <span className="report_overall_risk_right">
             <span className="report_overall_risk_score_row">
-              <span className="report_overall_risk_score_label">Overall Risk Score</span>
-              <span className="report_overall_risk_score_wrap">{renderRiskScoreCircle(`${overallScore}/100`)}</span>
+              <span className="report_overall_risk_score_label">
+                {usePortalStyleUi ? "Overall Readiness Score" : "Overall Risk Score"}
+              </span>
+              <span className="report_overall_risk_score_wrap">
+                {renderRiskScoreCircle(
+                  `${usePortalStyleUi ? alignmentScoreDisplay : overallScore}/100`,
+                )}
+              </span>
             </span>
             <span
               className={`report_risk_badge ${riskLevelClass(overallLevel)} ${overallRiskBadgeVariantClass(overallLevel)}`}
@@ -1563,7 +1851,7 @@ function ReportDetail() {
         </div>
       </section>
 
-      {/* Compliance Alignment — Met | Pending (same layout as buyer portal recommendations) */}
+      {/* Compliance Alignment — Met | Pending columns, 3 cards per row in each */}
       <section className="report_section_card report_compliance_recommendations_shell">
         <h2 className="report_section_heading"><Shield size={18} aria-hidden /> Compliance Alignment</h2>
         <p className="report_compliance_summary">{formatReportValue(fullReport?.complianceAlignment?.summary)}</p>
@@ -1581,28 +1869,46 @@ function ReportDetail() {
             </div>
           </div>
           <div className="bvr_reco_priority_body" role="rowgroup">
-            <div className="bvr_reco_priority_col" role="cell">
+            <div className="bvr_reco_priority_col report_compliance_col" role="cell">
               {complianceBuckets.met.length === 0 ? (
                 <p className="bvr_reco_empty">No met requirements.</p>
               ) : (
-                complianceBuckets.met.map((req, i) => (
-                  <article key={`met-${i}`} className="bvr_reco_priority_item">
-                    <h3 className="bvr_reco_title">{formatReportValue(req.name)}</h3>
-                    <p className="bvr_reco_desc">{formatReportValue(req.description)}</p>
-                  </article>
-                ))
+                <div className="report_compliance_cards_grid">
+                  {complianceBuckets.met.map((req, i) => (
+                    <article
+                      key={`met-${i}`}
+                      className="report_compliance_card report_compliance_card--met"
+                    >
+                      <h3 className="report_compliance_card_title">
+                        {formatReportValue(req.name)}
+                      </h3>
+                      <p className="report_compliance_card_desc">
+                        {formatReportValue(req.description)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
               )}
             </div>
-            <div className="bvr_reco_priority_col" role="cell">
+            <div className="bvr_reco_priority_col report_compliance_col" role="cell">
               {complianceBuckets.pending.length === 0 ? (
                 <p className="bvr_reco_empty">No pending requirements.</p>
               ) : (
-                complianceBuckets.pending.map((req, i) => (
-                  <article key={`pending-${i}`} className="bvr_reco_priority_item">
-                    <h3 className="bvr_reco_title">{formatReportValue(req.name)}</h3>
-                    <p className="bvr_reco_desc">{formatReportValue(req.description)}</p>
-                  </article>
-                ))
+                <div className="report_compliance_cards_grid">
+                  {complianceBuckets.pending.map((req, i) => (
+                    <article
+                      key={`pending-${i}`}
+                      className="report_compliance_card report_compliance_card--pending"
+                    >
+                      <h3 className="report_compliance_card_title">
+                        {formatReportValue(req.name)}
+                      </h3>
+                      <p className="report_compliance_card_desc">
+                        {formatReportValue(req.description)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -1618,23 +1924,6 @@ function ReportDetail() {
           <p className="report_framework_lead">
             Frameworks and control themes for this engagement. Product attestation evidence is shown when linked and parsed.
           </p>
-          {frameworkAttestationBannerContent ? (
-            <div
-              className={
-                frameworkAttestationBannerContent.variant === "warn"
-                  ? "report_framework_notice report_framework_notice_warn"
-                  : "report_framework_notice report_framework_notice_info"
-              }
-              role="status"
-            >
-              {frameworkAttestationBannerContent.variant === "warn" ? (
-                <AlertCircle size={18} className="report_framework_notice_icon" aria-hidden />
-              ) : (
-                <Info size={18} className="report_framework_notice_icon" aria-hidden />
-              )}
-              <p className="report_framework_notice_text">{frameworkAttestationBannerContent.text}</p>
-            </div>
-          ) : null}
           {frameworkRows.length > 0 ? (
             <div className="report_framework_table_shell">
               <div className="report_table_wrap report_framework_table_wrap">
@@ -1799,13 +2088,15 @@ function ReportDetail() {
                               <p className="bvr_reco_desc report_impl_plan_activities_label">
                                 <strong>Activities</strong>
                               </p>
-                              <ul className="report_impl_phase_list">
-                                {phase.activities?.length ? (
-                                  phase.activities.map((a, j) => <li key={j}>{formatReportValue(a)}</li>)
-                                ) : (
-                                  <li>—</li>
-                                )}
-                              </ul>
+                              {phase.activities?.length ? (
+                                <ul className="report_impl_phase_list">
+                                  {phase.activities.map((a, i) => (
+                                    <li key={i}>{ensureSpaceAfterColon(formatReportValue(a))}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="bvr_reco_empty">—</p>
+                              )}
                             </>
                           ) : null}
                         </div>
@@ -1819,12 +2110,16 @@ function ReportDetail() {
                           role="cell"
                         >
                           {phase ? (
-                            <p className="bvr_reco_desc report_impl_plan_slot">
-                              <strong>Deliverables:</strong>{" "}
-                              {phase.deliverables?.length
-                                ? phase.deliverables.map((d) => formatReportValue(d)).join(", ")
-                                : "—"}
-                            </p>
+                            <>
+                              <p className="bvr_reco_desc report_impl_plan_slot">
+                                <strong>Deliverables:</strong>
+                              </p>
+                              <p className="bvr_reco_desc" style={{ margin: 0 }}>
+                                {phase.deliverables?.length
+                                  ? phase.deliverables.map((d) => formatReportValue(d)).join(", ")
+                                  : "—"}
+                              </p>
+                            </>
                           ) : null}
                         </div>
                       ))}
@@ -1982,9 +2277,16 @@ function ReportDetail() {
               Methodology
             </h4>
             <div className="report_appendix_card_body">
-              {formatReportValue(fullReport?.appendix?.methodology) !== "—"
-                ? formatReportValue(fullReport?.appendix?.methodology)
-                : "AI EVAL 3-Layer Risk Assessment Framework v2.1 — Customer-Specific Analysis"}
+              {(() => {
+                const methodologyRaw = formatReportValue(fullReport?.appendix?.methodology);
+                const looksLikeFormula =
+                  methodologyRaw !== "—" &&
+                  /(?:VTS|IRS|SRS|SCS)\s*=|×\s*0\.\d|weight(?:ed|s)?\s*(?:risk|of|:)|deterministic\s+.*formula/i.test(
+                    methodologyRaw,
+                  );
+                if (methodologyRaw !== "—" && !looksLikeFormula) return methodologyRaw;
+                return "AI EVAL 3-Layer Risk Assessment Framework v2.1 — Customer-Specific Analysis";
+              })()}
             </div>
           </article>
           <article className="report_appendix_card">

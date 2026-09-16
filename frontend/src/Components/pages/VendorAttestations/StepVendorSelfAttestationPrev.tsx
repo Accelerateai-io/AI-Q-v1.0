@@ -3,11 +3,22 @@
  * Uses the same UI as Vendor Onboarding preview (vendor_preview cards). Document rows keep View/Edit actions.
  */
 import React from "react";
-import { Eye, ShieldCheck, CircleArrowUp } from "lucide-react";
+import { Eye, ShieldCheck, CircleArrowUp, ExternalLink } from "lucide-react";
 import type { VendorSelfAttestationFormState } from "../../../types/vendorSelfAttestation";
 import { VENDOR_SELF_ATTESTATION } from "../../../constants/vendorAttestionData";
 import { ATTESTATION_SECTION_FIELDS } from "../../../constants/vendorAttestationFields";
+import { DOCUMENT_CATEGORIES } from "../../../constants/vendorAttestationDocumentConstants";
+import {
+  BUG_BOUNTY_STATUS_OPTIONS,
+  VDP_STATUS_OPTIONS,
+  getAttestationFieldOptions,
+} from "../../../constants/vendorAttestationOptions";
+import {
+  FINANCIAL_POSITION_OPTIONS,
+  FUNDING_STATUS_OPTIONS,
+} from "../../../constants/vendorOnboardingData";
 import { formatPreviewValueAsString } from "../../../utils/formatPreviewValue";
+import { formatFedrampAuthorization } from "../../../utils/fedrampAuthorization";
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js";
 import { personalizeAttestationFieldLabel } from "../../../utils/attestationFieldLabel";
 import "../VendorOnboarding/StepVendorOnboardingPreview.css";
@@ -17,12 +28,19 @@ import "./vendor_attestation_preview.css";
 const STEP_DOCUMENT_UPLOAD = 1;
 const STEP_AI_TECHNICAL = 3;
 const STEP_COMPLIANCE_CERTIFICATIONS = 4;
-const STEP_EVIDENCE = 9;
+const STEP_EVIDENCE = 10;
 
 export type ComplianceDocumentExpiryMeta = {
   category?: string;
   expiryAt?: string | null;
   error?: string;
+  documentClass?: string;
+  validation?: {
+    isValid?: boolean;
+    reason?: string;
+    mismatch?: boolean;
+    expired?: boolean;
+  };
 };
 
 interface StepVendorSelfAttestationPrevProps {
@@ -35,6 +53,8 @@ interface StepVendorSelfAttestationPrevProps {
   onOpenDocument?: (fileName: string) => void;
   /** Parsed PDF expiry metadata keyed by file name (from compliance_document_expiries). */
   complianceDocumentExpiries?: Record<string, ComplianceDocumentExpiryMeta> | null;
+  /** Used when company profile vendorName is empty (organization name). */
+  vendorNameFallback?: string | null;
 }
 
 function lookupComplianceExpiry(
@@ -137,8 +157,139 @@ function VendorAttestationPreviewDocumentRowActions({
 }
 
 /** User-friendly preview: multi-select/industry/dependent dropdown as readable text, never raw array or JSON. */
-function formatValue(val: unknown): string {
+function formatValue(val: unknown, fieldKey?: string): string {
+  if (fieldKey && Array.isArray(val)) {
+    const options = getAttestationFieldOptions(fieldKey);
+    const labels = val.map((item) => {
+      const s = String(item);
+      return options?.find((option) => option.value === s)?.label ?? s;
+    });
+    return formatPreviewValueAsString(labels);
+  }
+  if (fieldKey && typeof val === "string") {
+    const match = getAttestationFieldOptions(fieldKey)?.find((option) => option.value === val)
+    if (match) return match.label
+  }
   return formatPreviewValueAsString(val);
+}
+
+function optionLabel(options: { label: string; value: string }[], value?: string | null): string {
+  if (!value) return "N/A";
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function formatVdp(value: VendorSelfAttestationFormState["attestation"]["vulnerability_disclosure_policy"]): string {
+  if (!value?.status) return "N/A";
+  const parts = [optionLabel(VDP_STATUS_OPTIONS, value.status)];
+  if (value.url) parts.push(value.url);
+  if (value.ack_sla_hours) parts.push(`Ack SLA: ${value.ack_sla_hours}h`);
+  return parts.join(" · ");
+}
+
+function formatBugBounty(value: VendorSelfAttestationFormState["attestation"]["bug_bounty"]): string {
+  if (!value?.status) return "N/A";
+  const parts = [optionLabel(BUG_BOUNTY_STATUS_OPTIONS, value.status)];
+  if (value.url) parts.push(value.url);
+  if (value.scope) parts.push(`Scope: ${value.scope}`);
+  return parts.join(" · ");
+}
+
+function formatDataSubjectRights(
+  rights?: string[] | null,
+  role?: string | null,
+): string {
+  const rightsText = (rights ?? [])
+    .map((right) => formatValue(right, "data_subject_rights"))
+    .filter((text) => text && text !== "N/A")
+    .join(", ");
+  const roleText = formatValue(role, "controller_or_processor");
+  if (!rightsText && roleText === "N/A") return "N/A";
+  if (!rightsText) return roleText;
+  if (roleText === "N/A") return rightsText;
+  return `${rightsText} · ${roleText}`;
+}
+
+function formatSecurityIncidents(
+  answer: VendorSelfAttestationFormState["attestation"]["has_public_security_incident"],
+  incidents: VendorSelfAttestationFormState["attestation"]["security_incidents"],
+): string {
+  const rows = (incidents ?? []).filter((item) => item?.summary?.trim() || item?.date?.trim());
+  if (!rows.length) return answer === "no" ? "No" : answer === "yes" ? "Yes" : "N/A";
+  const detail = rows
+    .map((item) => {
+      const date = item.date?.trim() || "Date not provided";
+      const severity = item.severity?.trim() || "unspecified severity";
+      const status = item.resolved ? "resolved" : "open";
+      const summary = item.summary?.trim() || "No summary";
+      const source = (item.sourceUrl ?? item.source_url ?? "").trim();
+      return `${date} — ${severity} — ${status}: ${summary}${source ? ` (${source})` : ""}`;
+    })
+    .join("; ");
+  return `Yes · ${detail}`;
+}
+
+function subProcessorHref(raw: string): string {
+  const url = raw.trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(url)) return `https://${url}`;
+  return "";
+}
+
+function SubProcessorsPreview({
+  value,
+}: {
+  value: VendorSelfAttestationFormState["attestation"]["sub_processors"];
+}) {
+  const rows = (value ?? []).filter((item) => item?.name?.trim());
+  if (!rows.length) {
+    return <span className="vendor_preview_na">No sub-processors listed</span>;
+  }
+  return (
+    <div className="preview_subprocessor_table_wrap">
+      <table className="preview_subprocessor_table">
+        <thead>
+          <tr>
+            <th scope="col" className="preview_subprocessor_col_name">Name</th>
+            <th scope="col" className="preview_subprocessor_col_purpose">Purpose</th>
+            <th scope="col" className="preview_subprocessor_col_region">Region</th>
+            <th scope="col" className="preview_subprocessor_col_source">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((item, index) => {
+            const name = item.name.trim();
+            const purpose = item.purpose?.trim() ?? "";
+            const region = item.region?.trim() ?? "";
+            const source = item.source_url?.trim() ?? "";
+            const href = subProcessorHref(source);
+            return (
+              <tr key={`${name}-${index}`}>
+                <td className="preview_subprocessor_col_name">{name}</td>
+                <td className="preview_subprocessor_col_purpose">{purpose || "—"}</td>
+                <td className="preview_subprocessor_col_region">{region || "—"}</td>
+                <td className="preview_subprocessor_col_source">
+                  {href ? (
+                    <a
+                      className="preview_subprocessor_link"
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink size={12} aria-hidden />
+                      <span>{source}</span>
+                    </a>
+                  ) : (
+                    source || "—"
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function StepVendorSelfAttestationPrev({
@@ -147,6 +298,7 @@ function StepVendorSelfAttestationPrev({
   attestationId,
   onOpenDocument,
   complianceDocumentExpiries,
+  vendorNameFallback,
 }: StepVendorSelfAttestationPrevProps) {
   const { companyProfile, attestation, documentUpload } = formState;
 
@@ -188,8 +340,17 @@ function StepVendorSelfAttestationPrev({
     };
   };
 
+  const vendorNameDisplay = (() => {
+    const fromProfile = String(companyProfile.vendorName ?? "").trim();
+    if (fromProfile && fromProfile.toLowerCase() !== "n/a" && fromProfile.toLowerCase() !== "na") {
+      return fromProfile;
+    }
+    const fallback = String(vendorNameFallback ?? "").trim();
+    return fallback || fromProfile;
+  })();
+
   const companyProfileRows: { label: string; value: string }[] = [
-    { label: "Vendor Name", value: formatValue(companyProfile.vendorName) },
+    { label: "Vendor Name", value: formatValue(vendorNameDisplay) },
     { label: "Vendor Type", value: formatValue(companyProfile.vendorType) },
     { label: "Vendor Maturity", value: formatValue(companyProfile.vendorMaturity) },
     { label: "Company Website", value: formatValue(companyProfile.companyWebsite) },
@@ -198,19 +359,29 @@ function StepVendorSelfAttestationPrev({
     { label: "Year Founded", value: formatValue(companyProfile.yearFounded) },
     { label: "Headquarters", value: formatValue(companyProfile.headquartersLocation) },
     { label: "Operating Regions", value: formatValue(companyProfile.operatingRegions) },
+    { label: "Funding Status", value: optionLabel(FUNDING_STATUS_OPTIONS, companyProfile.fundingStatus) },
+    { label: "Financial Position", value: optionLabel(FINANCIAL_POSITION_OPTIONS, companyProfile.financialPosition) },
+    { label: "Enterprise Customers", value: formatValue(companyProfile.enterpriseCustomers) },
+    {
+      label: "Annual Customer Retention Rate",
+      value: companyProfile.customerRetentionRate
+        ? `${companyProfile.customerRetentionRate}%`
+        : formatValue(companyProfile.customerRetentionRate),
+    },
   ];
 
   /** Compliance certifications evidence — one heading, then list: "1. SOC2 Type 2 document uploaded  verified view update" */
-  const categoriesWithDocs =
+  const allowedCertificationValues = new Set<string>(DOCUMENT_CATEGORIES.map((c) => c.value));
+  const selectedCertCategories =
     documentUpload?.["2"]?.categories?.filter(
-      (category) => (documentUpload["2"]?.byCategory?.[category] ?? []).length > 0
+      (category) => allowedCertificationValues.has(category) && category !== "None",
     ) ?? [];
   const regulatoryRows = (
     <div className="vendor_preview_row vendor_preview_row_regulatory">
       <dt className="vendor_preview_label">
         <span className="vendor_preview_doc_label">
           <span>Which compliance certifications do you hold? (attach evidence for each)</span>
-          {categoriesWithDocs.length === 0 && onNavigateToStep && (
+          {selectedCertCategories.length === 0 && onNavigateToStep && (
             <span className="preview-doc-actions">
               <button
                 type="button"
@@ -226,21 +397,42 @@ function StepVendorSelfAttestationPrev({
         </span>
       </dt>
       <dd className="vendor_preview_value vendor_preview_value_regulatory_list">
-        {categoriesWithDocs.length > 0 ? (
+        {selectedCertCategories.length > 0 ? (
           <ol className="preview_regulatory_doc_list">
-            {categoriesWithDocs.map((category) => {
+            {selectedCertCategories.map((category) => {
               const names = documentUpload!["2"]!.byCategory![category] ?? [];
               const fileName = names[0];
+              const meta = fileName
+                ? lookupComplianceExpiry(fileName, complianceDocumentExpiries)
+                : null;
+              const expired =
+                meta?.validation?.expired === true ||
+                Boolean(
+                  meta?.expiryAt &&
+                    !Number.isNaN(new Date(meta.expiryAt).getTime()) &&
+                    new Date(meta.expiryAt).getTime() < Date.now(),
+                );
+              const mismatch = meta?.validation?.mismatch === true;
+              const verified = Boolean(fileName) && meta?.validation?.isValid === true && !expired && !mismatch;
+              const badgeLabel = !fileName
+                ? "Pending evidence"
+                : mismatch
+                  ? "Mismatch"
+                  : expired
+                    ? "Expired"
+                    : verified
+                      ? "Verified"
+                      : "Unverified";
               return (
                 <li key={category} className="preview_regulatory_doc_item">
                   <span className="preview_regulatory_doc_line">
                     <span className="preview_regulatory_doc_category">{category}</span>
-                    <span className="preview_regulatory_doc_uploaded"> {fileName}</span>
+                    <span className="preview_regulatory_doc_uploaded"> {fileName ?? ""}</span>
                   </span>
                   <span className="preview-doc-actions">
-                    <span className="preview-regulatory-verified" title="Verified">
+                    <span className="preview-regulatory-verified" title={meta?.validation?.reason || badgeLabel}>
                       <ShieldCheck size={14} aria-hidden />
-                      <span>Verified</span>
+                      <span>{badgeLabel}</span>
                     </span>
                     {fileName ? (
                       <ComplianceExpiryBesideView fileName={fileName} expiries={complianceDocumentExpiries} />
@@ -396,10 +588,36 @@ function StepVendorSelfAttestationPrev({
                   return (
                     <div key={mapping.key} className="vendor_preview_row">
                       <dt className="vendor_preview_label">{rowLabel}</dt>
-                      <dd className="vendor_preview_value">{formatValue(val)}</dd>
+                      <dd className="vendor_preview_value">{formatValue(val, mapping.key)}</dd>
                     </div>
                   );
                 })}
+                {sectionKey === "ai_technical_capabilities" && (
+                  <div key="versions_models" className="vendor_preview_row">
+                    <dt className="vendor_preview_label">Do you version models, and how?</dt>
+                    <dd className="vendor_preview_value">
+                      {attestation.versions_models === "yes"
+                        ? `Yes · ${formatValue(attestation.model_versioning_method, "model_versioning_method")}`
+                        : attestation.versions_models === "no"
+                          ? "No"
+                          : "N/A"}
+                    </dd>
+                  </div>
+                )}
+                {sectionKey === "deployment_architecture" && (
+                  <div key="is_multi_tenant" className="vendor_preview_row">
+                    <dt className="vendor_preview_label">
+                      Is the product multi-tenant? What isolation model?
+                    </dt>
+                    <dd className="vendor_preview_value">
+                      {attestation.is_multi_tenant === "yes"
+                        ? `Yes · ${formatValue(attestation.tenant_isolation_model, "tenant_isolation_model")}`
+                        : attestation.is_multi_tenant === "no"
+                          ? "No"
+                          : "N/A"}
+                    </dd>
+                  </div>
+                )}
                 {sectionKey === "ai_technical_capabilities" &&
                   attestation.documented_ai_governance_policy === "Yes" &&
                   (() => {
@@ -424,6 +642,77 @@ function StepVendorSelfAttestationPrev({
                       </div>
                     );
                   })()}
+                {sectionKey === "data_handling_privacy" && (
+                  <>
+                    <div key="data_subject_rights" className="vendor_preview_row">
+                      <dt className="vendor_preview_label">
+                        Which data subject rights do you support, and in what role?
+                      </dt>
+                      <dd className="vendor_preview_value">
+                        {formatDataSubjectRights(
+                          attestation.data_subject_rights,
+                          attestation.controller_or_processor,
+                        )}
+                      </dd>
+                    </div>
+                    <div key="encryption_at_rest" className="vendor_preview_row">
+                      <dt className="vendor_preview_label">What encryption do you apply at rest?</dt>
+                      <dd className="vendor_preview_value">
+                        {formatValue(attestation.encryption_at_rest, "encryption_at_rest")}
+                        {attestation.encryption_at_rest_evidence_id
+                          ? ` · Evidence: ${attestation.encryption_at_rest_evidence_id}`
+                          : ""}
+                      </dd>
+                    </div>
+                  </>
+                )}
+                {sectionKey === "ai_safety_testing" && (
+                  <>
+                    <div key="vdp" className="vendor_preview_row">
+                      <dt className="vendor_preview_label">Do you publish a VDP?</dt>
+                      <dd className="vendor_preview_value">
+                        {formatVdp(attestation.vulnerability_disclosure_policy)}
+                      </dd>
+                    </div>
+                    <div key="bug_bounty" className="vendor_preview_row">
+                      <dt className="vendor_preview_label">Do you run a bug bounty?</dt>
+                      <dd className="vendor_preview_value">
+                        {formatBugBounty(attestation.bug_bounty)}
+                      </dd>
+                    </div>
+                  </>
+                )}
+                {sectionKey === "operations_reliability" && (
+                  <div key="security_incidents" className="vendor_preview_row">
+                    <dt className="vendor_preview_label">
+                      Have you had a publicly disclosed security incident in the last 24 months?
+                    </dt>
+                    <dd className="vendor_preview_value">
+                      {formatSecurityIncidents(
+                        attestation.has_public_security_incident,
+                        attestation.security_incidents,
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {sectionKey === "vendor_management" && (
+                  <div key="sub_processors" className="vendor_preview_row vendor_preview_row_stack">
+                    <dt className="vendor_preview_label">List your sub-processors</dt>
+                    <dd className="vendor_preview_value preview_subprocessor_value">
+                      <SubProcessorsPreview value={attestation.sub_processors} />
+                    </dd>
+                  </div>
+                )}
+                {isComplianceCertifications && (
+                  <div key="fedramp_authorization" className="vendor_preview_row">
+                    <dt className="vendor_preview_label">
+                      Do you hold a FedRAMP authorization? Level and boundary
+                    </dt>
+                    <dd className="vendor_preview_value">
+                      {formatFedrampAuthorization(attestation.fedramp_authorization)}
+                    </dd>
+                  </div>
+                )}
                 {isComplianceCertifications && regulatoryRows}
               </dl>
             </section>

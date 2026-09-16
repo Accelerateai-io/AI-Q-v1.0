@@ -1,11 +1,13 @@
 import { Eye, SquarePen, Search } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import DataTable from "react-data-table-component";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../../../Context/hooks";
 import { getOrganizations } from "../../../Context/OrganizationsData";
 import LoadingMessage from "../../UI/LoadingMessage";
+import OrgNameWithLogo from "../../UI/OrgNameWithLogo";
 import EditOrganization from "./EditOrganization";
 import { getOrganizationTypeDisplay } from "../../../utils/organizationTypeDisplay";
+import { premiumDataTableStyles } from "../../../styles/dataTableStyles";
 import "../Assessments/assessments.css";
 
 const LOADER_MIN_MS = 1500;
@@ -18,8 +20,8 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const startTimeRef = useRef(null);
 
-  const dispatch = useDispatch();
-  const { data, status } = useSelector((state) => state.organizations);
+  const dispatch = useAppDispatch();
+  const { data, status } = useAppSelector((state) => state.organizations);
   const [isEdit, setIsEdit] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState(null);
 
@@ -60,15 +62,7 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
     setSelectedOrgId(id);
   };
 
-  const customStyles = {
-    table: {
-      style: {
-        width: "100%",
-        backgroundColor: "#f8f8f8",
-        border: "1px solid lightgray",
-      },
-    },
-  };
+  const customStyles = premiumDataTableStyles;
 
   const columns = [
     {
@@ -91,22 +85,11 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
       name: <div className="tableHeader">Organization Name</div>,
       selector: (row) => row.organizationName ?? "",
       cell: (row) => (
-        <div
-          style={{
-            width: "100%",
-            textAlign: "left",
-          }}
-        >
-          <p
-            className="orgNameClickable"
-            onClick={() => openPreview?.(row)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && openPreview?.(row)}
-          >
-            {row.organizationName}
-          </p>
-        </div>
+        <OrgNameWithLogo
+          name={row.organizationName}
+          id={row.id}
+          onClick={() => openPreview?.(row)}
+        />
       ),
       sortable: true,
     },
@@ -125,26 +108,25 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
     {
       name: <div className="tableHeader">Status</div>,
       selector: (row) => row.organizationStatus ?? "",
-      cell: (row) => (
-        <div
-          style={{
-            width: "100%",
-            justifyContent: "center",
-            display: "flex",
-          }}
-        >
-          <p
-            style={{ textTransform: "capitalize" }}
-            className={
-              row.organizationStatus === "active"
-                ? "activeStatus"
-                : "inactiveStatus"
-            }
+      cell: (row) => {
+        const status = (row.organizationStatus ?? "").toString().toLowerCase();
+        const isActive = status === "active";
+        const isArchived = status === "archived";
+        return (
+          <span
+            className={`pill pill_status ${
+              isActive
+                ? "pill_status_active"
+                : isArchived
+                  ? "pill_status_archived"
+                  : "pill_status_inactive"
+            } pill_status_with_dot`}
           >
-            {row.organizationStatus}
-          </p>
-        </div>
-      ),
+            <span className="pill_status_dot" aria-hidden />
+            {isActive ? "Active" : isArchived ? "Archived" : "Inactive"}
+          </span>
+        );
+      },
       sortable: true,
     },
     {
@@ -154,29 +136,29 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
         <div className="user_table_actions">
           <button
             type="button"
-            className="user_table_action_btn"
+            className="user_table_action_btn user_table_action_btn_icon"
             onClick={() => openPreview?.(row)}
-            title="View organization details"
+            title="View"
+            aria-label="View organization details"
           >
-            <Eye size={16} />
-            View
+            <Eye size={14} />
           </button>
           {!viewOnly && (
             <button
               type="button"
-              className="user_table_action_btn"
+              className="user_table_action_btn user_table_action_btn_icon"
               onClick={() => editOrg(row.id)}
-              title="Edit organization"
+              title="Edit"
+              aria-label="Edit organization"
             >
-              <SquarePen size={16} />
-              Edit
+              <SquarePen size={14} />
             </button>
           )}
         </div>
       ),
       ignoreRowClick: true,
-      minWidth: "160px",
-      width: "160px",
+      minWidth: "120px",
+      width: "120px",
     },
   ];
   const selectedOrg = data?.find((org) => org.id === selectedOrgId);
@@ -241,6 +223,8 @@ const OrganizationDataTable = ({ openPreview, viewOnly = false }) => {
             paginationResetDefaultPage={resetPaginationToggle}
             selectableRows
             persistTableHead
+            striped
+            highlightOnHover={false}
           />
         )}
       </div>

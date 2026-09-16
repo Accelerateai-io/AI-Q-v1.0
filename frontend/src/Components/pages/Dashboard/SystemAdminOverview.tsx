@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Building2, ShoppingBag, Users, FileCheck } from "lucide-react";
+import { Building2, LayoutDashboard, ShoppingBag, Users, FileCheck } from "lucide-react";
 import type { DashboardStats } from "./types";
 import { BASE_URL } from "./utils";
+import DashboardFeatureCard from "../../UI/DashboardFeatureCard";
+import LoadingMessage from "../../UI/LoadingMessage";
 import "./dashboard.css";
 
 interface SystemAdminOverviewProps {
@@ -49,60 +51,79 @@ const SystemAdminOverview = ({ viewOnly = false }: SystemAdminOverviewProps) => 
       .finally(() => finishLoading());
   }, []);
 
+  if (loading) {
+    return (
+      <div className="vendor_overview_page sec_user_page org_settings_page admin_overview_page">
+        <LoadingMessage
+          message="Loading dashboard…"
+          className="loading_message_wrapper--page"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="vendor_overview_page sec_user_page org_settings_page">
-      <div className="vendor_overview_heading page_header_align">
-        <div className="vendor_overview_headers page_header_row">
+    <div className="vendor_overview_page sec_user_page org_settings_page admin_overview_page">
+      <header className="dash_greeting_row dash_greeting_row--page_header admin_overview_header">
+        <div className="page_header_row">
           <span className="icon_size_header" aria-hidden>
-            <LayoutDashboard size={24} className="header_icon_svg" />
+            <LayoutDashboard size={32} className="header_icon_svg" />
           </span>
           <div className="page_header_title_block">
-            <h1 className="page_header_title">
+            <h1 className="dash_greeting_title page_header_title">
               {viewOnly ? "Dashboard" : "System Admin Dashboard"}
             </h1>
-            <p className="vendor_overview_subtitle page_header_subtitle">
-              {viewOnly ? "View-only summary of platform metrics." : "Platform-wide metrics and activity summary."}
+            <p className="dash_greeting_subtitle page_header_subtitle">
+              {viewOnly
+                ? "View-only summary of platform metrics."
+                : "Platform-wide metrics and activity summary."}
             </p>
           </div>
         </div>
-      </div>
+      </header>
 
-      {loading && (
-        <div className="vendor_overview_loading">Loading dashboard…</div>
-      )}
-      {error && (
-        <div className="vendor_overview_error">{error}</div>
-      )}
-      {!loading && !error && stats && (
-        <div>
-          <div className="vendor_overview_metrics vendor_overview_metrics_four">
-            <div className="vendor_overview_metric_card">
-              <span className="vendor_overview_metric_card_icon" aria-hidden />
-              <p className="vendor_overview_metric_title"><Building2 size={22} />Total Organizations</p>
-              <p className="vendor_overview_metric_value">{stats.totalOrganizations}</p>
-              <p className="vendor_overview_metric_desc">Registered organizations on the platform</p>
-            </div>
-            <div className="vendor_overview_metric_card">
-              <span className="vendor_overview_metric_card_icon" aria-hidden />
-              <p className="vendor_overview_metric_title"><ShoppingBag size={22} />Total Vendors</p>
-              <p className="vendor_overview_metric_value">{stats.totalVendors}</p>
-              <p className="vendor_overview_metric_desc">Vendors who completed onboarding</p>
-            </div>
-            <div className="vendor_overview_metric_card">
-              <span className="vendor_overview_metric_card_icon" aria-hidden />
-              <p className="vendor_overview_metric_title"><Users size={22} />Total Buyers</p>
-              <p className="vendor_overview_metric_value">{stats.totalBuyers}</p>
-              <p className="vendor_overview_metric_desc">Buyers who completed onboarding</p>
-            </div>
-            <div className="vendor_overview_metric_card">
-              <span className="vendor_overview_metric_card_icon" aria-hidden />
-              <p className="vendor_overview_metric_title"><FileCheck size={22} />Attestations</p>
-              <p className="vendor_overview_metric_value">{stats.totalAttestations}</p>
-              <p className="vendor_overview_metric_desc">Vendor self-attestations submitted</p>
-            </div>
+      <div className="admin_overview_content">
+        {error && <div className="vendor_overview_error">{error}</div>}
+        {!error && stats && (
+          <div
+            className="dash_feature_grid dash_feature_grid--admin"
+            aria-label="Platform metrics"
+          >
+            <DashboardFeatureCard
+              to="/organizations"
+              accent="teal"
+              title="Organizations"
+              description="Registered organizations on the platform."
+              icon={<Building2 size={22} strokeWidth={1.75} />}
+              footerLabel={`${stats.totalOrganizations} total`}
+            />
+            <DashboardFeatureCard
+              to="/organizations"
+              accent="orange"
+              title="Vendors"
+              description="Vendors who completed onboarding."
+              icon={<ShoppingBag size={22} strokeWidth={1.75} />}
+              footerLabel={`${stats.totalVendors} live`}
+            />
+            <DashboardFeatureCard
+              to="/organizations"
+              accent="rose"
+              title="Buyers"
+              description="Buyers who completed onboarding."
+              icon={<Users size={22} strokeWidth={1.75} />}
+              footerLabel={`${stats.totalBuyers} live`}
+            />
+            <DashboardFeatureCard
+              to="/attestation_details"
+              accent="sky"
+              title="Attestations"
+              description="Vendor self-attestations submitted across the platform."
+              icon={<FileCheck size={22} strokeWidth={1.75} />}
+              footerLabel={`${stats.totalAttestations} total`}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

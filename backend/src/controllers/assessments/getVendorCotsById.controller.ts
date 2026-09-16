@@ -66,6 +66,32 @@ const getVendorCotsById = async (req: Request, res: Response) => {
         key_advantages: cotsVendorAssessments.key_advantages,
         customer_specific_risks: cotsVendorAssessments.customer_specific_risks,
         customer_specific_risks_other: cotsVendorAssessments.customer_specific_risks_other,
+        customer_employee_count: cotsVendorAssessments.customer_employee_count,
+        customer_eng_headcount: cotsVendorAssessments.customer_eng_headcount,
+        customer_annual_revenue: cotsVendorAssessments.customer_annual_revenue,
+        customer_ownership: cotsVendorAssessments.customer_ownership,
+        customer_hq_country: cotsVendorAssessments.customer_hq_country,
+        customer_operating_regions: cotsVendorAssessments.customer_operating_regions,
+        customer_certifications: cotsVendorAssessments.customer_certifications,
+        customer_regulators: cotsVendorAssessments.customer_regulators,
+        customer_public_incident: cotsVendorAssessments.customer_public_incident,
+        customer_cloud_provider: cotsVendorAssessments.customer_cloud_provider,
+        customer_identity_provider: cotsVendorAssessments.customer_identity_provider,
+        customer_scm_platform: cotsVendorAssessments.customer_scm_platform,
+        customer_incumbent_ai_tooling: cotsVendorAssessments.customer_incumbent_ai_tooling,
+        likely_integration_systems: cotsVendorAssessments.likely_integration_systems,
+        customer_ai_maturity_evidence: cotsVendorAssessments.customer_ai_maturity_evidence,
+        customer_ai_leadership: cotsVendorAssessments.customer_ai_leadership,
+        customer_public_ai_policy: cotsVendorAssessments.customer_public_ai_policy,
+        opportunity_type: cotsVendorAssessments.opportunity_type,
+        target_user_function: cotsVendorAssessments.target_user_function,
+        estimated_users_in_scope: cotsVendorAssessments.estimated_users_in_scope,
+        competitors: cotsVendorAssessments.competitors,
+        build_vs_buy_signal: cotsVendorAssessments.build_vs_buy_signal,
+        key_advantages_rows: cotsVendorAssessments.key_advantages_rows,
+        information_basis: cotsVendorAssessments.information_basis,
+        answer_confidence: cotsVendorAssessments.answer_confidence,
+        research_date: cotsVendorAssessments.research_date,
         identified_risks: cotsVendorAssessments.identified_risks,
         risk_domain_scores: cotsVendorAssessments.risk_domain_scores,
         contextual_multipliers: cotsVendorAssessments.contextual_multipliers,
@@ -93,7 +119,13 @@ const getVendorCotsById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Assessment not found" });
     }
     const toJson = (v: unknown) =>
-      v != null ? (Array.isArray(v) ? v : typeof v === "object" ? JSON.stringify(v) : String(v)) : "";
+      v != null ? (Array.isArray(v) ? v : typeof v === "object" ? v : String(v)) : "";
+    const dateStr = (v: unknown) => {
+      if (v == null || v === "") return "";
+      if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+      const s = String(v);
+      return s.length >= 10 ? s.slice(0, 10) : s;
+    };
     const data: Record<string, unknown> = {
       assessmentId: r.assessmentId,
       type: "cots_vendor",
@@ -137,6 +169,32 @@ const getVendorCotsById = async (req: Request, res: Response) => {
             : toJson(r.customer_specific_risks)
           : "",
       customerSpecificRisksOther: r.customer_specific_risks_other ?? "",
+      customerEmployeeCount: r.customer_employee_count ?? "",
+      customerEngHeadcount: r.customer_eng_headcount ?? "",
+      customerAnnualRevenue: r.customer_annual_revenue ?? "",
+      customerOwnership: r.customer_ownership ?? "",
+      customerHqCountry: r.customer_hq_country ?? "",
+      customerOperatingRegions: toJson(r.customer_operating_regions),
+      customerCertifications: toJson(r.customer_certifications),
+      customerRegulators: toJson(r.customer_regulators),
+      customerPublicIncident: r.customer_public_incident ?? "",
+      customerCloudProvider: r.customer_cloud_provider ?? "",
+      customerIdentityProvider: r.customer_identity_provider ?? "",
+      customerScmPlatform: r.customer_scm_platform ?? "",
+      customerIncumbentAiTooling: toJson(r.customer_incumbent_ai_tooling),
+      likelyIntegrationSystems: toJson(r.likely_integration_systems),
+      customerAiMaturityEvidence: toJson(r.customer_ai_maturity_evidence),
+      customerAiLeadership: r.customer_ai_leadership ?? "",
+      customerPublicAiPolicy: r.customer_public_ai_policy ?? "",
+      opportunityType: r.opportunity_type ?? "",
+      targetUserFunction: toJson(r.target_user_function),
+      estimatedUsersInScope: r.estimated_users_in_scope ?? "",
+      competitors: toJson(r.competitors),
+      buildVsBuySignal: r.build_vs_buy_signal ?? "",
+      keyAdvantagesRows: toJson(r.key_advantages_rows),
+      informationBasis: toJson(r.information_basis),
+      answerConfidence: r.answer_confidence ?? "",
+      researchDate: dateStr(r.research_date),
       identifiedRisks: r.identified_risks ?? "",
       riskDomainScores: r.risk_domain_scores ?? "",
       contextualMultipliers: r.contextual_multipliers ?? "",

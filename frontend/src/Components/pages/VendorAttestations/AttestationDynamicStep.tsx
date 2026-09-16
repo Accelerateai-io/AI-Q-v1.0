@@ -14,7 +14,10 @@ import {
   ATTESTATION_SECTION_FIELDS,
   type AttestationFieldMapping,
 } from "../../../constants/vendorAttestationFields";
-import { getAttestationFieldOptions } from "../../../constants/vendorAttestationOptions";
+import {
+  getAttestationFieldOptions,
+  normalizeHipaaBaaSelection,
+} from "../../../constants/vendorAttestationOptions";
 import type { VendorSelfAttestationPayload } from "../../../types/vendorSelfAttestation";
 import { personalizeAttestationFieldLabel } from "../../../utils/attestationFieldLabel";
 
@@ -35,8 +38,11 @@ function getValue(
   mapping: AttestationFieldMapping
 ): string | string[] {
   const v = attestation[mapping.key];
+  if (mapping.key === "hipaa_baa") return normalizeHipaaBaaSelection(v);
   if (v == null) return mapping.type === "array" ? [] : "";
-  if (Array.isArray(v)) return v;
+  if (Array.isArray(v)) {
+    return v.map((item) => (typeof item === "string" ? item : String(item)));
+  }
   return String(v);
 }
 
@@ -112,6 +118,9 @@ const AttestationDynamicStep = ({
                     value={arrValue}
                     onChange={(selected) =>
                       setAttestation((prev) => setValue(mapping, selected, prev))
+                    }
+                    globalExclusiveValue={
+                      mapping.key === "hipaa_baa" ? "not_applicable" : undefined
                     }
                   />
                 </FormField>

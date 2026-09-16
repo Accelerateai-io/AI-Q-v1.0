@@ -1,9 +1,11 @@
 /* Auth pages layout (Login, Forgot Password, Reset Password, Sign Up) – single background only */
 body:has(.authPage) {
-  background-color: #f6f8fb;
+  background-color: #f3f0ee;
 }
 
 .authPage {
+  /* Auth screens use their own accent, independent of the app-wide button color */
+  --main-auth-button-color: #225bff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,7 +23,7 @@ body:has(.authPage) {
 }
 
 .authPage .loginForm {
-  background-color: white;
+  background-color: var(--surface-color);
 }
 
 .authContent {
@@ -35,8 +37,8 @@ body:has(.authPage) {
 
 .loginData {
   display: flex;
-  gap: 2em;
-  border-radius: 5px;
+  gap: 2rem;
+  border-radius: var(--ui-border-radius, 8px);
   width: 100%;
 }
 
@@ -50,9 +52,9 @@ body:has(.authPage) {
   padding: 10px;
   width: 35vw;
   margin: 0;
-  /* border-radius: 5px; */
+  /* border-radius: var(--ui-border-radius, 8px); */
   border-top-left-radius: 5px;
-  border-bottom-left-radius: 5px;
+  border-bottom-left-radius: var(--ui-border-radius, 8px);
   background: #2a7b9b;
   background: linear-gradient(
     346deg,
@@ -75,8 +77,8 @@ body:has(.authPage) {
 
 .loginForm {
   width: 100%;
-  padding: 1.3em 1.5em 2.3em 1.5em;
-  border-radius: 5px;
+  padding: 1.3rem 1.5rem 2.3rem 1.5rem;
+  border-radius: var(--ui-border-radius, 8px);
   /* Single background: use .authPage only; no card background here */
 }
 
@@ -96,7 +98,7 @@ body:has(.authPage) {
 .passwordData label,
 .passwordData input {
   /* margin: 0; */
-  font-size: 0.9em;
+  font-size: 0.9rem;
   /* margin: 0px 0px 8px 0px; */
 }
 
@@ -118,16 +120,16 @@ body:has(.authPage) {
 
 .authPlatformTitle {
   text-align: center;
-  font-size: 1.5em;
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--main-dark-color, #1e293b);
-  margin: 0 0 1em 0;
+  margin: 0 0 1rem 0;
 }
 
 .loginHeading {
   text-align: center;
-  margin: 0 0 0.2em 0;
-  font-size: 1.3em;
+  margin: 0 0 0.2rem 0;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
@@ -135,15 +137,15 @@ body:has(.authPage) {
   margin: 0 0 10px 0px;
   text-align: center;
   color: grey;
-  font-size: 0.6em;
+  font-size: 0.6rem;
 }
 
 .forgotPassword,
 .signinText {
   text-align: center;
   color: #7b7a7a;
-  font-size: 0.8em;
-  margin: 0.8em 0 0 0;
+  font-size: 0.8rem;
+  margin: 0.8rem 0 0 0;
 }
 
 .forgotPassword a {
@@ -154,7 +156,7 @@ body:has(.authPage) {
 }
 .forgotPassword span,
 .signinText span {
-/* font-size: 0.9em; */
+/* font-size: 0.9rem; */
   text-align: center;
   cursor: pointer;
   font-weight: 500;
@@ -167,15 +169,14 @@ body:has(.authPage) {
 .login-btn {
   border: 1px solid var(--main-auth-button-color);
   padding: 10px;
-  width: 8em;
-  /* background-color: var(--main-auth-button-color); */
-  background-color: #014aad;
+  width: 8rem;
+  background-color: var(--main-auth-button-color);
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   color: white;
   width: 100%;
-  border-radius: 5px;
+  border-radius: var(--ui-border-radius, 8px);
   display: flex;
   justify-content: center;
   align-content: center;
@@ -197,7 +198,7 @@ body:has(.authPage) {
   display: flex;
   /* align-items: flex-start; */
   gap: 0.4rem;
-  margin: 0.5em 0;
+  margin: 0.5rem 0;
   /* align-content: center; */
   /* align-items: center; */
 }
@@ -226,7 +227,7 @@ body:has(.authPage) {
 }
 
 .orgError {
-  font-size: 0.8em;
+  font-size: 0.8rem;
   color: #dc2626;
   /* color: #b91c1c; */
 }
@@ -242,10 +243,10 @@ body:has(.authPage) {
   display: flex;
 }
 
-/* Icon color same as signup page (Mail, LockKeyhole, etc.) */
+/* Field label icons (Mail, Lock, User, etc.) */
 .emailData label span svg,
 .passwordData label span svg {
-  color: #64748b;
+  color: #1c1c1c;
 }
 
 .login-btn span {
@@ -284,13 +285,8 @@ body:has(.authPage) {
 
 /* —— Sign-in page (reference layout): centered card, protocol footer —— */
 body:has(.authPage--signin) {
-  background-color: #f4f6f8;
-  background-image: radial-gradient(
-    ellipse 120% 80% at 50% 45%,
-    rgba(255, 255, 255, 0.95) 0%,
-    #eef1f4 45%,
-    #e8ebef 100%
-  );
+  background-color: #f3f0ee;
+  background-image: none;
   background-attachment: fixed;
 }
 
@@ -318,7 +314,7 @@ body:has(.authPage--signin) {
 }
 
 .loginForm--signin {
-  background-color: #ffffff;
+  background-color: var(--surface-color);
   border-radius: 12px;
   box-shadow:
     0 1px 3px rgba(15, 23, 42, 0.06),
@@ -344,7 +340,7 @@ body:has(.authPage--signin) {
 .loginForm--signin-wide {
   text-align: left;
   max-width: 100%;
-  padding: 1.3em 1.5em 2.3em 1.5em;
+  padding: 1.3rem 1.5rem 2.3rem 1.5rem;
 }
 
 .loginForm--signin-wide .signin-heading-block {
@@ -360,34 +356,16 @@ body:has(.authPage--signin) {
   justify-content: center;
 }
 
-.signin-brand {
-  display: flex;
-  justify-content: center;
-  /* border: 1px solid red; */
-  /* margin-bottom: 1.25rem; */
-}
-
-.signin-logo {
-  width: 75px;
-  height: 75px;
-  /* border-radius: 50%; */
-  object-fit: contain;
-  /* background: linear-gradient(145deg, #1e3a5f 0%, #0f2744 100%); */
-  /* padding: 6px; */
-  box-sizing: border-box;
-}
-
 .signin-title {
   /* margin: 0 0 0.5rem; */
   font-size: 1.65rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  /* color: #0f2744; */
-  color: #014aad;
+  letter-spacing: -0.02rem;
+  color: #1c1c1c;
 }
 
 .signin-subtitle {
- margin: 0.5em 0 0 0;
+ margin: 0.5rem 0 0 0;
   font-size: 0.9rem;
   line-height: 1.45;
   color: #64748b;
@@ -396,12 +374,12 @@ body:has(.authPage--signin) {
 
 .emailData--signin {
   text-align: left;
-  margin: 1em 0 1.5em 0;
-  /* margin-bottom: 2em; */
+  margin: 1rem 0 1.5rem 0;
+  /* margin-bottom: 2rem; */
 }
 
 .passwordData--signin {
-  margin: 0 0 1.5em 0;
+  margin: 0 0 1.5rem 0;
 }
 
 .signin-field-label {
@@ -409,9 +387,9 @@ body:has(.authPage--signin) {
   margin: 0 0 0.4rem;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.02rem;
   text-transform: uppercase;
-  color: #475569;
+  color: #1c1c1c;
 }
 
 .signin-field-label--inline {
@@ -423,13 +401,13 @@ body:has(.authPage--signin) {
   line-height: 1.35;
 }
 
-/* Icon box matches label line height (line-height × font-size ≈ 1.35em) */
+/* Icon box matches label line height (line-height × font-size ≈ 1.35rem) */
 .signin-field-label__icon {
   flex-shrink: 0;
   align-self: center;
-  color: #64748b;
-  width: 1.35em;
-  height: 1.35em;
+  color: #1c1c1c;
+  width: 1.35rem;
+  height: 1.35rem;
   min-width: 16px;
   min-height: 16px;
 }
@@ -449,10 +427,9 @@ body:has(.authPage--signin) {
 .signin-forgot-link {
   font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.02rem;
   text-transform: uppercase;
-  /* color: #2563eb; */
-  color: #014aad;
+  color: #225bff;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -466,15 +443,15 @@ body:has(.authPage--signin) {
   height: 45px;
   padding: 0 14px;
   border: 1px solid var(--auth-signin-input-border, #b8c9f3);
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 0.95rem;
-  color: #0f172a;
+  color: var(--input-text, #0f172a);
   background-color: var(--auth-signin-input-bg, #f2f6fc);
   box-sizing: border-box;
 }
 
 .signin-input::placeholder {
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
 }
 
 .signin-input:focus {
@@ -484,9 +461,9 @@ body:has(.authPage--signin) {
 
 .signin-input[readonly],
 .signin-input--readonly {
-  color: #64748b;
-  background-color: #e8edf3;
-  cursor: default;
+  color: var(--text-muted, #64748b);
+  background-color: var(--surface-muted, #e8edf3);
+  cursor: no-drop;
 }
 
 .loginForm--signin .signin-auth-footer {
@@ -506,7 +483,7 @@ body:has(.authPage--signin) {
   display: flex;
   align-items: center;
   background-color: #f1f5f9;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   /* One ring around input + toggle (inner input:focus only drew the text box) */
   outline: 2px solid transparent;
@@ -565,11 +542,9 @@ body:has(.authPage--signin) {
   padding: 14px 20px;
   font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.08rem;
   text-transform: uppercase;
-  /* background-color: #2563eb;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); */
-  background-color: #014aad;
+  background-color: var(--main-auth-button-color);
   gap: 0.5rem;
 }
 
@@ -622,7 +597,7 @@ a.login-btn.signin-submit {
 .signin-protocol-text {
   font-size: 0.62rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.12rem;
   text-transform: uppercase;
   color: #94a3b8;
   white-space: nowrap;
@@ -653,7 +628,7 @@ a.login-btn.signin-submit {
 .signin-footer-version {
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.08rem;
   text-transform: uppercase;
   color: #cbd5e1;
 }
@@ -666,7 +641,7 @@ a.login-btn.signin-submit {
 .signin-footer-link {
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.08rem;
   text-transform: uppercase;
   color: #cbd5e1;
   text-decoration: none;
@@ -674,4 +649,415 @@ a.login-btn.signin-submit {
 
 .signin-footer-link:hover {
   color: #94a3b8;
+}
+
+/* —— Minimal sign-in theme: brand lockup above a flat white card —— */
+body:has(.authPage--minimal) {
+  background-color: #f3f0ee;
+  background-image: none;
+}
+
+.authPage--minimal {
+  justify-content: flex-start;
+  padding: 2rem 1rem 10px;
+}
+
+.authPage--minimal .authContent--signin {
+  max-width: 460px;
+  /* Fills the space above the footer so the card stays optically centred */
+  flex: 1;
+  justify-content: center;
+}
+
+.authPage--minimal .authContent--signin-wide {
+  max-width: 920px;
+}
+
+.signin-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.signin-lockup__logo_wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+}
+
+.signin-lockup__logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.signin-lockup__logo--dark {
+  display: none;
+}
+
+html[data-theme="dark"] .signin-lockup__logo--light {
+  display: none;
+}
+
+html[data-theme="dark"] .signin-lockup__logo--dark {
+  display: block;
+}
+
+.signin-lockup__name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01rem;
+  color: #225bff;
+}
+
+.signin-poweredby {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-top: 1.5rem;
+}
+
+.signin-poweredby__link {
+  display: inline-flex;
+  border-radius: 6px;
+}
+
+.signin-poweredby__link:hover {
+  opacity: 0.8;
+}
+
+.signin-poweredby__img {
+  display: block;
+  width: 140px;
+  height: auto;
+}
+
+.authPage--minimal .loginForm--signin {
+  border-radius: 14px;
+  box-shadow: none;
+  border: 1px solid #e8e8e8;
+  padding: 2.5rem 2rem 2.25rem;
+}
+
+.authPage--minimal .loginForm--signin-wide {
+  padding: 2.25rem 2.25rem 2rem;
+}
+
+.authPage--minimal .signin-heading-block {
+  margin-bottom: 1rem;
+}
+
+.authPage--minimal .signin-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1c1c1c;
+}
+
+.authPage--minimal .signin-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.authPage--minimal .signin-field-label,
+.authPage--minimal .signin-field-label__icon {
+  color: #1c1c1c;
+}
+
+.authPage--minimal .emailData--signin {
+  margin: 0 0 0.65rem;
+}
+
+.authPage--minimal .passwordData--signin {
+  margin: 0 0 1.25rem;
+}
+
+.authPage--minimal .signin-forgot-link {
+  color: #1c1c1c;
+}
+
+.authPage--minimal .signin-input,
+.authPage--minimal .signin-input-wrap {
+  height: 48px;
+  background-color: var(--surface-color);
+}
+
+.authPage--minimal .signin-input {
+  border-radius: 0;
+  border: 1px solid #e2e2e2;
+  font-size: 0.95rem;
+  color: #1c1c1c;
+}
+
+.authPage--minimal .signin-input-wrap {
+  border-radius: 0;
+  border: 1px solid #e2e2e2;
+}
+
+/* The wrap draws the border and focus ring; the inner input must draw neither */
+.authPage--minimal .signin-input-wrap .signin-input {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.authPage--minimal .signin-input-wrap .signin-input:focus {
+  outline: none;
+}
+
+.authPage--minimal .signin-input::placeholder {
+  color: #9ca3af;
+}
+
+.authPage--minimal .signin-input:focus,
+.authPage--minimal .signin-input-wrap:focus-within {
+  outline: 2px solid rgba(28, 28, 28, 0.18);
+}
+
+.authPage--minimal .loginForm--signin .signin-submit.login-btn {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background-color: var(--main-auth-button-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.authPage--minimal
+  .loginForm--signin
+  .signin-submit.login-btn:not(:disabled):hover {
+  background-color: #1a49cc;
+}
+
+.authPage--minimal .loginForm--signin .signin-submit.login-btn:focus-visible {
+  outline: 2px solid #225bff;
+  outline-offset: 2px;
+}
+
+.authPage--minimal .signin-input[readonly],
+.authPage--minimal .signin-input--readonly,
+.authPage--minimal .signup-shell-body .signin-input[readonly],
+.authPage--minimal .signup-shell-body .signin-input--readonly {
+  color: #6b7280;
+  -webkit-text-fill-color: #6b7280;
+  background-color: #f5f5f5;
+  cursor: no-drop;
+}
+
+.authPage--minimal .loginForm--signin .signin-auth-footer a span,
+.authPage--minimal .signinText a {
+  color: #225bff;
+  font-weight: 600;
+}
+
+.signin-forgot-row {
+  margin: 0.9rem 0 0;
+  text-align: center;
+}
+
+.authPage--minimal .signin-forgot-row .signin-forgot-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #1c1c1c;
+}
+
+.authPage--minimal .signin-protocol-text,
+.authPage--minimal .signin-footer-version,
+.authPage--minimal .signin-footer-link {
+  color: #9ca3af;
+}
+
+/* ========== Dark theme — auth pages (login / signup / forgot / reset) ========== */
+html[data-theme="dark"] body:has(.authPage),
+html[data-theme="dark"] body:has(.authPage--signin) {
+  background-color: var(--bg-colour-main, #1c1a27) !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .authPage {
+  --main-auth-button-color: #5b8cff;
+  color: var(--text-primary, #ebe9f3);
+}
+
+html[data-theme="dark"] .authPage .loginForm,
+html[data-theme="dark"] .loginForm--signin,
+html[data-theme="dark"] .authPage--minimal .loginForm--signin {
+  background-color: var(--surface-elevated, #2d2a3a) !important;
+  border: 1px solid var(--border-strong, #524e68) !important;
+  box-shadow: var(--shadow-elevated, 0 14px 40px rgba(10, 8, 20, 0.48)) !important;
+  color: var(--text-primary, #ebe9f3) !important;
+}
+
+html[data-theme="dark"] .authPlatformTitle,
+html[data-theme="dark"] .loginHeading,
+html[data-theme="dark"] .signin-title,
+html[data-theme="dark"] .authPage--minimal .signin-title {
+  color: var(--text-primary, #ebe9f3) !important;
+}
+
+html[data-theme="dark"] .loginCaption,
+html[data-theme="dark"] .signin-subtitle,
+html[data-theme="dark"] .authPage--minimal .signin-subtitle,
+html[data-theme="dark"] .forgotPassword,
+html[data-theme="dark"] .signinText,
+html[data-theme="dark"] .forgotPassword span,
+html[data-theme="dark"] .loginForm--signin .signin-auth-footer {
+  color: var(--text-muted, #9a95ab) !important;
+}
+
+html[data-theme="dark"] .emailData label,
+html[data-theme="dark"] .passwordData label,
+html[data-theme="dark"] .signin-field-label,
+html[data-theme="dark"] .signin-field-label__icon,
+html[data-theme="dark"] .authPage--minimal .signin-field-label,
+html[data-theme="dark"] .authPage--minimal .signin-field-label__icon,
+html[data-theme="dark"] .labelSection,
+html[data-theme="dark"] .labelSection span:not(.form_field_mandatory_asterisk):not(.mandatory) {
+  color: var(--text-secondary, #c8c4d6) !important;
+}
+
+html[data-theme="dark"] .authPage .form_field_mandatory_asterisk,
+html[data-theme="dark"] .authPage .labelSection .form_field_mandatory_asterisk,
+html[data-theme="dark"] .authPage span.mandatory,
+html[data-theme="dark"] .authPage .mandatory {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
+}
+
+html[data-theme="dark"] .signin-lockup__name {
+  color: #8aafff !important;
+}
+
+html[data-theme="dark"] .signin-input,
+html[data-theme="dark"] .authPage--minimal .signin-input,
+html[data-theme="dark"] .emailData > input,
+html[data-theme="dark"] .passwordData > input,
+html[data-theme="dark"] .authPage :not(.signin-input-wrap) > input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] .authPage select,
+html[data-theme="dark"] .authPage textarea {
+  background-color: var(--auth-signin-input-bg, #221f2e) !important;
+  border: 1px solid var(--auth-signin-input-border, #4a455c) !important;
+  color: var(--input-text, #ebe9f3) !important;
+  -webkit-text-fill-color: var(--input-text, #ebe9f3) !important;
+}
+
+html[data-theme="dark"] .signin-input-wrap,
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap,
+html[data-theme="dark"] .authPage .signin-input-wrap {
+  background-color: var(--auth-signin-input-bg, #221f2e) !important;
+  border: 1px solid var(--auth-signin-input-border, #4a455c) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Wrap owns the single border. Match :not() specificity so the inner field never redraws a ring. */
+html[data-theme="dark"] .signin-input-wrap > .signin-input,
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap > .signin-input,
+html[data-theme="dark"] .passwordData .signin-input-wrap > input,
+html[data-theme="dark"] .authPage .signin-input-wrap > input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap > input:not([type="checkbox"]):not([type="radio"]) {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  color: var(--input-text, #ebe9f3) !important;
+  -webkit-text-fill-color: var(--input-text, #ebe9f3) !important;
+}
+
+html[data-theme="dark"] .signin-input::placeholder,
+html[data-theme="dark"] .authPage--minimal .signin-input::placeholder,
+html[data-theme="dark"] .authPage input::placeholder {
+  color: var(--text-muted, #9a95ab) !important;
+  -webkit-text-fill-color: var(--text-muted, #9a95ab) !important;
+  opacity: 1;
+}
+
+html[data-theme="dark"] .authPage :not(.signin-input-wrap) > .signin-input:focus,
+html[data-theme="dark"] .emailData > .signin-input:focus {
+  outline: 2px solid rgba(91, 140, 255, 0.35) !important;
+  border-color: #5b8cff !important;
+}
+
+/* Password wrap: one border only (no outline stacked on border) */
+html[data-theme="dark"] .signin-input-wrap:focus-within,
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap:focus-within,
+html[data-theme="dark"] .authPage .signin-input-wrap:focus-within {
+  outline: none !important;
+  border-color: #5b8cff !important;
+  box-shadow: 0 0 0 2px rgba(91, 140, 255, 0.35) !important;
+}
+
+html[data-theme="dark"] .signin-input-wrap > .signin-input:focus,
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap > .signin-input:focus,
+html[data-theme="dark"] .passwordData .signin-input-wrap > input:focus,
+html[data-theme="dark"] .authPage .signin-input-wrap > input:not([type="checkbox"]):not([type="radio"]):focus,
+html[data-theme="dark"] .authPage--minimal .signin-input-wrap > input:not([type="checkbox"]):not([type="radio"]):focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .signin-input[readonly],
+html[data-theme="dark"] .signin-input--readonly,
+html[data-theme="dark"] .authPage--minimal .signin-input[readonly],
+html[data-theme="dark"] .authPage--minimal .signin-input--readonly,
+html[data-theme="dark"] .authPage--minimal .signup-shell-body .signin-input[readonly],
+html[data-theme="dark"] .authPage--minimal .signup-shell-body .signin-input--readonly,
+html[data-theme="dark"] .readOnlyField {
+  color: var(--text-muted, #9a95ab) !important;
+  -webkit-text-fill-color: var(--text-muted, #9a95ab) !important;
+  background-color: #1c1a27 !important;
+  border-color: var(--border-subtle, #403c52) !important;
+}
+
+html[data-theme="dark"] .passwordVisible,
+html[data-theme="dark"] .signin-password-toggle,
+html[data-theme="dark"] .authPage .passwordVisible,
+html[data-theme="dark"] .signin-eye {
+  color: var(--text-muted, #9a95ab) !important;
+}
+
+html[data-theme="dark"] .signin-eye:hover {
+  color: var(--text-secondary, #c8c4d6) !important;
+}
+
+html[data-theme="dark"] .signin-forgot-link,
+html[data-theme="dark"] .authPage--minimal .signin-forgot-row .signin-forgot-link,
+html[data-theme="dark"] .loginForm--signin .signin-auth-footer a span,
+html[data-theme="dark"] .authPage--minimal .loginForm--signin .signin-auth-footer a span,
+html[data-theme="dark"] .authPage--minimal .signinText a,
+html[data-theme="dark"] .signinText a {
+  color: #8aafff !important;
+}
+
+html[data-theme="dark"] .authPage--minimal
+  .loginForm--signin
+  .signin-submit.login-btn:not(:disabled):hover {
+  background-color: #7aa3ff !important;
+}
+
+html[data-theme="dark"] .authPage--minimal .loginForm--signin .signin-submit.login-btn:focus-visible {
+  outline: 2px solid #8aafff !important;
+}
+
+/* Chrome autofill — keep dark field look */
+html[data-theme="dark"] .authPage input:-webkit-autofill,
+html[data-theme="dark"] .authPage input:-webkit-autofill:hover,
+html[data-theme="dark"] .authPage input:-webkit-autofill:focus,
+html[data-theme="dark"] .signin-input:-webkit-autofill,
+html[data-theme="dark"] .signin-input:-webkit-autofill:hover,
+html[data-theme="dark"] .signin-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ebe9f3 !important;
+  caret-color: #ebe9f3;
+  box-shadow: 0 0 0 1000px #221f2e inset !important;
+  transition: background-color 99999s ease-out;
 }

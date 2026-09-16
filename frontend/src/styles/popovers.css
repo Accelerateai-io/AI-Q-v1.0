@@ -1,13 +1,14 @@
 /* Reusable popover panel (dropdown content) */
 .popover_panel {
-  background: #ffffff;
+  background: var(--surface-color, #f5f7fa);
   border-radius: 5px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.12));
   padding: 12px 16px;
   z-index: 10000;
   min-width: 220px;
   max-width: 320px;
   font-size: 0.875rem;
+  color: var(--text-primary, inherit);
 }
 
 /* Profile detail popover content (used in user dropdown and in profile modal) */
@@ -26,7 +27,7 @@
 .profile_detail_popover_label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -39,7 +40,7 @@
 
 .profile_detail_popover_value {
   font-size: 0.875rem;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   word-break: break-word;
 }
 
@@ -53,9 +54,9 @@
   width: 100%;
   padding: 0.35rem 0.5rem;
   font-size: 0.875rem;
-  color: #1e293b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  color: var(--text-primary, #1e293b);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle, #e2e8f0);
   border-radius: 4px;
   box-sizing: border-box;
   cursor: not-allowed;
@@ -68,25 +69,195 @@
 }
 
 /* Notifications popover */
+.popover_panel.notifications_popover,
 .notifications_popover {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  width: 22.5rem;
+  min-width: 22.5rem;
+  max-width: min(22.5rem, calc(100vw - 1.5rem));
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  color: var(--text-primary, #0f172a);
+  background: var(--app-bg-color, #f8f4ed);
+  border: 1px solid var(--app-border-color, #ececec);
+  border-radius: 10px;
+}
+
+.notifications_popover_head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem 0.7rem;
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+}
+
+.notifications_popover_title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #0f172a);
+}
+
+.notifications_popover_markAll {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--main-auth-button-color, #225bff);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notifications_popover_markAll:hover {
+  text-decoration: underline;
+}
+
+.notifications_popover_list {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem 0;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.notifications_popover_item {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.95rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.notifications_popover_item:hover {
+  background: color-mix(in srgb, var(--surface-hover, #efe9e3) 88%, transparent);
+}
+
+.notifications_popover_item--unread {
+  background: transparent;
+}
+
+.notifications_popover_dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 0.38rem;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.notifications_popover_item--unread .notifications_popover_dot {
+  background: var(--main-auth-button-color, #225bff);
+}
+
+.notifications_popover_itemMain {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.notifications_popover_itemTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.notifications_popover_itemTitle {
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications_popover_item--unread .notifications_popover_itemTitle {
+  font-weight: 700;
+}
+
+.notifications_popover_itemSub,
+.notifications_popover_itemUsage,
+.notifications_popover_itemBody {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications_popover_itemBody {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+.notifications_popover_itemMeta {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.notifications_popover_empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 1.25rem 1.5rem;
-  color: #6b7280;
+  gap: 0.3rem;
+  padding: 1.7rem 1.25rem 1.85rem;
   text-align: center;
+  color: var(--text-muted, #64748b);
 }
 
 .notifications_popover_icon {
   color: #9ca3af;
   flex-shrink: 0;
+  margin-bottom: 0.35rem;
 }
 
 .notifications_popover_message {
   margin: 0;
   font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.notifications_popover_emptyHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+@media (max-width: 480px) {
+  .popover_panel.notifications_popover,
+  .notifications_popover {
+    width: min(22.5rem, calc(100vw - 1.5rem));
+    min-width: 0;
+  }
 }
 
 /* Profile modal overlay (when opening profile from dropdown) */
@@ -102,7 +273,7 @@
 }
 
 .profile_modal_content {
-  background: #fff;
+  background: var(--app-bg-color, #f8f4ed);
   border-radius: 5px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   width: 100%;
@@ -124,7 +295,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
 }
 
 .profile_modal_body {

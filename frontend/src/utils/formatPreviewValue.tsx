@@ -20,9 +20,19 @@ export function formatPreviewValue(
     try {
       const parsed = JSON.parse(value) as unknown
       if (Array.isArray(parsed)) {
-        return parsed.length
-          ? parsed.map((item) => String(item)).join(", ")
-          : <span className="vendor_preview_na">—</span>
+        if (!parsed.length) return <span className="vendor_preview_na">—</span>
+        if (typeof parsed[0] === "object" && parsed[0] !== null) {
+          return (
+            <ul className="vendor_preview_nested_list">
+              {parsed.map((item, index) => (
+                <li key={index}>
+                  {formatObjectArrayItem(item as Record<string, unknown>)}
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        return parsed.map((item) => String(item)).join(", ")
       }
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         return formatPreviewObject(parsed as Record<string, unknown>)
@@ -33,9 +43,16 @@ export function formatPreviewValue(
   }
 
   if (Array.isArray(value)) {
-    return value.length
-      ? value.map((item) => String(item)).join(", ")
-      : <span className="vendor_preview_na">—</span>
+    if (!value.length) return <span className="vendor_preview_na">—</span>
+    if (typeof value[0] === "object" && value[0] !== null)
+      return (
+        <ul className="vendor_preview_nested_list">
+          {value.map((item, index) => (
+            <li key={index}>{formatObjectArrayItem(item as Record<string, unknown>)}</li>
+          ))}
+        </ul>
+      )
+    return value.map((item) => String(item)).join(", ")
   }
 
   if (typeof value === "object") {
@@ -50,7 +67,11 @@ export function formatPreviewValue(
       </a>
     )
   }
-  if (label?.toLowerCase().includes("website")) {
+  if (
+    label?.toLowerCase().includes("website") ||
+    label?.toLowerCase().includes("url") ||
+    label?.toLowerCase().includes("trust centre")
+  ) {
     const href = displayStr.startsWith("http") ? displayStr : `https://${displayStr}`
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className="vendor_preview_link">
@@ -84,6 +105,26 @@ function formatPreviewObject(obj: Record<string, unknown>): React.ReactNode {
   )
 }
 
+function isIncidentLikeItem(item: Record<string, unknown>): boolean {
+  return (
+    ("date" in item || "summary" in item || "severity" in item) &&
+    ("resolved" in item || "severity" in item)
+  )
+}
+
+function formatIncidentItem(item: Record<string, unknown>): string {
+  const date = item.date != null && String(item.date).trim() !== "" ? String(item.date) : "Date not provided"
+  const summary = item.summary != null ? String(item.summary) : "No summary"
+  const severity = item.severity != null && String(item.severity).trim() !== "" ? String(item.severity) : "unspecified"
+  const resolved = item.resolved ? "resolved" : "open"
+  return `${date} — ${severity} — ${resolved}: ${summary}`
+}
+
+function formatObjectArrayItem(item: Record<string, unknown>): string {
+  if (isIncidentLikeItem(item)) return formatIncidentItem(item)
+  return formatPreviewObjectAsString(item)
+}
+
 function formatLabel(key: string): string {
   return key
     .replace(/_/g, " ")
@@ -103,7 +144,13 @@ export function formatPreviewValueAsString(value: unknown): string {
     try {
       const parsed = JSON.parse(value) as unknown
       if (Array.isArray(parsed)) {
-        return parsed.length ? parsed.map((item) => String(item)).join(", ") : "N/A"
+        if (!parsed.length) return "N/A"
+        if (typeof parsed[0] === "object" && parsed[0] !== null) {
+          return parsed
+            .map((item) => formatPreviewObjectAsString(item as Record<string, unknown>))
+            .join("; ")
+        }
+        return parsed.map((item) => String(item)).join(", ")
       }
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         return formatPreviewObjectAsString(parsed as Record<string, unknown>)
@@ -113,7 +160,13 @@ export function formatPreviewValueAsString(value: unknown): string {
     }
   }
   if (Array.isArray(value)) {
-    return value.length ? value.map((item) => String(item)).join(", ") : "N/A"
+    if (!value.length) return "N/A"
+    if (typeof value[0] === "object" && value[0] !== null) {
+      return value
+        .map((item) => formatObjectArrayItem(item as Record<string, unknown>))
+        .join("; ")
+    }
+    return value.map((item) => String(item)).join(", ")
   }
   if (typeof value === "object") {
     return formatPreviewObjectAsString(value as Record<string, unknown>)

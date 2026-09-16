@@ -5,11 +5,11 @@
   "main": "./dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-email-assets.mjs",
     "watch": "tsc --watch",
     "start": "node --watch dist/server.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node migrations/run-migrations-all.mjs",
     "db:push": "drizzle-kit push",
     "db:migrate:all": "node migrations/run-migrations-all.mjs",
     "dump-excel": "node scripts/dump-excel-schema.js",

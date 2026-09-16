@@ -7,12 +7,12 @@ export const DOCUMENT_CATEGORIES = [
   { label: "SOC 2 Type 2", value: "SOC 2 Type 2" },
   { label: "ISO 27001", value: "ISO 27001" },
   { label: "ISO 42001 (AI Management)", value: "ISO 42001 (AI Management)" },
-  { label: "HIPAA BAA", value: "HIPAA BAA" },
+  // { label: "HIPAA BAA", value: "HIPAA BAA" },
   { label: "HITRUST", value: "HITRUST" },
   { label: "FedRAMP", value: "FedRAMP" },
   { label: "PCI DSS", value: "PCI DSS" },
-  { label: "GDPR Compliant", value: "GDPR Compliant" },
-  { label: "CCPA Compliant", value: "CCPA Compliant" },
+  // { label: "GDPR Compliant", value: "GDPR Compliant" },
+  // { label: "CCPA Compliant", value: "CCPA Compliant" },
   { label: "None", value: "None" },
 ] as const;
 

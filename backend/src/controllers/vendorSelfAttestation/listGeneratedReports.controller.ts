@@ -53,7 +53,7 @@ const listGeneratedReports = async (req: Request, res: Response): Promise<void> 
       id: r.id,
       attestationId: r.attestation_id ?? undefined,
       trustScore: r.trust_score,
-      report: mergeSummaryIntoReport(r.report, r.summary),
+      report: mergeSummaryIntoReport(r.report, r.summary, r.trust_score),
       createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
     }));
 

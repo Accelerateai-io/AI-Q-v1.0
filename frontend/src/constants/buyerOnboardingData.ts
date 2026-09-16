@@ -544,6 +544,8 @@ export const BUYER_HELPTEXT = {
     "Primary department or business unit that will own and implement the AI solution",
   employeeCount:
     "Total number of employees in your organization, including full-time and FTEs",
+  organizationSize:
+    "Total number of employees in your organization, including full-time and FTEs",
   annualRevenue:
     "Approximate annual revenue of the organization (optional; used to assess budget capacity)",
   yearFounded:

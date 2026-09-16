@@ -5,8 +5,9 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 /**
  * GET /vendorDirectory
- * Returns only vendors who have turned on Public Directory Listing (for buyer-facing directory).
- * When DB has public_directory_listing column, filter by it; when column is missing, returns [].
+ * Returns vendors with at least one product marked "Visible to buyers" (COMPLETED + visible_to_buyer).
+ * Public Directory Listing is no longer required — product-level visibility is enough.
+ * When DB has public_directory_listing column, it is still selected but not used as a filter.
  * Query ?scope=all (system admin only): returns all vendors, no filter (includes inactive organizations).
  * Otherwise excludes vendors whose organization is not active — they do not appear in the AI Vendor Directory.
  */
@@ -62,22 +63,29 @@ const listPublicVendors = async (req: Request, res: Response): Promise<void> => 
             .leftJoin(createOrganization, joinCondition)
             .where(
               and(
-                eq(vendors.publicDirectoryListing, true),
+                // Public Directory Listing no longer required — vendors appear if they have visible products
+                // eq(vendors.publicDirectoryListing, true),
                 eq(createOrganization.organizationStatus, "active"),
               ),
             );
-    const vendorIds = rows.map((r) => r.userId).filter((id): id is number => id != null && Number.isInteger(id));
+    const vendorOrgIds = [
+      ...new Set(
+        rows
+          .map((r) => String(r.organizationId ?? "").trim())
+          .filter((id) => id.length > 0),
+      ),
+    ];
     const productRows =
-      vendorIds.length > 0
+      vendorOrgIds.length > 0
         ? await db
             .select({
-              user_id: vendorSelfAttestations.user_id,
+              organization_id: vendorSelfAttestations.organization_id,
               product_name: vendorSelfAttestations.product_name,
             })
             .from(vendorSelfAttestations)
             .where(
               and(
-                inArray(vendorSelfAttestations.user_id, vendorIds),
+                inArray(vendorSelfAttestations.organization_id, vendorOrgIds),
                 eq(vendorSelfAttestations.visible_to_buyer, true),
                 sql`upper(${vendorSelfAttestations.status}) = 'COMPLETED'`,
                 sql`(${vendorSelfAttestations.expiry_at} IS NULL OR ${vendorSelfAttestations.expiry_at} >= now())`,
@@ -85,29 +93,32 @@ const listPublicVendors = async (req: Request, res: Response): Promise<void> => 
               )
             )
         : [];
-    const productNamesByUserId: Record<number, string[]> = {};
+    const productNamesByOrgId: Record<string, string[]> = {};
     for (const pr of productRows) {
-      const uid = pr.user_id;
-      if (uid == null) continue;
+      const oid = String(pr.organization_id ?? "").trim();
+      if (!oid) continue;
       const name = (pr.product_name ?? "").trim();
       if (!name) continue;
-      if (!productNamesByUserId[uid]) productNamesByUserId[uid] = [];
-      if (!productNamesByUserId[uid].includes(name)) productNamesByUserId[uid].push(name);
+      if (!productNamesByOrgId[oid]) productNamesByOrgId[oid] = [];
+      if (!productNamesByOrgId[oid].includes(name)) productNamesByOrgId[oid].push(name);
     }
 
-    let list = rows.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      organizationId: r.organizationId,
-      organizationName: r.organizationName ?? null,
-      vendorType: r.vendorType ?? "",
-      companyWebsite: r.companyWebsite ?? "",
-      companyDescription: r.companyDescription ?? "",
-      headquartersLocation: r.headquartersLocation ?? "",
-      vendorMaturity: r.vendorMaturity ?? "",
-      sector: r.sector ?? null,
-      productNames: (r.userId != null && productNamesByUserId[r.userId]) ? productNamesByUserId[r.userId] : [],
-    }));
+    let list = rows.map((r) => {
+      const orgId = String(r.organizationId ?? "").trim();
+      return {
+        id: r.id,
+        userId: r.userId,
+        organizationId: r.organizationId,
+        organizationName: r.organizationName ?? null,
+        vendorType: r.vendorType ?? "",
+        companyWebsite: r.companyWebsite ?? "",
+        companyDescription: r.companyDescription ?? "",
+        headquartersLocation: r.headquartersLocation ?? "",
+        vendorMaturity: r.vendorMaturity ?? "",
+        sector: r.sector ?? null,
+        productNames: orgId && productNamesByOrgId[orgId] ? productNamesByOrgId[orgId] : [],
+      };
+    });
     if (!(scopeAll && isSystemAdmin)) {
       list = list.filter(
         (v) => Array.isArray(v.productNames) && v.productNames.length > 0,

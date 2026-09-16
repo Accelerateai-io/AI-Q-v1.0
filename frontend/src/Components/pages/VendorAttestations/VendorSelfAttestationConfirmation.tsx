@@ -2,8 +2,8 @@
  * Shown after successful Vendor Self Attestation submit.
  * Auto-redirects to login after a few seconds; provides manual link if redirect fails.
  */
-import { useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+// import { useEffect } from "react";
+// import { useNavigate, Link } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
 import CardContainerOnBoarding from "../../UI/CardContainerOnBoarding";
 

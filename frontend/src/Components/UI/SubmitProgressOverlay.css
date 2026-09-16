@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap");
+
+.submit_progress_overlay {
+  --submit-progress-accent: var(--nav-active, #225bff);
+  --submit-progress-accent-soft: #5b8aff;
+  --submit-progress-bg: #000000;
+  --submit-progress-headline: #ffffff;
+  --submit-progress-body: #9a9a9a;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10003;
+  background: var(--submit-progress-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.submit_progress_overlay_inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 36rem;
+  width: 100%;
+  gap: 0;
+}
+
+.submit_progress_spinner {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  border-top-color: var(--submit-progress-accent);
+  border-right-color: var(--submit-progress-accent);
+  border-bottom-color: rgba(34, 91, 255, 0.2);
+  animation: submit_progress_spin 0.85s linear infinite;
+  margin-bottom: 2.25rem;
+  flex-shrink: 0;
+}
+
+.submit_progress_tagline {
+  margin: 0 0 1.5rem;
+  font-family: "Sora", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18rem;
+  text-transform: uppercase;
+  color: var(--submit-progress-accent-soft);
+  line-height: 1.4;
+}
+
+.submit_progress_headline {
+  margin: 0 0 1.5rem;
+  font-family: "Libre Baskerville", "Georgia", "Times New Roman", serif;
+  font-size: clamp(1.65rem, 3.2vw, 2.35rem);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--submit-progress-headline);
+  letter-spacing: -0.01rem;
+  max-width: 22ch;
+}
+
+.submit_progress_headline_dot {
+  color: var(--submit-progress-accent);
+}
+
+.submit_progress_description {
+  margin: 0 0 2.75rem;
+  font-family: "Sora", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--submit-progress-body);
+  max-width: 34rem;
+}
+
+.submit_progress_footer {
+  margin: 0;
+  font-family: "Sora", system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.02rem;
+  color: var(--submit-progress-accent-soft);
+  line-height: 1.5;
+}
+
+.submit_progress_footer_sep {
+  margin: 0 0.4rem;
+}
+
+@keyframes submit_progress_spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .submit_progress_overlay {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .submit_progress_spinner {
+    margin-bottom: 1.75rem;
+  }
+
+  .submit_progress_tagline {
+    margin-bottom: 1.25rem;
+    font-size: 0.625rem;
+  }
+
+  .submit_progress_headline {
+    margin-bottom: 1.25rem;
+  }
+
+  .submit_progress_description {
+    margin-bottom: 2rem;
+    font-size: 0.875rem;
+  }
+}

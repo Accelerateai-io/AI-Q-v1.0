@@ -8,6 +8,7 @@ import {
   Table2,
 } from "lucide-react";
 import "../Assessments/BuyerAssessment/buyer_vendor_risk_report.css";
+import { ensureSpaceAfterColon } from "../../../utils/summarizeRiskPoints";
 
 export type VcmPayload = {
   version?: number;
@@ -226,7 +227,7 @@ export default function VendorComparisonMatrixReportBody({ data }: { data: VcmPa
                 {gapList.map((gap, j) => (
                   <li key={j} className="bvr_warning_item">
                     <AlertTriangle className="bvr_warning_icon" size={20} aria-hidden />
-                    <span>{gap}</span>
+                    <span>{ensureSpaceAfterColon(gap)}</span>
                   </li>
                 ))}
               </ul>
@@ -245,7 +246,7 @@ export default function VendorComparisonMatrixReportBody({ data }: { data: VcmPa
           {summary.map((line, i) => (
             <li key={i} className="bvr_warning_item">
               <CheckCircle2 className="bvr_strength_icon" size={20} aria-hidden />
-              <span>{line}</span>
+              <span>{ensureSpaceAfterColon(line)}</span>
             </li>
           ))}
         </ul>

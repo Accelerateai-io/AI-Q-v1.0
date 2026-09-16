@@ -1,47 +1,152 @@
 import "dotenv/config";
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { invokeBedrockAnthropicText } from "../../utils/invokeBedrockWithUsage.js";
+import { isTokenQuotaExceededError } from "../../services/admin/featureTokenQuota.service.js";
 
-const REGION = process.env.AWS_DEFAULT_REGION || "us-east-1";
-const MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0";
-const client = new BedrockRuntimeClient({ region: REGION });
+export type ImplementationRoadmapProposalPayload = {
+  version: number;
+  deployment: {
+    model: string;
+    architectureSummary: string;
+    notes: string[];
+  };
+  phases: Array<{ name: string; goals: string; bullets: string[] }>;
+  integrations: {
+    items: string[];
+    dataFlows: string[];
+  };
+  resources: {
+    vendorRoles: string[];
+    customerRoles: string[];
+    timeCommitments: string[];
+  };
+  riskGates: Array<{ name: string; notes: string }>;
+  timeline: {
+    estimate: string;
+    assumptions: string[];
+  };
+};
 
-const IMPLEMENTATION_ROADMAP_PROMPT = `You are an implementation and delivery analyst. Using ONLY the Assessment Analysis Report and Vendor Attestation data provided below, generate an Implementation Roadmap Proposal in this exact format. Use clear headings and bullets. Do not invent data not present in the inputs.
+const IMPLEMENTATION_ROADMAP_PROMPT = `You are an implementation and delivery analyst. Using ONLY the Assessment Analysis Report and Vendor Attestation data provided below, generate an Implementation Roadmap Proposal.
 
-## Target deployment model + high-level architecture summary
-- **Deployment model:** [From report or attestation – e.g. SaaS, on-prem, hybrid]
-- **Architecture summary:** [High-level description of components, data flow, or topology if mentioned]
-- [Additional bullets from inputs]
+Output ONLY valid JSON (no markdown, no code fences) with exactly this shape:
 
-## Phases (Pilot -> Limited Production -> Full Production) with goals
-- **Pilot:** [Goals and scope from report or attestation]
-- **Limited Production:** [Goals and scope]
-- **Full Production:** [Goals and scope]
-- [Use only data from inputs; if not specified, say "To be defined" or "Not specified"]
+{
+  "deployment": {
+    "model": "<SaaS | on-prem | hybrid | other, from inputs>",
+    "architectureSummary": "<high-level components, topology, or data path>",
+    "notes": ["<optional extra bullet>", "..."]
+  },
+  "phases": [
+    { "name": "Pilot", "goals": "<goals and scope>", "bullets": [] },
+    { "name": "Limited Production", "goals": "<goals and scope>", "bullets": [] },
+    { "name": "Full Production", "goals": "<goals and scope>", "bullets": [] }
+  ],
+  "integrations": {
+    "items": ["<SSO, SCIM, APIs, etc.>"],
+    "dataFlows": ["<key data flow or touchpoint>"]
+  },
+  "resources": {
+    "vendorRoles": ["<role or team>"],
+    "customerRoles": ["<role or team>"],
+    "timeCommitments": ["<kickoff, UAT, go-live effort if mentioned>"]
+  },
+  "riskGates": [
+    { "name": "SSO/SCIM", "notes": "<readiness or requirement>" },
+    { "name": "Security review", "notes": "<from inputs>" },
+    { "name": "UAT", "notes": "<from inputs>" },
+    { "name": "Data readiness", "notes": "<from inputs>" }
+  ],
+  "timeline": {
+    "estimate": "<timeline if present>",
+    "assumptions": ["<scope, dependency, or constraint>"]
+  }
+}
 
-## Integrations checklist + data flow bullets
-- **Integrations:** [List from report or attestation – SSO, SCIM, APIs, etc.]
-- **Data flow:** [Key data flows or touchpoints if mentioned]
-- [Bullets for each integration or flow]
+Rules:
+- Use only data present in the inputs. If a field is missing, use "Not specified" or "To be confirmed" (empty arrays only when truly none).
+- Keep phases in this order: Pilot, Limited Production, Full Production.
+- Keep the four riskGates listed above; add extra gates only if clearly present in inputs.
+- Do not invent vendors, dates, or integrations.`;
 
-## Resources (vendor + customer roles and time commitments)
-- **Vendor roles:** [From report or attestation]
-- **Customer roles:** [From report or attestation]
-- **Time commitments:** [If mentioned – e.g. kickoff, UAT, go-live]
-- [Bullets per role or phase]
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const t = text.trim();
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(t.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
-## Risk gates (SSO/SCIM, security review, UAT, data readiness)
-- **SSO/SCIM:** [Readiness or requirement from inputs]
-- **Security review:** [From inputs]
-- **UAT:** [From inputs]
-- **Data readiness:** [From inputs]
-- [One bullet per gate; use "Not specified" if no data]
+function asStringArray(raw: unknown, max = 12): string[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[]).map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max);
+}
 
-## Timeline estimate + assumptions
-- **Timeline estimate:** [From report or attestation if available]
-- **Assumptions:** [Key assumptions about scope, dependencies, or constraints]
-- [Bullets for timeline and assumptions]
+function str(v: unknown, fallback = "Not specified"): string {
+  const s = String(v ?? "").trim();
+  return s || fallback;
+}
 
-Use only the data provided. If a section has no relevant data, say "Not specified" or "To be confirmed."`;
+function normalizePayload(raw: Record<string, unknown>): ImplementationRoadmapProposalPayload {
+  const dep = (raw.deployment as Record<string, unknown> | undefined) ?? {};
+  const integ = (raw.integrations as Record<string, unknown> | undefined) ?? {};
+  const res = (raw.resources as Record<string, unknown> | undefined) ?? {};
+  const tl = (raw.timeline as Record<string, unknown> | undefined) ?? {};
+  const phasesRaw = Array.isArray(raw.phases) ? raw.phases : [];
+  const gatesRaw = Array.isArray(raw.riskGates) ? raw.riskGates : [];
+
+  const defaultPhases = ["Pilot", "Limited Production", "Full Production"];
+  const phases =
+    phasesRaw.length > 0
+      ? phasesRaw.slice(0, 6).map((p, i) => {
+          const o = (p ?? {}) as Record<string, unknown>;
+          return {
+            name: str(o.name, defaultPhases[i] ?? `Phase ${i + 1}`),
+            goals: str(o.goals ?? o.scope),
+            bullets: asStringArray(o.bullets),
+          };
+        })
+      : defaultPhases.map((name) => ({ name, goals: "Not specified", bullets: [] as string[] }));
+
+  const defaultGates = ["SSO/SCIM", "Security review", "UAT", "Data readiness"];
+  const riskGates =
+    gatesRaw.length > 0
+      ? gatesRaw.slice(0, 8).map((g, i) => {
+          const o = (g ?? {}) as Record<string, unknown>;
+          return {
+            name: str(o.name, defaultGates[i] ?? `Gate ${i + 1}`),
+            notes: str(o.notes ?? o.status),
+          };
+        })
+      : defaultGates.map((name) => ({ name, notes: "Not specified" }));
+
+  return {
+    version: 1,
+    deployment: {
+      model: str(dep.model),
+      architectureSummary: str(dep.architectureSummary ?? dep.summary),
+      notes: asStringArray(dep.notes),
+    },
+    phases,
+    integrations: {
+      items: asStringArray(integ.items ?? integ.integrations),
+      dataFlows: asStringArray(integ.dataFlows ?? integ.dataFlow),
+    },
+    resources: {
+      vendorRoles: asStringArray(res.vendorRoles),
+      customerRoles: asStringArray(res.customerRoles),
+      timeCommitments: asStringArray(res.timeCommitments),
+    },
+    riskGates,
+    timeline: {
+      estimate: str(tl.estimate ?? tl.timelineEstimate),
+      assumptions: asStringArray(tl.assumptions),
+    },
+  };
+}
 
 function buildContext(reportJson: Record<string, unknown>, attestationSummary: string): string {
   const reportStr =
@@ -60,31 +165,38 @@ function buildContext(reportJson: Record<string, unknown>, attestationSummary: s
 }
 
 async function invokeModel(userInput: string): Promise<string> {
-  const body = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 4096,
+  return invokeBedrockAnthropicText({
+    prompt: userInput,
+    maxTokens: 4096,
     temperature: 0.3,
-    messages: [{ role: "user", content: [{ type: "text", text: userInput }] }],
+    feature: "reports",
   });
-  const command = new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: "application/json",
-    accept: "application/json",
-    body,
-  });
-  const response = await client.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content?.[0]?.text ?? "";
 }
 
 /**
  * Generate Implementation Roadmap Proposal (sections 28–33) from assessment report + vendor attestation.
+ * Returns a JSON string for general_reports.content.
  */
 export async function generateImplementationRoadmapProposal(
   reportJson: Record<string, unknown>,
   attestationSummary: string
 ): Promise<string> {
   const context = buildContext(reportJson, attestationSummary);
-  const userInput = IMPLEMENTATION_ROADMAP_PROMPT + "\n\n" + context;
-  return invokeModel(userInput);
+  const userInput = [
+    IMPLEMENTATION_ROADMAP_PROMPT,
+    "",
+    context,
+    "",
+    "Respond with ONLY the JSON object.",
+  ].join("\n");
+
+  try {
+    const raw = await invokeModel(userInput);
+    const parsed = extractJsonObject(raw);
+    if (parsed) return JSON.stringify(normalizePayload(parsed));
+    return raw;
+  } catch (e) {
+    if (isTokenQuotaExceededError(e)) throw e;
+    throw e;
+  }
 }

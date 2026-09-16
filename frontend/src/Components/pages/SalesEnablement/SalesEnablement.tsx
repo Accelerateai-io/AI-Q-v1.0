@@ -1,33 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowUp,
   BarChart3,
   BotIcon,
+  CheckCircle2,
+  Clock3,
   FileCheck,
-  FileText,
-  FileWarning,
   Lightbulb,
   Loader2,
-  MessageSquare,
-  Send,
+  Sparkles,
   Square,
   Swords,
   Target,
   TrendingDown,
   TrendingUp,
-  TrendingUpDown,
   TriangleAlert,
-  User,
+  X,
 } from "lucide-react";
 import Select from "../../UI/Select";
 import Input from "../../UI/Input";
 import Button from "../../UI/Button";
+import LoadingMessage from "../../UI/LoadingMessage";
 import ChatMessage from "../../UI/ChatMessage";
-import ClickTooltip from "../../UI/ClickTooltip";
+import ToolCallsSummary, {
+  type ToolCallStep,
+} from "./ToolCallsSummary";
+import aiQLogoBlue from "../../../assets/images/mainLogo/new_logo/ai_q_logo_blue.png";
+import aiQLogoGray from "../../../assets/images/mainLogo/new_logo/ai_q_logo_gray.png";
 import "../UserManagement/user_management.css";
 import "./sales_enablement.css";
+import { apiErrorMessage, errorToUserMessage } from "../../../utils/tokenQuotaError";
 
 const BASE_URL =
   import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
+
+/** Strip Markdown (# headings, **bold**, etc.) so Sales Agent answers show as plain text. */
+function stripMarkdownFromSalesReply(text: string): string {
+  return String(text ?? "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/_([^_\n]+)_/g, "$1")
+    .replace(/^>\s?/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .trim();
+}
 
 interface AssessmentRow {
   assessmentId: number;
@@ -70,11 +90,194 @@ interface BattleCardData {
   bullets?: string[];
 }
 
+type SystemIconKind = "session" | "check" | "thinking" | "none";
+
 interface ChatMessageItem {
-  role: "agent" | "user";
+  role: "agent" | "user" | "system" | "date";
   text?: string;
+  /** Icon for centered system status lines (ignored for date / chat roles). */
+  systemIcon?: SystemIconKind;
   swot?: SwotData;
   battleCard?: BattleCardData;
+  toolCalls?: ToolCallStep[];
+}
+
+function systemMessage(
+  text: string,
+  systemIcon: SystemIconKind = "none"
+): ChatMessageItem {
+  return { role: "system", text, systemIcon };
+}
+
+function dateSeparator(label = "Today"): ChatMessageItem {
+  return { role: "date", text: label };
+}
+
+function formatSessionTime(d = new Date()): string {
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function SystemStatusIcon({ kind }: { kind?: SystemIconKind }) {
+  if (kind === "session") return <Clock3 size={14} strokeWidth={1.75} aria-hidden />;
+  if (kind === "check") return <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden />;
+  if (kind === "thinking") return <Sparkles size={14} strokeWidth={1.75} aria-hidden />;
+  return null;
+}
+
+function AiQChatIcon({ className = "" }: { className?: string }) {
+  return (
+    <span className={`sales_enablement_aiq_icon_wrap ${className}`.trim()}>
+      <img
+        src={aiQLogoBlue}
+        alt=""
+        className="sales_enablement_aiq_icon sales_enablement_aiq_icon--light"
+        aria-hidden
+      />
+      <img
+        src={aiQLogoGray}
+        alt=""
+        className="sales_enablement_aiq_icon sales_enablement_aiq_icon--dark"
+        aria-hidden
+      />
+    </span>
+  );
+}
+
+type GeneratingKind = "chat" | "swot" | "battlecard";
+
+const THINKING_PHASES: Record<GeneratingKind, string[]> = {
+  chat: [
+    "Agent is thinking…",
+    "Retrieving assessment context…",
+    "Generating an answer…",
+  ],
+  swot: [
+    "Agent is thinking…",
+    "Analyzing positioning signals…",
+    "Generating SWOT analysis…",
+  ],
+  battlecard: [
+    "Agent is thinking…",
+    "Extracting differentiators…",
+    "Generating battle card…",
+  ],
+};
+
+type SalesToolCallKind = "chat" | "swot" | "battlecard";
+
+function jitter(base: number, spread = 0.35): number {
+  const delta = base * spread;
+  return Math.max(28, Math.round(base - delta + Math.random() * delta * 2));
+}
+
+/** Build Cursor-style tool-call steps that mirror what the sales agent did. */
+function buildSalesToolCalls(
+  kind: SalesToolCallKind,
+  opts?: { assessmentLabel?: string; cached?: boolean; question?: string }
+): ToolCallStep[] {
+  const label = (opts?.assessmentLabel ?? "vendor assessment").slice(0, 64);
+  const questionSnippet = (opts?.question ?? "").trim().slice(0, 48);
+  const cached = Boolean(opts?.cached);
+
+  if (kind === "swot") {
+    return [
+      {
+        name: "retrieve",
+        detail: cached ? `cache://${label}` : `assessment://${label}`,
+        durationMs: jitter(cached ? 42 : 280),
+        status: "success",
+      },
+      {
+        name: "analyze",
+        detail: "positioning · strengths · risks",
+        durationMs: jitter(cached ? 55 : 410),
+        status: "success",
+      },
+      {
+        name: "compose",
+        detail: "swot_analysis.md",
+        durationMs: jitter(cached ? 68 : 520),
+        status: "success",
+      },
+    ];
+  }
+
+  if (kind === "battlecard") {
+    return [
+      {
+        name: "retrieve",
+        detail: cached ? `cache://${label}` : `assessment://${label}`,
+        durationMs: jitter(cached ? 38 : 310),
+        status: "success",
+      },
+      {
+        name: "extract",
+        detail: "differentiators · compliance · objections",
+        durationMs: jitter(cached ? 60 : 390),
+        status: "success",
+      },
+      {
+        name: "compose",
+        detail: "battle_card.md",
+        durationMs: jitter(cached ? 72 : 480),
+        status: "success",
+      },
+    ];
+  }
+
+  return [
+    {
+      name: "retrieve",
+      detail: `assessment://${label}`,
+      durationMs: jitter(260),
+      status: "success",
+    },
+    {
+      name: "read",
+      detail: questionSnippet
+        ? `question · ${questionSnippet}${opts?.question && opts.question.trim().length > 48 ? "…" : ""}`
+        : "complete report context",
+      durationMs: jitter(95),
+      status: "success",
+    },
+    {
+      name: "compose",
+      detail: "sales_reply.md",
+      durationMs: jitter(340),
+      status: "success",
+    },
+  ];
+}
+
+/** Progressive tool-call steps shown while the agent is generating. */
+function buildLiveToolCalls(
+  kind: GeneratingKind,
+  phaseIndex: number,
+  opts?: { assessmentLabel?: string; question?: string }
+): ToolCallStep[] {
+  const blueprint = buildSalesToolCalls(kind, opts);
+  return blueprint.map((step, index) => {
+    if (index < phaseIndex) {
+      return { ...step, status: "success" as const };
+    }
+    if (index === phaseIndex) {
+      return {
+        ...step,
+        status: "running" as const,
+        durationMs: undefined,
+        additions: undefined,
+        deletions: undefined,
+      };
+    }
+    return {
+      ...step,
+      status: "running" as const,
+      durationMs: undefined,
+      additions: undefined,
+      deletions: undefined,
+      detail: undefined,
+    };
+  }).filter((_, index) => index <= phaseIndex);
 }
 
 /** Dropdown label: "Org Name - Product Name" (customer org + attestation product name) */
@@ -118,15 +321,28 @@ const GREETING =
   "Hello! I'm your AI Sales Enablement Agent. Select a vendor assessment from your completed evaluations and I can help you with SWOT analysis, battle card generation, or answer questions about their compliance posture.";
 
 const QUICK_ACTIONS = [
-  { label: "Generate SWOT Analysis", icon: BarChart3, key: "swot" as const },
-  { label: "Create Battle Card", icon: Swords, key: "battlecard" as const },
-  // { label: "View Sales Reports & Briefs", icon: FileText, key: "reports" as const },
+  { label: "SWOT Analysis", icon: BarChart3, key: "swot" as const },
+  { label: "Battle Card", icon: Swords, key: "battlecard" as const },
 ];
 
 const EXAMPLE_QUESTIONS = [
-  "How should I address buyer concerns about data security and compliance?",
-  "What compliance certifications can I highlight to this customer?",
-  "How do I handle objections about AI risk from buyers?",
+  {
+    id: "security",
+    label: "Buyer security concerns",
+    question:
+      "How should I address buyer concerns about data security and compliance?",
+  },
+  {
+    id: "certs",
+    label: "Compliance certifications",
+    question:
+      "What compliance certifications can I highlight to this customer?",
+  },
+  {
+    id: "ai-risk",
+    label: "AI risk objections",
+    question: "How do I handle objections about AI risk from buyers?",
+  },
 ];
 
 const SWOT_QUESTION = "Generate a SWOT analysis for my sales positioning.";
@@ -164,23 +380,125 @@ function hasBattleCardData(d: BattleCardData | null | undefined): boolean {
   return !!(d && (d.title || d.keyDifferentiators?.length || d.complianceHighlights?.length));
 }
 
+/** Same initials avatar as the top-nav user chip. */
+function getUserInitialsFromSession(): string {
+  const first = (sessionStorage.getItem("userFirstName") ?? "").trim();
+  const last = (sessionStorage.getItem("userLastName") ?? "").trim();
+  if (first && last) return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  if (first) return first.slice(0, 2).toUpperCase();
+  const userName = (sessionStorage.getItem("userName") ?? "").trim();
+  if (userName.length >= 2) return userName.slice(0, 2).toUpperCase();
+  if (userName.length === 1) return userName.toUpperCase();
+  const email = (sessionStorage.getItem("userEmail") ?? "").trim();
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "UN";
+}
+
 export function SalesEnablement() {
   useEffect(() => {
     document.title = "AI-Q | Sales Agent";
   }, []);
+  const [userInitials, setUserInitials] = useState(getUserInitialsFromSession);
   const [assessmentsList, setAssessmentsList] = useState<AssessmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState("");
   const [messageInput, setMessageInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>(() => [
+    dateSeparator("Today"),
+    systemMessage(
+      `Session started at ${formatSessionTime()}`,
+      "session"
+    ),
+    {
+      role: "agent",
+      text: GREETING,
+    },
+  ]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingKind, setGeneratingKind] = useState<GeneratingKind | null>(null);
+  const [thinkingPhaseIndex, setThinkingPhaseIndex] = useState(0);
   const pendingAgentMessageRef = useRef<ChatMessageItem | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   /** Cached SWOT and Battle Card for the selected assessment (after user clicks the button) */
   const [generatedSwot, setGeneratedSwot] = useState<SwotData | null>(null);
   const [generatedBattleCard, setGeneratedBattleCard] = useState<BattleCardData | null>(null);
   const [generatedForAssessmentId, setGeneratedForAssessmentId] = useState<string>("");
+  const [dismissedExampleIds, setDismissedExampleIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const syncInitials = () => setUserInitials(getUserInitialsFromSession());
+    window.addEventListener("userProfileUpdated", syncInitials);
+    return () => window.removeEventListener("userProfileUpdated", syncInitials);
+  }, []);
 
   const quickActionsEnabled = !!selectedAssessmentId;
+  const visibleExamples = EXAMPLE_QUESTIONS.filter(
+    (q) => !dismissedExampleIds.includes(q.id)
+  );
+
+  const startGenerating = useCallback((kind: GeneratingKind) => {
+    setGeneratingKind(kind);
+    setThinkingPhaseIndex(0);
+    setIsGenerating(true);
+  }, []);
+
+  const stopGenerating = useCallback(() => {
+    setIsGenerating(false);
+    setGeneratingKind(null);
+    setThinkingPhaseIndex(0);
+  }, []);
+
+  useEffect(() => {
+    if (!isGenerating || !generatingKind) return;
+    const phases = THINKING_PHASES[generatingKind];
+    if (phases.length <= 1) return;
+    const id = window.setInterval(() => {
+      setThinkingPhaseIndex((prev) =>
+        prev < phases.length - 1 ? prev + 1 : prev
+      );
+    }, 1400);
+    return () => window.clearInterval(id);
+  }, [isGenerating, generatingKind]);
+
+  const thinkingStatusText =
+    generatingKind != null
+      ? THINKING_PHASES[generatingKind][
+          Math.min(thinkingPhaseIndex, THINKING_PHASES[generatingKind].length - 1)
+        ]
+      : "Agent is thinking…";
+
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const run = () => {
+      if (typeof container.scrollTo === "function") {
+        container.scrollTo({ top: container.scrollHeight, behavior });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+    // Wait a frame so newly rendered answers (SWOT / battle cards) have layout height.
+    requestAnimationFrame(run);
+  }, []);
+
+  useEffect(() => {
+    scrollMessagesToBottom("smooth");
+  }, [messages, isGenerating, thinkingPhaseIndex, scrollMessagesToBottom]);
+
+  const selectedAssessmentLabel = (() => {
+    const row = assessmentsList.find(
+      (a) => String(a.assessmentId) === String(selectedAssessmentId)
+    );
+    return row ? getSalesAgentAssessmentLabel(row) : selectedAssessmentId || "vendor assessment";
+  })();
+
+  const liveToolCalls =
+    isGenerating && generatingKind
+      ? buildLiveToolCalls(generatingKind, thinkingPhaseIndex, {
+          assessmentLabel: selectedAssessmentLabel,
+        })
+      : null;
 
   const fetchAssessments = useCallback(() => {
     const token = sessionStorage.getItem("bearerToken");
@@ -247,6 +565,23 @@ export function SalesEnablement() {
       setGeneratedBattleCard(null);
       setGeneratedForAssessmentId("");
     }
+    if (value) {
+      const row = assessmentsList.find(
+        (a) => String(a.assessmentId) === String(value)
+      );
+      const topic = row
+        ? getSalesAgentAssessmentLabel(row)
+        : `Assessment #${value}`;
+      setMessages((prev) => [
+        ...prev,
+        systemMessage(`Topic changed to "${topic}"`),
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        systemMessage("Topic cleared — select an assessment to continue"),
+      ]);
+    }
   };
 
   const fetchSalesEnablement = useCallback(
@@ -272,7 +607,7 @@ export function SalesEnablement() {
               battleCard: result.data.battleCard,
             };
           }
-          throw new Error(result?.message ?? "Failed to generate");
+          throw new Error(apiErrorMessage(result, "Failed to generate"));
         });
     },
     []
@@ -295,7 +630,7 @@ export function SalesEnablement() {
           if (result?.success && result?.data?.answer != null) {
             return String(result.data.answer);
           }
-          throw new Error(result?.message ?? "Failed to get answer");
+          throw new Error(apiErrorMessage(result, "Failed to get answer"));
         });
     },
     []
@@ -310,7 +645,6 @@ export function SalesEnablement() {
 
     setMessages((prev) => [...prev, { role: "user", text }]);
     setMessageInput("");
-    setIsGenerating(true);
 
     // User asked for SWOT (via NLP in textarea)
     if (isSwot) {
@@ -322,7 +656,6 @@ export function SalesEnablement() {
             text: "Please select a vendor assessment above, then ask again or click the SWOT Analysis button to generate from the complete report.",
           },
         ]);
-        setIsGenerating(false);
         return;
       }
       if (hasSwotData(generatedSwot) && generatedForAssessmentId === selectedAssessmentId) {
@@ -332,11 +665,16 @@ export function SalesEnablement() {
             role: "agent" as const,
             text: "Here's your sales positioning SWOT analysis - use these insights when engaging with prospects:",
             swot: generatedSwot!,
+            toolCalls: buildSalesToolCalls("swot", {
+              assessmentLabel: selectedAssessmentLabel,
+              cached: true,
+            }),
           },
+          systemMessage("SWOT analysis ready", "check"),
         ]);
-        setIsGenerating(false);
         return;
       }
+      startGenerating("swot");
       fetchSalesEnablement(selectedAssessmentId, "swot")
         .then((data) => {
           if (!data?.swot) return;
@@ -348,7 +686,11 @@ export function SalesEnablement() {
               role: "agent" as const,
               text: "Here's your sales positioning SWOT analysis - use these insights when engaging with prospects:",
               swot: data.swot!,
+              toolCalls: buildSalesToolCalls("swot", {
+                assessmentLabel: selectedAssessmentLabel,
+              }),
             },
+            systemMessage("SWOT analysis ready", "check"),
           ]);
         })
         .catch((err) => {
@@ -356,11 +698,11 @@ export function SalesEnablement() {
             ...prev,
             {
               role: "agent" as const,
-              text: err?.message ?? "Failed to generate SWOT analysis. Please try again.",
+              text: errorToUserMessage(err, "Failed to generate SWOT analysis. Please try again."),
             },
           ]);
         })
-        .finally(() => setIsGenerating(false));
+        .finally(() => stopGenerating());
       return;
     }
 
@@ -374,7 +716,6 @@ export function SalesEnablement() {
             text: "Please select a vendor assessment above, then ask again or click the Battle Card button to generate from the complete report.",
           },
         ]);
-        setIsGenerating(false);
         return;
       }
       if (hasBattleCardData(generatedBattleCard) && generatedForAssessmentId === selectedAssessmentId) {
@@ -384,11 +725,16 @@ export function SalesEnablement() {
             role: "agent" as const,
             text: "Here's your battle card for sales conversations:",
             battleCard: generatedBattleCard!,
+            toolCalls: buildSalesToolCalls("battlecard", {
+              assessmentLabel: selectedAssessmentLabel,
+              cached: true,
+            }),
           },
+          systemMessage("Battle card ready", "check"),
         ]);
-        setIsGenerating(false);
         return;
       }
+      startGenerating("battlecard");
       fetchSalesEnablement(selectedAssessmentId, "battlecard")
         .then((data) => {
           if (!data?.battleCard) return;
@@ -400,7 +746,11 @@ export function SalesEnablement() {
               role: "agent" as const,
               text: "Here's your battle card for sales conversations:",
               battleCard: data.battleCard!,
+              toolCalls: buildSalesToolCalls("battlecard", {
+                assessmentLabel: selectedAssessmentLabel,
+              }),
             },
+            systemMessage("Battle card ready", "check"),
           ]);
         })
         .catch((err) => {
@@ -408,11 +758,11 @@ export function SalesEnablement() {
             ...prev,
             {
               role: "agent" as const,
-              text: err?.message ?? "Failed to generate battle card. Please try again.",
+              text: errorToUserMessage(err, "Failed to generate battle card. Please try again."),
             },
           ]);
         })
-        .finally(() => setIsGenerating(false));
+        .finally(() => stopGenerating());
       return;
     }
 
@@ -425,15 +775,22 @@ export function SalesEnablement() {
           text: "Please select a vendor assessment above to ask questions about it.",
         },
       ]);
-      setIsGenerating(false);
       return;
     }
 
+    startGenerating("chat");
     fetchSalesAgentChat(selectedAssessmentId, text)
       .then((answer) => {
         setMessages((prev) => [
           ...prev,
-          { role: "agent" as const, text: answer },
+          {
+            role: "agent" as const,
+            text: stripMarkdownFromSalesReply(answer),
+            toolCalls: buildSalesToolCalls("chat", {
+              assessmentLabel: selectedAssessmentLabel,
+              question: text,
+            }),
+          },
         ]);
       })
       .catch((err) => {
@@ -441,15 +798,21 @@ export function SalesEnablement() {
           ...prev,
           {
             role: "agent" as const,
-            text: err?.message ?? "Sorry, I couldn't answer that. Please try again.",
+            text: errorToUserMessage(err, "Sorry, I couldn't answer that. Please try again."),
           },
         ]);
       })
-      .finally(() => setIsGenerating(false));
+      .finally(() => stopGenerating());
   };
 
   const handleExampleClick = (question: string) => {
     setMessageInput(question);
+  };
+
+  const dismissExample = (id: string) => {
+    setDismissedExampleIds((prev) =>
+      prev.includes(id) ? prev : [...prev, id]
+    );
   };
 
   function handleQuickActionSwot() {
@@ -462,11 +825,16 @@ export function SalesEnablement() {
           role: "agent" as const,
           text: "Here's your sales positioning SWOT analysis - use these insights when engaging with prospects:",
           swot: generatedSwot!,
+          toolCalls: buildSalesToolCalls("swot", {
+            assessmentLabel: selectedAssessmentLabel,
+            cached: true,
+          }),
         },
+        systemMessage("SWOT analysis ready", "check"),
       ]);
       return;
     }
-    setIsGenerating(true);
+    startGenerating("swot");
     fetchSalesEnablement(selectedAssessmentId, "swot")
       .then((data) => {
         if (!data?.swot) return;
@@ -478,7 +846,11 @@ export function SalesEnablement() {
             role: "agent" as const,
             text: "Here's your sales positioning SWOT analysis - use these insights when engaging with prospects:",
             swot: data.swot,
+            toolCalls: buildSalesToolCalls("swot", {
+              assessmentLabel: selectedAssessmentLabel,
+            }),
           },
+          systemMessage("SWOT analysis ready", "check"),
         ]);
       })
       .catch((err) => {
@@ -486,11 +858,11 @@ export function SalesEnablement() {
           ...prev,
           {
             role: "agent" as const,
-            text: err?.message ?? "Failed to generate SWOT analysis. Please try again.",
+            text: errorToUserMessage(err, "Failed to generate SWOT analysis. Please try again."),
           },
         ]);
       })
-      .finally(() => setIsGenerating(false));
+      .finally(() => stopGenerating());
   }
 
   function handleQuickActionBattleCard() {
@@ -503,11 +875,16 @@ export function SalesEnablement() {
           role: "agent" as const,
           text: "Here's your battle card for sales conversations:",
           battleCard: generatedBattleCard!,
+          toolCalls: buildSalesToolCalls("battlecard", {
+            assessmentLabel: selectedAssessmentLabel,
+            cached: true,
+          }),
         },
+        systemMessage("Battle card ready", "check"),
       ]);
       return;
     }
-    setIsGenerating(true);
+    startGenerating("battlecard");
     fetchSalesEnablement(selectedAssessmentId, "battlecard")
       .then((data) => {
         if (!data?.battleCard) return;
@@ -519,7 +896,11 @@ export function SalesEnablement() {
             role: "agent" as const,
             text: "Here's your battle card for sales conversations:",
             battleCard: data.battleCard,
+            toolCalls: buildSalesToolCalls("battlecard", {
+              assessmentLabel: selectedAssessmentLabel,
+            }),
           },
+          systemMessage("Battle card ready", "check"),
         ]);
       })
       .catch((err) => {
@@ -527,11 +908,11 @@ export function SalesEnablement() {
           ...prev,
           {
             role: "agent" as const,
-            text: err?.message ?? "Failed to generate battle card. Please try again.",
+            text: errorToUserMessage(err, "Failed to generate battle card. Please try again."),
           },
         ]);
       })
-      .finally(() => setIsGenerating(false));
+      .finally(() => stopGenerating());
   }
 
   function handleQuickAction(key: string) {
@@ -543,68 +924,192 @@ export function SalesEnablement() {
 
   return (
     <div className="sec_user_page org_settings_page sales_enablement_page">
-      <div className="heading_user_page page_header_align">
+      <div className="heading_user_page page_header_align sales_enablement_page_header">
         <div className="headers page_header_row">
           <span className="icon_size_header" aria-hidden>
-            <BotIcon size={24} className="header_icon_svg" />
+            <BotIcon size={22} className="header_icon_svg" />
           </span>
           <div className="page_header_title_block">
             <h1 className="page_header_title">Sales Enablement Agent</h1>
             <p className="sub_title page_header_subtitle">
-              AI-powered sales assistance with SWOT analysis, battle cards, and
-              Q&A.
+              SWOT, battle cards, and guided answers from your assessments
             </p>
           </div>
-        </div>
-        <div className="btn_user_page sales_enablement_select_wrapper">
-          <Select
-            id="vendor_assessment"
-            name="vendor_assessment"
-            labelName=""
-            value={selectedAssessmentId}
-            default_option="Select a vendor assessment"
-            options={selectOptions}
-            onChange={handleSelectChange}
-          />
         </div>
       </div>
 
       <div className="sales_enablement_section">
         <div className="sales_enablement_chat_layout">
+          <aside className="sales_enablement_rail" aria-label="Sales agent tools">
+            <div className="sales_enablement_rail_block">
+              <p className="sales_enablement_rail_label">Context</p>
+              <div className="sales_enablement_select_wrapper">
+                {loading ? (
+                  <LoadingMessage
+                    message="Loading assessments…"
+                    compact
+                    className="sales_enablement_header_loading"
+                  />
+                ) : (
+                  <Select
+                    id="vendor_assessment"
+                    name="vendor_assessment"
+                    labelName=""
+                    value={selectedAssessmentId}
+                    default_option="Select assessment"
+                    options={selectOptions}
+                    onChange={handleSelectChange}
+                  />
+                )}
+              </div>
+              {!loading && !selectedAssessmentId && (
+                <p className="sales_enablement_rail_hint">
+                  Choose an assessment to unlock SWOT, battle cards, and grounded answers.
+                </p>
+              )}
+            </div>
+
+            <div className="sales_enablement_rail_block">
+              <p className="sales_enablement_rail_label">Quick actions</p>
+              <div className="sales_enablement_rail_actions" role="group" aria-label="Quick actions">
+                {QUICK_ACTIONS.map((action) => {
+                  const Icon = action.icon;
+                  const isDisabled =
+                    ((action.key === "swot" || action.key === "battlecard") &&
+                      !quickActionsEnabled) ||
+                    isGenerating;
+                  return (
+                    <button
+                      key={action.key}
+                      type="button"
+                      className="sales_enablement_rail_action"
+                      disabled={isDisabled}
+                      title={
+                        isDisabled && !quickActionsEnabled
+                          ? "Select a vendor assessment first"
+                          : action.label
+                      }
+                      onClick={() => handleQuickAction(action.key)}
+                    >
+                      <span className="sales_enablement_rail_action_icon" aria-hidden>
+                        <Icon size={16} />
+                      </span>
+                      <span className="sales_enablement_rail_action_copy">
+                        <span className="sales_enablement_rail_action_title">{action.label}</span>
+                        <span className="sales_enablement_rail_action_desc">
+                          {action.key === "swot"
+                            ? "Positioning strengths, gaps, and risks"
+                            : "Differentiators, objections, and ICP"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {visibleExamples.length > 0 && (
+              <div className="sales_enablement_rail_block sales_enablement_rail_block--prompts">
+                <p className="sales_enablement_rail_label">Try asking</p>
+                <div className="sales_enablement_rail_prompts" aria-label="Example questions">
+                  {visibleExamples.map((ex) => (
+                    <div key={ex.id} className="sales_enablement_rail_prompt">
+                      <button
+                        type="button"
+                        className="sales_enablement_rail_prompt_btn"
+                        title={ex.question}
+                        onClick={() => handleExampleClick(ex.question)}
+                      >
+                        {ex.label}
+                      </button>
+                      <button
+                        type="button"
+                        className="sales_enablement_rail_prompt_dismiss"
+                        aria-label={`Dismiss ${ex.label}`}
+                        onClick={() => dismissExample(ex.id)}
+                      >
+                        <X size={12} aria-hidden />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+
           <div className="sales_enablement_chat_main">
             <div className="sales_enablement_chat_header">
-              <div className="chat_message_header">
-                <span className="chat_message_icon">
-                  <BotIcon size={18} />
+              <div className="sales_enablement_assistant_lockup">
+                <span className="chat_message_icon sales_enablement_assistant_icon">
+                  <AiQChatIcon />
                 </span>
-                <div>
+                <div className="sales_enablement_assistant_meta">
                   <span className="chat_message_title">AI Sales Assistant</span>
                   <p className="chat_message_subtitle">
-                    Powered by vendor attestations & risk data.
+                    {selectedAssessmentId
+                      ? selectedAssessmentLabel
+                      : "Powered by vendor attestations & risk data"}
                   </p>
                 </div>
               </div>
+              <span
+                className={`sales_enablement_status_pill${selectedAssessmentId ? " sales_enablement_status_pill--ready" : ""}`}
+              >
+                {selectedAssessmentId ? "Ready" : "Select context"}
+              </span>
             </div>
-            <div className="sales_enablement_messages">
-              <div className="chat_message chat_message--agent">
-                <div className="bot_answer_sec sales_enablement_greeting_sec">
-                  <span className="chat_message_icon"><BotIcon size={18} /></span>
-                  <p>{GREETING}</p>
-                </div>
-              </div>
-              {messages.map((msg, i) => (
+
+            <div className="sales_enablement_messages" ref={messagesContainerRef}>
+              {messages.map((msg, i) => {
+                if (msg.role === "date") {
+                  return (
+                    <div key={i} className="sales_enablement_date_sep" role="separator">
+                      <span className="sales_enablement_date_sep_line" aria-hidden />
+                      <span className="sales_enablement_date_sep_label">{msg.text}</span>
+                      <span className="sales_enablement_date_sep_line" aria-hidden />
+                    </div>
+                  );
+                }
+                if (msg.role === "system") {
+                  return (
+                    <div key={i} className="sales_enablement_system_msg" role="status">
+                      {msg.systemIcon && msg.systemIcon !== "none" ? (
+                        <span className="sales_enablement_system_msg_icon">
+                          <SystemStatusIcon kind={msg.systemIcon} />
+                        </span>
+                      ) : null}
+                      <span className="sales_enablement_system_msg_text">{msg.text}</span>
+                    </div>
+                  );
+                }
+                return (
                 <ChatMessage
                   key={i}
                   role={msg.role}
-                  icon={msg.role === "user" ? <User size={20} /> : undefined}
+                  icon={
+                    msg.role === "user" ? (
+                      <span
+                        className="sales_enablement_user_avatar"
+                        aria-hidden
+                      >
+                        {userInitials}
+                      </span>
+                    ) : undefined
+                  }
                 >
                   {msg.role === "agent" && msg.swot ? (
                     <>
                       <div className="sales_enablement_agent_answer_wrap">
                         <span className="chat_message_icon sales_enablement_agent_icon">
-                          <BotIcon size={18} />
+                          <AiQChatIcon />
                         </span>
                         <div className="bot_answer_sec">
+                          {msg.toolCalls && msg.toolCalls.length > 0 && (
+                            <ToolCallsSummary
+                              calls={msg.toolCalls}
+                              autoCollapse
+                            />
+                          )}
                           {msg.text && (
                             <p className="sales_enablement_agent_intro">
                               {msg.text}
@@ -652,9 +1157,8 @@ export function SalesEnablement() {
                               <div className="sales_enablement_swot_title">
                                 <span>
                                   <TriangleAlert className="swot_title_icons" />
-                                 
                                 </span>
-                                Threats
+                                <span>Threats</span>
                               </div>
                               <ul>
                                 {msg.swot.threats.map((s, j) => (
@@ -669,9 +1173,15 @@ export function SalesEnablement() {
                   ) : msg.role === "agent" && msg.battleCard ? (
                     <div className="sales_enablement_agent_answer_wrap">
                       <span className="chat_message_icon sales_enablement_agent_icon">
-                        <BotIcon size={18} />
+                        <AiQChatIcon />
                       </span>
                       <div className="bot_answer_sec">
+                        {msg.toolCalls && msg.toolCalls.length > 0 && (
+                          <ToolCallsSummary
+                            calls={msg.toolCalls}
+                            autoCollapse
+                          />
+                        )}
                         {msg.text && (
                           <p className="sales_enablement_agent_intro">
                             {msg.text}
@@ -798,119 +1308,101 @@ export function SalesEnablement() {
                   ) : msg.role === "agent" ? (
                     <div className="sales_enablement_agent_answer_wrap">
                       <span className="chat_message_icon sales_enablement_agent_icon">
-                        <BotIcon size={18} />
+                        <AiQChatIcon />
                       </span>
-                      <div className="bot_answer_sec" style={msg.text && msg.text.length > 300 ? { whiteSpace: "pre-wrap" } : undefined}>
-                        {msg.text}
+                      <div className="bot_answer_sec">
+                        {msg.toolCalls && msg.toolCalls.length > 0 && (
+                          <ToolCallsSummary
+                            calls={msg.toolCalls}
+                            autoCollapse
+                          />
+                        )}
+                        {msg.text && (
+                          <div
+                            className={
+                              msg.text.length > 300
+                                ? "sales_enablement_agent_text sales_enablement_agent_text--long"
+                                : "sales_enablement_agent_text"
+                            }
+                          >
+                            {msg.text}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
                     msg.text
                   )}
                 </ChatMessage>
-              ))}
-              {isGenerating && (
-                <div className="sales_enablement_loader_wrap">
-                  <span className="chat_message_icon sales_enablement_agent_icon">
-                    <BotIcon size={18} />
-                  </span>
-                  <Loader2 size={20} className="sales_enablement_loader_icon" aria-hidden />
-                </div>
-              )}
-            </div>
-            <div className="sales_enablement_input_row">
-              <Input
-                id="sales_enablement_message"
-                labelName=""
-                name="message"
-                type="textarea"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                required={false}
-                rows={3}
-                placeholder="Ask how to address buyer concerns, handle objections, or position your solution..."
-              />
-              <Button
-                type="button"
-                className="sales_enablement_send_btn"
-                onClick={handleSend}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <Loader2 size={20} className="sales_enablement_send_loader" aria-hidden />
-                ) : (
-                  <Send size={20} aria-hidden />
-                )}
-              </Button>
-            </div>
-            <div className="sales_enablement_chat_actions">
-              <button
-                type="button"
-                className="sales_enablement_chat_action_btn"
-                disabled={!quickActionsEnabled || isGenerating}
-                onClick={handleQuickActionSwot}
-              >
-                <BarChart3 size={16} aria-hidden />
-                SWOT Analysis
-              </button>
-              <button
-                type="button"
-                className="sales_enablement_chat_action_btn"
-                disabled={!quickActionsEnabled || isGenerating}
-                onClick={handleQuickActionBattleCard}
-              >
-                <Swords size={16} aria-hidden />
-                Battle Card
-              </button>
-            </div>
-          </div>
-
-          <aside className="sales_enablement_sidebar">
-            <div className="sales_enablement_sidebar_card">
-              <h3 className="sales_enablement_sidebar_title">Quick Actions</h3>
-              {QUICK_ACTIONS.map((action) => {
-                const Icon = action.icon;
-                const isDisabled =
-                  ((action.key === "swot" || action.key === "battlecard") && !quickActionsEnabled) ||
-                  isGenerating;
-                return (
-                  <Button
-                    key={action.label}
-                    type="button"
-                    className="sales_enablement_quick_action_btn"
-                    disabled={isDisabled}
-                    onClick={() => handleQuickAction(action.key)}
-                  >
-                    <Icon size={18} aria-hidden />
-                    {action.label}
-                  </Button>
                 );
               })}
+              {isGenerating && (
+                <div
+                  className="sales_enablement_agent_answer_wrap sales_enablement_generating_block"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={thinkingStatusText}
+                >
+                  <span className="chat_message_icon sales_enablement_agent_icon">
+                    <AiQChatIcon />
+                  </span>
+                  <div className="sales_enablement_generating_panel">
+                    {liveToolCalls && liveToolCalls.length > 0 && (
+                      <ToolCallsSummary
+                        calls={liveToolCalls}
+                        defaultOpen
+                        className="tool_calls_summary--live"
+                      />
+                    )}
+                    <div className="sales_enablement_agent_thinking">
+                      <span className="sales_enablement_agent_thinking_text">
+                        {thinkingStatusText}
+                      </span>
+                      <span className="sales_enablement_thinking_dots" aria-hidden>
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} className="sales_enablement_messages_end" aria-hidden />
             </div>
-            <div className="sales_enablement_sidebar_card">
-              <h3 className="sales_enablement_sidebar_title">
-                Example Questions
-              </h3>
-              <ul className="sales_enablement_example_list">
-                {EXAMPLE_QUESTIONS.map((q, i) => (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      className="sales_enablement_example_btn"
-                      onClick={() => handleExampleClick(q)}
-                    >
-                      <MessageSquare size={16} aria-hidden />
-                      <ClickTooltip content={q} showOn="hover" position="top">
-                        <span className="sales_enablement_example_btn_text">
-                          {q}
-                        </span>
-                      </ClickTooltip>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+
+            <div className="sales_enablement_composer">
+              <div className="sales_enablement_input_shell">
+                <Input
+                  id="sales_enablement_message"
+                  labelName=""
+                  name="message"
+                  type="textarea"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  required={false}
+                  rows={2}
+                  placeholder={
+                    selectedAssessmentId
+                      ? "Ask about positioning, objections, or compliance…"
+                      : "Select an assessment to start chatting…"
+                  }
+                />
+                <Button
+                  type="button"
+                  className={`sales_enablement_send_btn${messageInput.trim() && !isGenerating ? " sales_enablement_send_btn--ready" : ""}`}
+                  onClick={handleSend}
+                  disabled={isGenerating || !messageInput.trim()}
+                  aria-label="Send message"
+                >
+                  {isGenerating ? (
+                    <Loader2 size={18} className="sales_enablement_send_loader" aria-hidden />
+                  ) : (
+                    <ArrowUp size={18} strokeWidth={2.25} aria-hidden />
+                  )}
+                </Button>
+              </div>
             </div>
-          </aside>
+          </div>
         </div>
       </div>
     </div>

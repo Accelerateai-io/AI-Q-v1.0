@@ -51,17 +51,6 @@ function productInitials(name: string): string {
   return s ? s.toUpperCase() : "Dr";
 }
 
-/** Chip accent for product status — matches Risk & Controls chip vocabulary (MyVendors.css). */
-function productStatusToRiskChipClass(status: string): string {
-  const s = String(status ?? "").toLowerCase().trim();
-  if (s === "completed") return "risk_mapping_chip_mitigated";
-  if (s === "draft") return "risk_mapping_chip_medium";
-  if (s === "expired") return "risk_mapping_chip_open";
-  if (s === "rejected") return "risk_mapping_chip_critical";
-  if (s === "submitted" || s === "pending") return "risk_mapping_chip_low";
-  return "risk_mapping_chip_low";
-}
-
 const SECTOR_KEYS_ORDER = ["public_sector", "private_sector", "non_profit_sector"] as const;
 
 /** Format sector for display: only the values from arrays that have data (e.g. "Defense & Military"). Handles object or JSON string. */
@@ -110,30 +99,107 @@ function parseScoreFromText(text: string): number | null {
   return Number.isNaN(n) ? null : Math.min(100, Math.max(0, n));
 }
 
+function coerceScore(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.min(100, Math.max(0, Math.round(value)));
+  }
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Math.min(100, Math.max(0, Math.round(Number(value))));
+  }
+  return null;
+}
+
+/** Normalize report payload whether it arrives as object or JSON string. */
+function normalizeReportRaw(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return null;
+    try {
+      const parsed = JSON.parse(t) as unknown;
+      if (parsed != null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  return null;
+}
+
+function trustBlockFromReport(raw: unknown): Record<string, unknown> | null {
+  const o = normalizeReportRaw(raw);
+  if (!o) return null;
+  const ts = o.trustScore ?? o.trust_score;
+  if (ts == null || typeof ts !== "object") return null;
+  return ts as Record<string, unknown>;
+}
+
 /** Get overallScore (0–100) from report column trustScore.overallScore when full report validation fails. */
 function getOverallScoreFromReport(raw: unknown): number | null {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const ts = o.trustScore;
-  if (ts == null || typeof ts !== "object") return null;
-  const t = ts as Record<string, unknown>;
-  if (typeof t.overallScore === "number") return Math.min(100, Math.max(0, t.overallScore));
-  return null;
+  const t = trustBlockFromReport(raw);
+  if (!t) return null;
+  return (
+    coerceScore(t.overallScore) ??
+    coerceScore(t.overall_score) ??
+    null
+  );
+}
+
+/**
+ * Resolve displayable trust score for a product card.
+ * Prefer report JSON, then latest_trust_score, then matching stored generated-reports row.
+ * Treat 0 as missing so column/stored fallbacks can win when nested overallScore was never set.
+ */
+function resolveProductTrustScore(
+  product: ProductProfileProduct,
+  storedReports: StoredGeneratedReport[] = [],
+): number | null {
+  const fromReportRaw = getOverallScoreFromReport(product.generated_profile_report);
+  const fromParsed =
+    asGeneratedReport(product.generated_profile_report)?.trustScore?.overallScore ?? null;
+  const fromReport =
+    (fromReportRaw != null && fromReportRaw > 0 ? fromReportRaw : null) ??
+    (typeof fromParsed === "number" && fromParsed > 0 ? fromParsed : null);
+
+  if (fromReport != null) {
+    return Math.min(100, Math.max(0, Math.round(fromReport)));
+  }
+
+  const fromLatest = coerceScore(product.latest_trust_score);
+  if (fromLatest != null && fromLatest > 0) return fromLatest;
+
+  const stored = storedReports.find(
+    (r) => r.attestationId != null && String(r.attestationId) === String(product.id),
+  );
+  if (stored) {
+    const fromStoredCol = coerceScore(stored.trustScore);
+    if (fromStoredCol != null && fromStoredCol > 0) return fromStoredCol;
+    const fromStoredReport = getOverallScoreFromReport(stored.report);
+    if (fromStoredReport != null && fromStoredReport > 0) return fromStoredReport;
+  }
+
+  // Explicit 0 only if that is truly all we have
+  return fromLatest ?? fromReportRaw ?? (typeof fromParsed === "number" ? fromParsed : null);
 }
 
 /** Normalize API-generated report to GeneratedProductProfileReport (from attestation submit or fetch). */
 function asGeneratedReport(raw: unknown): GeneratedProductProfileReport | null {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  if (
-    o.trustScore == null ||
-    typeof o.trustScore !== "object" ||
-    !Array.isArray(o.sections)
-  )
-    return null;
-  const ts = o.trustScore as Record<string, unknown>;
+  const o = normalizeReportRaw(raw);
+  if (!o) return null;
+  const tsRaw = o.trustScore ?? o.trust_score;
+  const sections = Array.isArray(o.sections) ? o.sections : [];
+  if (tsRaw == null || typeof tsRaw !== "object") return null;
+  const ts = tsRaw as Record<string, unknown>;
   const summary = typeof ts.summary === "string" ? ts.summary : "";
-  let overallScore = typeof ts.overallScore === "number" ? ts.overallScore : 0;
+  let overallScore =
+    coerceScore(ts.overallScore) ??
+    coerceScore(ts.overall_score) ??
+    0;
   if (overallScore === 0) {
     const fromSummary = summary ? parseScoreFromText(summary) : null;
     const fromLabel = typeof ts.label === "string" ? parseScoreFromText(ts.label) : null;
@@ -149,7 +215,15 @@ function asGeneratedReport(raw: unknown): GeneratedProductProfileReport | null {
         | Record<string, string | number>
         | undefined,
     },
-    sections: o.sections as GeneratedProductProfileReport["sections"],
+    sections: sections as GeneratedProductProfileReport["sections"],
+    ...(typeof o.modelId === "string" && o.modelId.trim()
+      ? { modelId: o.modelId.trim() }
+      : {}),
+    ...(typeof o.modelLabel === "string" && o.modelLabel.trim()
+      ? { modelLabel: o.modelLabel.trim() }
+      : typeof o.model_label === "string" && o.model_label.trim()
+        ? { modelLabel: o.model_label.trim() }
+        : {}),
   };
 }
 
@@ -248,18 +322,32 @@ function ProductProfileProductListCard({
   trustScoreDisplay,
   onView,
 }: ProductProfileProductListCardProps) {
-  const statusChipClass = productStatusToRiskChipClass(product.status);
+  const statusLabel = String(product.status ?? "").trim() || "—";
+  const statusLower = statusLabel.toLowerCase();
+  const isCompleted = statusLower === "completed";
+  const isExpired = statusLower === "expired";
+  const isDraft = statusLower === "draft";
+  const statusPillClass = isCompleted
+    ? "pill_status_active"
+    : isExpired
+      ? "pill_status_inactive"
+      : "pill_status_pending";
+  const showStatusDot = isCompleted || isExpired || isDraft;
   const hasTrustScore = trustScoreDisplay !== "—";
   return (
-    <div className="risk_mapping_risk_card">
-      <div className="risk_mapping_risk_top product_profile_card_risk_top_with_trust">
-        <div className="risk_mapping_chip_row">
-          <span className="risk_mapping_chip risk_mapping_chip_id" aria-hidden>
+    <article
+      className={`product_profile_premium_card${isDraft ? " product_profile_premium_card--draft" : isCompleted ? " product_profile_premium_card--completed" : ""}`}
+    >
+      <div className="product_profile_premium_card_top">
+        <div className="product_profile_premium_card_identity">
+          <span className="product_profile_premium_avatar" aria-hidden>
             {productInitials(product.productName)}
           </span>
-          <span className={`risk_mapping_chip ${statusChipClass}`}>{product.status}</span>
         </div>
-        <div className="product_profile_card_trust_block" aria-label={`Trust score ${trustScoreDisplay}`}>
+        <div
+          className="product_profile_card_trust_block"
+          aria-label={`Trust score ${trustScoreDisplay}`}
+        >
           <span className="product_profile_card_trust_label_top">Trust score</span>
           <span
             className={
@@ -272,25 +360,32 @@ function ProductProfileProductListCard({
           </span>
         </div>
       </div>
-      <div className="risk_mapping_risk_body">
-        <h4 className="risk_mapping_risk_title">{product.productName}</h4>
-        <p className="risk_mapping_risk_desc">
+      <div className="product_profile_premium_card_body">
+        <h4 className="product_profile_premium_card_title">{product.productName}</h4>
+        <p className="product_profile_premium_card_desc">
           Review attestation detail, trust breakdown, and buyer visibility.
         </p>
       </div>
-      <div className="risk_mapping_risk_footer_product">
-        {/* <span className="risk_mapping_owner">Product attestation</span> */}
+      <div className="product_profile_premium_card_footer">
+        <span
+          className={`pill pill_status ${statusPillClass}${
+            showStatusDot ? " pill_status_with_dot" : ""
+          }`}
+        >
+          {showStatusDot ? <span className="pill_status_dot" aria-hidden /> : null}
+          {statusLabel}
+        </span>
         <button
           type="button"
-          className="product_profile_product_card_view_btn"
+          className="dash_view_all_btn product_profile_product_card_view_btn"
           onClick={() => onView(product)}
           aria-label={`View details for ${product.productName}`}
         >
           View details
-          <ChevronRight size={16} aria-hidden />
+          <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -379,18 +474,15 @@ function ProductProfileView({
   const averageTrustScore = useMemo(() => {
     const scores: number[] = [];
     currentProducts.forEach((p) => {
-      const report = asGeneratedReport(p.generated_profile_report);
-      const score =
-        report?.trustScore?.overallScore ??
-        getOverallScoreFromReport(p.generated_profile_report);
-      if (typeof score === "number" && !Number.isNaN(score)) {
-        scores.push(Math.min(100, Math.max(0, score)));
+      const score = resolveProductTrustScore(p, storedReports);
+      if (typeof score === "number" && !Number.isNaN(score) && score > 0) {
+        scores.push(score);
       }
     });
     if (scores.length === 0) return null;
     const sum = scores.reduce((a, b) => a + b, 0);
     return Math.round(sum / scores.length);
-  }, [currentProducts]);
+  }, [currentProducts, storedReports]);
 
   /** On product detail, prefer company profile from loaded attestation; otherwise vendor form state. */
   const company =
@@ -613,9 +705,6 @@ function ProductProfileView({
                   {viewProductMeta?.productName ?? "Product details"}
                 </h1>
               </nav>
-              <p className="sub_title page_header_subtitle product_profile_breadcrumb_subtitle">
-                Attestation status, trust breakdown, and what buyers can see.
-              </p>
             </div>
           </div>
         </div>
@@ -630,11 +719,12 @@ function ProductProfileView({
             <div className="page_header_title_block">
               <h1 className="page_header_title">Product Profile</h1>
               <p className="sub_title page_header_subtitle">
-                Your AI product attestation data, trust scores, and directory visibility in one place.
+                Your AI product attestation data, trust scores, and buyer visibility in one place.
               </p>
             </div>
           </div>
           <div className="btn_user_page product_profile_header_actions">
+            {/* Public Directory Listing disabled — product visibility is controlled only by "Visible to buyers"
             {onPublicListingToggle != null && (
               <>
                 <div className="product_profile_toggle_wrap">
@@ -655,6 +745,7 @@ function ProductProfileView({
                 )}
               </>
             )}
+            */}
           </div>
         </div>
       )}
@@ -719,14 +810,18 @@ function ProductProfileView({
               ? (() => {
                   const currentOnly = products.filter((p) => !isInProductProfileArchivedList(p));
                   const withScore = currentOnly.filter(
-                    (p) =>
-                      asGeneratedReport(p.generated_profile_report)?.trustScore?.overallScore != null ||
-                      getOverallScoreFromReport(p.generated_profile_report) != null,
+                    (p) => resolveProductTrustScore(p, storedReports) != null,
                   ).length;
                   return withScore === 1 ? "1 product" : `Across ${withScore} products`;
                 })()
               : reportToShow?.trustScore?.summary
-                ? truncate((reportToShow.trustScore.summary || "").replace(/\s*-+\s*$/, "").trim(), 60)
+                ? truncate(
+                    (reportToShow.trustScore.summary || "")
+                      .replace(/\*\*/g, "")
+                      .replace(/\s*-+\s*$/, "")
+                      .trim(),
+                    60,
+                  )
                 : compliancePercent
                   ? `${compliancePercent} compliance`
                   : "No scored products"
@@ -778,10 +873,21 @@ function ProductProfileView({
                 Back to products
               </button>
               <div className="product_profile_detail_on_page_body">
-                {viewProductLoading && <LoadingMessage message="Loading…" />}
+                {viewProductLoading && (
+                  <LoadingMessage
+                    message="Loading…"
+                    className="product_profile_detail_loader"
+                  />
+                )}
                 {!viewProductLoading && viewProductMeta && (
                   <>
-                    <div className="attestation_visible_status">
+                    <div
+                      className={`product_profile_detail_status_bar attestation_visible_status${
+                        viewProductMeta.status.toLowerCase() === "draft"
+                          ? " product_profile_detail_status_bar--draft"
+                          : ""
+                      }`}
+                    >
                       <div className="product_profile_modal_status_row">
                         <span className="product_profile_modal_status_label">
                           Attestation status
@@ -1015,11 +1121,12 @@ function ProductProfileView({
           ) : (
             <>
           <header className="product_profile_products_intro">
-            <h2 className="product_profile_products_section_title">Products</h2>
-            <p className="product_profile_products_section_lead">
-              Review trust scores, attestation status, and buyer visibility. Search by product name, then open a
-              product for full details.
-            </p>
+            <div className="product_profile_products_intro_text">
+              <h2 className="product_profile_products_section_title">Products</h2>
+              <p className="product_profile_products_section_lead">
+                Search products to review trust scores, status, and visibility.
+              </p>
+            </div>
           </header>
           {onProductTabChange ? (
             <div
@@ -1093,14 +1200,8 @@ function ProductProfileView({
                 <>
                 <div className="product_profile_product_cards">
                   {paginatedCurrentProducts.map((product) => {
-                    const productReport = asGeneratedReport(product.generated_profile_report);
-                    const overallFromReport = getOverallScoreFromReport(product.generated_profile_report);
-                    const trustScoreDisplay =
-                      productReport?.trustScore != null
-                        ? `${productReport.trustScore.overallScore}%`
-                        : overallFromReport != null
-                          ? `${overallFromReport}%`
-                          : "—";
+                    const score = resolveProductTrustScore(product, storedReports);
+                    const trustScoreDisplay = score != null ? `${score}%` : "—";
                     return (
                       <ProductProfileProductListCard
                         key={product.id}
@@ -1145,14 +1246,8 @@ function ProductProfileView({
                 <>
                 <div className="product_profile_product_cards">
                   {paginatedArchivedProducts.map((product) => {
-                    const productReport = asGeneratedReport(product.generated_profile_report);
-                    const overallFromReport = getOverallScoreFromReport(product.generated_profile_report);
-                    const trustScoreDisplay =
-                      productReport?.trustScore != null
-                        ? `${productReport.trustScore.overallScore}%`
-                        : overallFromReport != null
-                          ? `${overallFromReport}%`
-                          : "—";
+                    const score = resolveProductTrustScore(product, storedReports);
+                    const trustScoreDisplay = score != null ? `${score}%` : "—";
                     return (
                       <ProductProfileProductListCard
                         key={product.id}

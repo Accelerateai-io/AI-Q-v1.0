@@ -99,7 +99,7 @@ const BuyerGeography = ({
       </div>
 
       {isVisibleInput && (
-        <div className="form_fields_vendor" style={{ marginTop: "0.5rem" }}>
+        <div className="form_fields_vendor">
           <Input
             labelName={
               <div className="labelSection">

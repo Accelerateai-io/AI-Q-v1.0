@@ -1,10 +1,37 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+/* @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"); */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap');
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Inter", sans-serif;
+  /* font-family: "Inter", sans-serif; */
+  font-family: "Sora", sans-serif;
+}
+
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+  overscroll-behavior: none;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+  background-color: var(--bg-colour-main, #f8f4ed);
+}
+
+/* Fill viewport so short pages (e.g. User Management while loading) don’t leave a white gap */
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* Main / onboarding shells own scrolling — stop Edge document overscroll empty space */
+body:has(.container),
+body:has(.layout_onBoarrding) {
+  overflow: hidden;
 }
 
 :root {
@@ -12,40 +39,160 @@
   --auth-signin-input-border: #b8c9f3;
   --auth-signin-input-bg: #f2f6fc;
   /* --main-auth-button-color: #2463eb; */
-  --main-auth-button-color: #014aad;
-  --ui-border-radius: 5px;
+  --main-auth-button-color: var(--nav-active, #225bff);
+  --ui-border-radius: 0;
   --background-color-onboarding: #eff6ff;
   --edit-button-background: #bde0fe;
   --edit-button-color: black;
   --delete-button-background: #ffccd5;
-  --active-status-background: #d8f3dc;
+  --active-status-background: #dcfce7;
   --inactive-status-background: #ffccd5;
-  --card-onboarding-bg-color: #f5f7fa;
-  --bg-colour-main: #f3f6fb;
+  --card-onboarding-bg-color: #f0f3f7;
+  --bg-colour-main: #f8f4ed;
   --light-gray-color: #64748b;
+
+  /* Semantic surfaces / text — soft cool gray, never pure white */
+  --surface-color: #f5f7fa;
+  --surface-elevated: #f3f5f8;
+  --surface-muted: #e9edf2;
+  --surface-hover: #e4e8ee;
+  --text-primary: #1a1f36;
+  --text-secondary: #3c4257;
+  --text-muted: #64748b;
+  --border-subtle: #e2e6ec;
+  --border-strong: #d0d5dd;
+  /* Form fields — same soft blue wash as sign-in / nav search */
+  --input-bg: var(--auth-signin-input-bg, #f2f6fc);
+  --input-border: var(--auth-signin-input-border, #b8c9f3);
+  --input-text: #1f2937;
+  --icon-chip-bg: #e6edf7;
+  --icon-chip-color: #225bff;
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.045);
+  --shadow-elevated: 0 8px 28px rgba(15, 23, 42, 0.1);
+  --overlay-scrim: rgba(15, 23, 42, 0.45);
+  --focus-ring: rgba(34, 91, 255, 0.18);
+  --nav-active: #225bff;
+  --adm-chip-bg: #dbeafe;
+  --org-detail-card-bg: #f8fafc;
+  --org-detail-card-border: #e2e8f0;
+  --org-detail-title-color: #0f172a;
+  --org-section-title-color: #334155;
+  --table-header-bg: #edf2ff;
+  --table-row-bg: #f3f0ee;
+  --table-row-alt: whitesmoke;
+  --table-row-hover: whitesmoke;
+  --table-bg: #fcfcfc;
+  --table-header-border: #c5d0ea;
+  --table-header-text: #64748b;
+
+  /* Hard-offset 3D button (neo-brutalist slab) — gray offset keeps blue CTAs clean */
+  --btn-3d-offset: 6px;
+  --btn-3d-press: 3px;
+  --btn-3d-shadow-color: #606266;
+  --btn-3d-shadow-danger: #606266;
+}
+
+html[data-theme="dark"] {
+  /* Premium cool indigo canvas — aligns with light theme blue accents */
+  --background-color-onboarding: #221f2e;
+  --card-onboarding-bg-color: #252231;
+  --bg-colour-main: #1c1a27;
+  --light-gray-color: #9a95ab;
+  --auth-signin-input-bg: #221f2e;
+  --auth-signin-input-border: #4a455c;
+  /* Saturated blue CTA — white label, clear slab on indigo canvas */
+  --main-auth-button-color: #5b8cff;
+  --edit-button-background: rgba(138, 175, 255, 0.18);
+  --edit-button-color: #d4e0ff;
+  --delete-button-background: rgba(248, 113, 113, 0.2);
+  --active-status-background: rgba(52, 211, 153, 0.16);
+  --inactive-status-background: rgba(248, 113, 113, 0.16);
+
+  /* Layered cool surfaces above #1c1a27 */
+  --surface-color: #252231;
+  --surface-elevated: #2d2a3a;
+  --surface-muted: #221f2e;
+  --surface-hover: #353145;
+
+  /* Soft lavender text — never pure white */
+  --text-primary: #ebe9f3;
+  --text-secondary: #c8c4d6;
+  --text-muted: #9a95ab;
+
+  /* Soft cool edges — visible on indigo surfaces, not loud */
+  --border-subtle: #403c52;
+  --border-strong: #524e68;
+  --input-bg: #221f2e;
+  --input-border: #4a455c;
+  --input-text: #ebe9f3;
+  --icon-chip-bg: rgba(138, 175, 255, 0.14);
+  --icon-chip-color: #8aafff;
+  --shadow-soft: 0 4px 20px rgba(10, 8, 20, 0.36);
+  --shadow-elevated: 0 14px 40px rgba(10, 8, 20, 0.48);
+  --overlay-scrim: rgba(12, 10, 22, 0.64);
+  --focus-ring: rgba(91, 140, 255, 0.28);
+  --nav-active: #8aafff;
+  --adm-chip-bg: rgba(138, 175, 255, 0.16);
+  --org-detail-card-bg: var(--surface-elevated);
+  --org-detail-card-border: var(--border-subtle);
+  --org-detail-title-color: var(--text-primary);
+  --org-section-title-color: var(--text-secondary);
+  --table-header-bg: #3f3d5a;
+  --table-row-bg: #252231;
+  --table-row-alt: #2d2a3a;
+  --table-row-hover: rgba(138, 175, 255, 0.08);
+  --table-bg: #252231;
+  --table-header-border: transparent;
+  --table-header-text: #ebe9f3;
+  /* Same hard gray slab as light — must read clearly on #1c1a27 */
+  --btn-3d-offset: 6px;
+  --btn-3d-press: 3px;
+  --btn-3d-shadow-color: #606266;
+  --btn-3d-shadow-danger: #606266;
+  color-scheme: dark;
+}
+
+select:disabled,
+input:disabled:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+textarea:disabled,
+.input_readonly,
+select.input_readonly {
+  background-color: var(--surface-muted, #e9edf2) !important;
+  color: var(--text-secondary, #3c4257) !important;
+  cursor: not-allowed;
+  opacity: 0.92;
+}
+
+.assessment_details_no_reports {
+  color: var(--text-muted, #64748b);
+  font-size: 0.9375rem;
 }
 
 input {
-  border: 1px solid lightgray;
-  border-radius: 4px;
+  border: 1px solid var(--input-border, #b8c9f3);
+  border-radius: var(--ui-border-radius);
   padding: 5px;
-  font-size: 16px;
+  font-size: 14px;
   height: 40px;
+  background-color: var(--input-bg, #f2f6fc);
+  color: var(--input-text, #1f2937);
 }
 button {
   font-family: "Inter", sans-serif;
   border-radius: var(--ui-border-radius);
 }
 
-/* All textareas: 5px radius, no resize */
+/* All textareas: match logout / UI radius, no resize */
 textarea {
-  border: 1px solid lightgray;
-  border-radius: 5px;
+  border: 1px solid var(--input-border, #b8c9f3);
+  border-radius: var(--ui-border-radius);
   padding: 5px;
-  font-size: 16px;
+  font-size: 14px;
   resize: none;
-  min-height: 2.5em;
+  min-height: 2.5rem;
   box-sizing: border-box;
+  background-color: var(--input-bg, #f2f6fc);
+  color: var(--input-text, #1f2937);
 }
 
 /* COTS-style select: applied to all form selects across the app */
@@ -54,14 +201,14 @@ select {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d1d5db;
-  border-radius: 5px;
+  border: 1px solid var(--input-border, #b8c9f3);
+  border-radius: var(--ui-border-radius);
   padding: 0.5rem 2rem 0.5rem 0.75rem;
-  font-size: 0.9375rem;
+  font-size: 14px;
   line-height: 1.5;
   min-height: 40px;
-  background-color: #fff;
-  color: #1f2937;
+  background-color: var(--input-bg, #f2f6fc);
+  color: var(--input-text, #1f2937);
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
@@ -70,14 +217,14 @@ select {
 }
 select:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border-color: var(--main-auth-button-color, #3b82f6);
+  box-shadow: 0 0 0 2px var(--focus-ring, rgba(59, 130, 246, 0.2));
 }
 
 .invite_user_btn {
   border: 1px solid var(--main-auth-button-color);
-  padding: 7px 10px;
-  width: 8em;
+  padding: 10px 25px;
+  width: 8rem;
   background-color: var(--main-auth-button-color);
   font-size: 16px;
   font-weight: 600;
@@ -93,6 +240,144 @@ select:focus {
   width: 100%;
 }
 
+/*
+ * Primary / danger CTAs: hard-edged offset shadow (zero blur),
+ * sharp corners, press-in on :active — colors from app tokens.
+ */
+.invite_user_btn,
+.login-btn,
+.signin-submit,
+.orgCreateBtn,
+.createOrg,
+.card_continue_btn,
+.continue_btn,
+.submit_btn_vendor,
+.usersPage__btn--primary,
+.signup_confirmation_cta,
+.dash_greeting_cta,
+.product_profile_empty_hero_primary,
+.vendor_intel_start_assessment_btn,
+.generate_rpr_btn,
+.report_detail_export_btn,
+.bvr_export_btn,
+.back_btn,
+.vendor_attestation_save_draft_btn_form,
+.adminPage__modelApplyBtn,
+.adminPage__modelTestBtn,
+.adminPage__ghostBtn {
+  border-radius: 0 !important;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 var(--btn-3d-shadow-color);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    filter 0.15s ease,
+    opacity 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.invite_user_btn:hover:not(:disabled):not(.disabled_css),
+.login-btn:hover:not(:disabled):not(.disabled_css),
+.signin-submit:hover:not(:disabled):not(.disabled_css),
+.orgCreateBtn:hover:not(:disabled):not(.disabled_css),
+.createOrg:hover:not(:disabled):not(.disabled_css),
+.card_continue_btn:hover:not(:disabled):not(.disabled_css),
+.continue_btn:hover:not(:disabled):not(.disabled_css),
+.submit_btn_vendor:hover:not(:disabled):not(.disabled_css),
+.usersPage__btn--primary:hover:not(:disabled):not(.disabled_css),
+.signup_confirmation_cta:hover:not(:disabled),
+.dash_greeting_cta:hover:not(:disabled),
+.product_profile_empty_hero_primary:hover:not(:disabled),
+.vendor_intel_start_assessment_btn:hover:not(:disabled),
+.generate_rpr_btn:hover:not(:disabled),
+.report_detail_export_btn:hover:not(:disabled),
+.bvr_export_btn:hover:not(:disabled),
+.back_btn:hover:not(:disabled):not(.disabled_css),
+.vendor_attestation_save_draft_btn_form:hover:not(:disabled):not(.disabled_css),
+.adminPage__modelApplyBtn:hover:not(:disabled),
+.adminPage__modelTestBtn:hover:not(:disabled),
+.adminPage__ghostBtn:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 var(--btn-3d-shadow-color);
+  transform: none;
+}
+
+.invite_user_btn:active:not(:disabled):not(.disabled_css),
+.login-btn:active:not(:disabled):not(.disabled_css),
+.signin-submit:active:not(:disabled):not(.disabled_css),
+.orgCreateBtn:active:not(:disabled):not(.disabled_css),
+.createOrg:active:not(:disabled):not(.disabled_css),
+.card_continue_btn:active:not(:disabled):not(.disabled_css),
+.continue_btn:active:not(:disabled):not(.disabled_css),
+.submit_btn_vendor:active:not(:disabled):not(.disabled_css),
+.usersPage__btn--primary:active:not(:disabled):not(.disabled_css),
+.signup_confirmation_cta:active:not(:disabled),
+.dash_greeting_cta:active:not(:disabled),
+.product_profile_empty_hero_primary:active:not(:disabled),
+.vendor_intel_start_assessment_btn:active:not(:disabled),
+.generate_rpr_btn:active:not(:disabled),
+.report_detail_export_btn:active:not(:disabled),
+.bvr_export_btn:active:not(:disabled),
+.back_btn:active:not(:disabled):not(.disabled_css),
+.vendor_attestation_save_draft_btn_form:active:not(:disabled):not(.disabled_css),
+.adminPage__modelApplyBtn:active:not(:disabled),
+.adminPage__modelTestBtn:active:not(:disabled),
+.adminPage__ghostBtn:active:not(:disabled) {
+  transform: translate(var(--btn-3d-press), var(--btn-3d-press));
+  box-shadow: calc(var(--btn-3d-offset) - var(--btn-3d-press))
+    calc(var(--btn-3d-offset) - var(--btn-3d-press)) 0 0
+    var(--btn-3d-shadow-color);
+}
+
+.orgCancelBtn,
+.logout_btn {
+  border-radius: 0 !important;
+  box-shadow: var(--btn-3d-offset) var(--btn-3d-offset) 0 0 var(--btn-3d-shadow-danger);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    filter 0.15s ease;
+}
+
+.orgCancelBtn:hover:not(:disabled):not(.disabled_css),
+.logout_btn:hover:not(:disabled):not(.disabled_css) {
+  filter: brightness(1.05);
+  transform: none;
+}
+
+.orgCancelBtn:active:not(:disabled):not(.disabled_css),
+.logout_btn:active:not(:disabled):not(.disabled_css) {
+  transform: translate(var(--btn-3d-press), var(--btn-3d-press));
+  box-shadow: calc(var(--btn-3d-offset) - var(--btn-3d-press))
+    calc(var(--btn-3d-offset) - var(--btn-3d-press)) 0 0
+    var(--btn-3d-shadow-danger);
+}
+
+.invite_user_btn:disabled,
+.invite_user_btn.disabled_css,
+.login-btn:disabled,
+.login-btn.disabled_css,
+.signin-submit:disabled,
+.signin-submit.disabled_css,
+.orgCreateBtn:disabled,
+.orgCreateBtn.disabled_css,
+.orgCancelBtn:disabled,
+.orgCancelBtn.disabled_css,
+.logout_btn:disabled,
+.logout_btn.disabled_css,
+.card_continue_btn:disabled,
+.continue_btn:disabled,
+.submit_btn_vendor:disabled,
+.usersPage__btn--primary:disabled,
+.back_btn:disabled,
+.vendor_attestation_save_draft_btn_form:disabled,
+.report_detail_export_btn:disabled,
+.bvr_export_btn:disabled {
+  opacity: 0.6;
+  transform: none;
+  filter: none;
+  cursor: not-allowed;
+}
+
 .error_icon {
   transform: rotate(180deg); /* or any angle */
   transition: transform 0.2s ease;
@@ -102,8 +387,8 @@ select:focus {
 .error_text_sec {
   display: flex;
   align-items: center;
-  padding: 0.2em 0 0 0;
-  gap: 0.4em;
+  padding: 0.2rem 0 0 0;
+  gap: 0.4rem;
 }
 
 .error_text_sec p {
@@ -114,32 +399,35 @@ select:focus {
 /* Mandatory field asterisk: superscript, right of label (used by FormField everywhere) */
 .form_field_mandatory_asterisk {
   color: #b91c1c;
-  font-size: 1em;
+  font-size: 1rem;
   margin-left: 2px;
   vertical-align: super;
   line-height: 0;
 }
 
-/* Select colours – match COTS UI (placeholder gray, options/selected dark) */
-/* Placeholder (first option, e.g. "Select...") = COTS muted gray */
-select option:first-child {
-  color: #6b7280;
+html[data-theme="dark"] .form_field_mandatory_asterisk {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
 }
-/* Option text and selected value = COTS text primary */
+
+/* Select colours – match COTS UI (placeholder muted, value uses theme text) */
+select option:first-child {
+  color: var(--text-muted, #6b7280);
+}
 select option {
-  color: #1f2937;
+  color: var(--input-text, #1f2937);
 }
 .select_input--placeholder {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 .select_input:not(.select_input--placeholder) {
-  color: #1f2937;
+  color: var(--input-text, #1f2937);
 }
 .select_input option {
-  color: #1f2937;
+  color: var(--input-text, #1f2937);
 }
 .select_input option:first-child {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .main_onBoarding input {
@@ -153,8 +441,8 @@ select option {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  /* gap: 1em; */
-  margin: 0em 0 1em 0;
+  /* gap: 1rem; */
+  margin: 0rem 0 1rem 0;
 }
 .header_for_auth p {
   color: var(--main-auth-button-color);
@@ -163,11 +451,11 @@ select option {
   line-height: 32px;
 }
 .header_for_auth span {
-  padding: 0.5em;
+  padding: 0.5rem;
   /* width: 50px; */
   /* height: 50px; */
-  background-color: var(--main-dark-color);
-  color: white;
+  background-color: transparent;
+  color: inherit;
   border-radius: var(--ui-border-radius);
   display: flex;
   justify-content: center;
@@ -175,12 +463,48 @@ select option {
   align-items: center;
 }
 
-/* Global: all buttons and cards use 5px border radius */
+/* Global: cards, buttons, and search — square corners (--ui-border-radius: 0) */
 button,
+input,
+select,
+textarea,
 input[type="submit"],
 input[type="button"],
+input[type="search"],
 [class*="Btn"],
 [class*="_btn"],
+[class*="-btn"],
+[class*="button"],
+[class*="Button"],
+[class*="_card"],
+[class*="-card"],
+[class*="Card"],
+[class*="_search"],
+[class*="-search"],
+[class*="Search"],
+.app_search,
+.nav_search,
+.assessments_ledger_search,
+.assessment_search_input,
+.attestation_search_input,
+.user_management_search_input,
+.user_management_search_wrap,
+.product_profile_products_search_input,
+.product_profile_products_search,
+.reports_search_input,
+.reports_tabs_search,
+.adminPage__modelSearchWrap,
+.vd_premium_search_box,
+.vd_list_search,
+.vd_premium_card,
+.vd_list_card,
+.vendor_directory_card,
+.dash_feature_card,
+.dash_stat_card,
+.dash_greeting_cta,
+.account_theme_options,
+.account_theme_option,
+.logout_btn,
 .card,
 .cards,
 .card_vendor,
@@ -198,9 +522,6 @@ input[type="button"],
 .governance_bottom_card,
 .ai_assessments_section,
 .assessment_card,
-.sales_enablement_section,
-.sales_enablement_chat_main,
-.sales_enablement_sidebar_card,
 .report_card,
 .report_summary_card,
 .report_recommendation_card,
@@ -208,8 +529,26 @@ input[type="button"],
 .product_profile_summary_card,
 .product_profile_detail_card,
 .product_profile_product_card,
-.product_profile_modal {
+.product_profile_modal,
+.product_profile_premium_card,
+.product_profile_detail_on_page,
+.product_profile_empty_hero,
+.summary_card,
+.generated_profile_trust_card,
+.generated_profile_section_card {
   border-radius: var(--ui-border-radius) !important;
+}
+
+/* Attestation soft cards stay square */
+.vendor_directory_card.general_rpr_card.attestation_soft_card,
+.vendor_directory_card.attestation_soft_card,
+.attestation_soft_card,
+.attestation_soft_card--completed,
+.attestation_soft_card--draft,
+.attestation_soft_card--expired,
+.attestation_soft_card--rejected,
+.attestation_soft_card--archived {
+  border-radius: 0 !important;
 }
 
 /* Toggles: 25px border radius (switch track only) */
@@ -217,6 +556,11 @@ input[type="button"],
 .product_profile_toggle,
 .product_profile_product_toggle {
   border-radius: 25px !important;
+}
+
+/* Dashboard feature card decorative arcs stay circular */
+.dash_feature_card__arcs {
+  border-radius: 50% !important;
 }
 
 /* Modal/page close button (CircleX) – same across the application */
@@ -229,12 +573,12 @@ input[type="button"],
   background: none;
   cursor: pointer;
   color: #64748b;
-  border-radius: 5px;
+  border-radius: 50%;
 }
 
 .modal_close_btn:hover {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--icon-chip-bg, #edf2ff);
+  color: var(--text-secondary, #334155);
 }
 
 .modal_close_btn:disabled {
@@ -245,4 +589,30 @@ input[type="button"],
 .modal_close_btn svg {
   flex-shrink: 0;
   color: inherit;
+}
+
+/* Shared table surface */
+.orgDataTable,
+.team_members_table_wrapper,
+.assessments_ledger_table,
+.governance_table_wrap,
+.vendor_portal_table_wrap,
+.report_table_wrap,
+.report_framework_table_shell,
+.org_attestations_table_wrap,
+.report_table,
+.governance_table,
+.vendor_portal_table,
+.org_attestations_table {
+  background: var(--table-bg, #fcfcfc);
+  background-color: var(--table-bg, #fcfcfc);
+}
+
+.orgDataTable .rdt_Table,
+.orgDataTable .rdt_TableWrapper,
+.orgDataTable .rdt_TableHead,
+.orgDataTable .rdt_TableBody,
+.orgDataTable .rdt_Pagination {
+  background: var(--table-bg, #fcfcfc) !important;
+  background-color: var(--table-bg, #fcfcfc) !important;
 }

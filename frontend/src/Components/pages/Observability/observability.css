@@ -1,0 +1,439 @@
+.observabilityPage,
+.observabilityDetailPage {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.observabilityPage,
+.observabilityDetailPage .team_members_card_header {
+  margin-top: 1em;
+  margin-bottom: 2em;
+}
+
+ .team_members_card_header {
+   margin-top: 2em;
+  margin-bottom: 2em;
+ }
+
+.observabilityPage .org_settings_card_subtitle,
+.observabilityDetailPage .org_settings_card_subtitle {
+  font-size: 0.65rem;
+}
+
+/* Flat table shell — no card chrome; align with page content */
+.observabilityPage .org_admin_table_shell,
+.observabilityDetailPage .org_admin_table_shell,
+.observabilityPage .orgDataTable,
+.observabilityDetailPage .orgDataTable {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible;
+  width: 100%;
+}
+
+.observabilityPage .org_admin_table_shell .assessments_ledger_toolbar,
+.observabilityDetailPage .org_admin_table_shell .assessments_ledger_toolbar,
+.observabilityPage .orgDataTable .assessments_ledger_toolbar,
+.observabilityDetailPage .orgDataTable .assessments_ledger_toolbar {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  margin-bottom: 0.85rem;
+  padding: 0 !important;
+}
+
+.observabilityPage .orgDataTable .rdt_Table,
+.observabilityDetailPage .orgDataTable .rdt_Table,
+.observabilityPage .orgDataTable .rdt_TableWrapper,
+.observabilityDetailPage .orgDataTable .rdt_TableWrapper,
+.observabilityPage .orgDataTable .rdt_TableHead,
+.observabilityDetailPage .orgDataTable .rdt_TableHead,
+.observabilityPage .orgDataTable .rdt_TableBody,
+.observabilityDetailPage .orgDataTable .rdt_TableBody,
+.observabilityPage .orgDataTable .rdt_Pagination,
+.observabilityDetailPage .orgDataTable .rdt_Pagination {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 100%;
+}
+
+.observabilityPage .orgDataTable .rdt_TableHeadRow,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow,
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol {
+  border-bottom: none !important;
+  border-bottom-width: 0 !important;
+}
+
+/* Keep ID column centered (global orgDataTable forces left) */
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:first-child,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:first-child,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:first-child,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:first-child {
+  text-align: center !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:first-child > div,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:first-child > div,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:first-child > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:first-child > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.observabilityPage__idCell {
+  width: 100%;
+  text-align: center !important;
+  display: block;
+}
+
+.observabilityPage__centerCell {
+  width: 100%;
+  text-align: center !important;
+}
+
+.observabilityPage__centerCell p {
+  margin: 0;
+  text-align: center !important;
+}
+
+.observabilityPage__centerCell .observabilityPage__modelLink {
+  display: inline;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* List: Model Name, Model ID = cols 2–3 */
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(2),
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(3),
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(2),
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(3) {
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(2) > div,
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(3) > div,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(2) > div,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(3) > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+.observabilityPage__numericCell {
+  width: 100%;
+  text-align: right !important;
+}
+
+.observabilityPage__numericCell p {
+  margin: 0;
+  text-align: right !important;
+}
+
+/* Detail: Date, Org Name, Org User = cols 2–4 */
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(2),
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(3),
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(4),
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(2),
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(3),
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(4) {
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(2) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(3) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(4) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(2) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(3) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(4) > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+/* Tokens / cost columns — list: cols 4–5; detail: cols 5–6 */
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(4),
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(5),
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(4),
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(5),
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(5),
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(6),
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(5),
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(6) {
+  text-align: right !important;
+  justify-content: flex-end !important;
+}
+
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(4) > div,
+.observabilityPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(5) > div,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(4) > div,
+.observabilityPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(5) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(5) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableHeadRow .rdt_TableCol:nth-child(6) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(5) > div,
+.observabilityDetailPage .orgDataTable .rdt_TableBodyRow .rdt_TableCell:nth-child(6) > div {
+  justify-content: flex-end !important;
+  text-align: right !important;
+  width: 100% !important;
+}
+
+.observabilityPage .org_settings_card.team_members_card,
+.observabilityDetailPage .org_settings_card.team_members_card {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.observabilityDetailPage {
+  gap: 1rem;
+  padding: 1.5rem 1rem 0 0;
+}
+
+.observabilityStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.15rem;
+}
+
+.observabilityStatCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      145deg,
+      #eef4ff 0%,
+      #f5f8ff 42%,
+      #e8f0ff 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--nav-active, #225bff) 14%, #e2e8f0);
+  border-radius: 16px;
+  padding: 1.45rem 1.55rem;
+  min-width: 0;
+  min-height: 180px;
+  box-shadow: 0 1px 2px rgba(34, 91, 255, 0.04);
+}
+
+/* Fine blue-dot texture — small, lightly visible, premium (matches app #225bff) */
+.observabilityStatCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--nav-active, #225bff) 42%, transparent) 0.9px,
+    transparent 1.1px
+  );
+  background-size: 11px 11px;
+  background-position: 0 0;
+  opacity: 0.85;
+  -webkit-mask-image: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.45) 48%,
+    rgba(0, 0, 0, 0.12) 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.45) 48%,
+    rgba(0, 0, 0, 0.12) 82%,
+    transparent 100%
+  );
+}
+
+.observabilityStatCard__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.observabilityStatCard__label {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+}
+
+.observabilityStatCard__value {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.observabilityStatCard__meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.observabilityMiniChart {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+}
+
+.observabilityMiniChart--bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 64px;
+  width: 96px;
+}
+
+.observabilityMiniChart--bars span {
+  flex: 1 1 0;
+  min-width: 6px;
+  border-radius: 999px 999px 2px 2px;
+  display: block;
+}
+
+.observabilityMiniChart--blue.observabilityMiniChart--bars span {
+  background: #93c5fd;
+}
+.observabilityMiniChart--blue.observabilityMiniChart--bars span:nth-child(even) {
+  background: #3b82f6;
+}
+
+.observabilityMiniChart--green.observabilityMiniChart--bars span {
+  background: #86efac;
+}
+.observabilityMiniChart--green.observabilityMiniChart--bars span:nth-child(even) {
+  background: #22c55e;
+}
+
+.observabilityMiniChart--amber.observabilityMiniChart--bars span {
+  background: #fcd34d;
+}
+.observabilityMiniChart--amber.observabilityMiniChart--bars span:nth-child(even) {
+  background: #f59e0b;
+}
+
+.observabilityPage__error {
+  margin: 0.75rem 0;
+  color: #b91c1c;
+  font-size: 0.95rem;
+}
+
+.observabilityPage__emptyText {
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #64748b;
+  text-align: center;
+}
+
+.observabilityPage__modelLink {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: var(--main-auth-button-color, #225bff);
+  font: inherit;
+  font-weight: 500;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.observabilityPage__modelLink:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+.observabilityPage__modelLink--muted {
+  color: var(--text-primary, #475569);
+  font-weight: 400;
+}
+
+.observabilityPage__modelLink--muted:hover {
+  color: var(--main-auth-button-color, #225bff);
+}
+
+@media (max-width: 900px) {
+  .observabilityStats {
+    grid-template-columns: 1fr;
+  }
+
+  .observabilityStatCard {
+    min-height: 140px;
+  }
+}
+
+html[data-theme="dark"] .observabilityStatCard {
+  background: linear-gradient(
+    145deg,
+    rgba(91, 140, 255, 0.16) 0%,
+    #1a1f2e 48%,
+    #151a27 100%
+  );
+  border-color: var(--border-subtle, #2a3142);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .observabilityStatCard::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(138, 175, 255, 0.5) 0.9px,
+    transparent 1.1px
+  );
+  opacity: 0.65;
+}
+
+html[data-theme="dark"] .observabilityStatCard__value {
+  color: var(--text-primary, #e5e7eb);
+}
+
+html[data-theme="dark"] .observabilityStatCard__label,
+html[data-theme="dark"] .observabilityStatCard__meta {
+  color: var(--text-muted, #9ca3af);
+}

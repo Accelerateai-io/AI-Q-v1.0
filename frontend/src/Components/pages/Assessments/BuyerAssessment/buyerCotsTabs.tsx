@@ -1,13 +1,12 @@
 import {
   Building2,
   Target,
-  Search,
-  ClipboardCheck,
-  Shield,
-  AlertTriangle,
-  Settings,
-  FileCheck,
-  // Sparkles,
+  Scale,
+  Eye,
+  Layers,
+  ShieldCheck,
+  DoorOpen,
+  UserCheck,
   FileText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,14 +19,13 @@ export interface BuyerCotsTabStep {
 }
 
 export const BUYER_COTS_TAB_STEPS: BuyerCotsTabStep[] = [
-  { id: "organization-profile", label: "Organization Profile", subTitle: "Basic organization context", icon: Building2 },
-  { id: "use-case", label: "Use Case", subTitle: "Business pain points and outcomes", icon: Target },
-  { id: "vendor-evaluation", label: "Vendor Evaluation", subTitle: "Vendor and product details", icon: Search },
-  { id: "readiness", label: "Readiness", subTitle: "Digital and governance maturity", icon: ClipboardCheck },
-  { id: "risk-profile", label: "Risk Profile", subTitle: "Data sensitivity and risk appetite", icon: Shield },
-  { id: "vendor-risk", label: "Vendor Risk", subTitle: "Vendor validation and security", icon: AlertTriangle },
-  { id: "implementation", label: "Implementation", subTitle: "Rollout and change management", icon: Settings },
-  { id: "evidence", label: "Evidence", subTitle: "Monitoring and audit availability", icon: FileCheck },
-  // { id: "auto-generated", label: "Auto-Generated", subTitle: "System-generated risk analysis", icon: Sparkles },
+  { id: "context", label: "Context", subTitle: "Organization record", icon: Building2 },
+  { id: "purchase", label: "What we are buying", subTitle: "Vendor, use case, and success", icon: Target },
+  { id: "data-legal", label: "Data and legal", subTitle: "Exposure and applicable rules", icon: Scale },
+  { id: "oversight", label: "Oversight", subTitle: "Review and disclosure", icon: Eye },
+  { id: "environment", label: "Environment", subTitle: "Hosting and implementation", icon: Layers },
+  { id: "vendor-trust", label: "Vendor trust", subTitle: "Evidence in hand", icon: ShieldCheck },
+  { id: "exit", label: "If it goes away", subTitle: "Continuity and contracts", icon: DoorOpen },
+  { id: "provenance", label: "Provenance", subTitle: "Who completed this", icon: UserCheck },
   { id: "review", label: "Review", subTitle: "Review and submit", icon: FileText },
 ];

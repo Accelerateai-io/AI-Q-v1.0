@@ -3,6 +3,7 @@ import insertOrganization from "../controllers/organizationsControllers/insertOr
 import fetchOrganizations from "../controllers/organizationsControllers/fetchOrgs.js";
 import authenticateToken from "../middlewares/routesProtection.js";
 import updateOrganization from "../controllers/organizationsControllers/updateOrg.controllers.js";
+import archiveOrganization from "../controllers/organizationsControllers/archiveOrg.controller.js";
 import fetchOrgOnboarding from "../controllers/organizationsControllers/fetchOrgOnboarding.controller.js";
 import getDashboardStats from "../controllers/organizationsControllers/dashboardStats.controller.js";
 import listOrgAttestations from "../controllers/organizationsControllers/listOrgAttestations.controller.js";
@@ -21,6 +22,11 @@ orgrouter
   "/updateOrganizations/:id",
   authenticateToken,
   updateOrganization,
+)
+.patch(
+  "/archiveOrganization/:id",
+  authenticateToken,
+  archiveOrganization,
 );
 
 

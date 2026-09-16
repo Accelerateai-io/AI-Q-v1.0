@@ -5,6 +5,7 @@ import Button from "../../UI/Button";
 import { useNavigate, useParams } from "react-router-dom";
 import CardContainerOnBoarding from "../../UI/CardContainerOnBoarding";
 import CardOnBoarding from "../../UI/CardOnBoarding";
+import LoadingMessage from "../../UI/LoadingMessage";
 import  {jwtDecode}  from "jwt-decode";
 import { getApiBaseUrl } from "../../../utils/apiBaseUrl";
 import { fetchOnboardingAccessStatus } from "../../../utils/onboardingAccessStatus";
@@ -23,6 +24,7 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const [role, setRole] = useState("");
   const [disableBtn, setDisabledBtn] = useState(true);
+  const [accessCheckReady, setAccessCheckReady] = useState(false);
   const { token } = useParams<{ token: string }>();
 useEffect(() => {
   let cancelled = false;
@@ -78,6 +80,7 @@ useEffect(() => {
         navigate(`/onBoarding/vendorOnboarding/${activeToken}`, { replace: true });
         return;
       }
+      if (!cancelled) setAccessCheckReady(true);
     } catch (error) {
       console.error("Invalid token", error);
       alert("Invalid token. Please login again.");
@@ -170,6 +173,15 @@ useEffect(() => {
       listIcon: <FileCheck color="#22c55e" size={16} />,
     },
   ];
+
+  if (!accessCheckReady) {
+    return (
+      <LoadingMessage
+        message="Loading…"
+        className="loading_message_wrapper--page onboarding_page_loader"
+      />
+    );
+  }
 
   return (
     <>

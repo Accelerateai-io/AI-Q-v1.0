@@ -15,26 +15,27 @@
   width: 1px;
 }
 .radio-wrapper-22 .radio-input:checked + .radio-tile {
-  border-color: #2260ff;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-  /* color: #2260ff; */
+  border-color: var(--nav-active, #225bff);
+  box-shadow: var(--shadow-soft);
 }
+
 .radio-wrapper-22 .radio-input:checked + .radio-tile:before {
   transform: scale(1);
   opacity: 1;
-  background-color: #2260ff;
-  border-color: #2260ff;
+  background-color: var(--nav-active, #225bff);
+  border-color: var(--nav-active, #225bff);
 }
+
 .radio-wrapper-22 .radio-input:checked + .radio-tile .radio-icon,
 .radio-wrapper-22 .radio-input:checked + .radio-tile .radio-label {
-  color: #2260ff;
-  /* font-size: 1.2em; */
+  color: var(--nav-active, #225bff);
 }
+
 .radio-wrapper-22 .radio-input:focus + .radio-tile {
-  border-color: #2260ff;
+  border-color: var(--nav-active, #225bff);
   box-shadow:
-    0 5px 10px rgba(0, 0, 0, 0.1),
-    0 0 0 4px #b5c9fc;
+    var(--shadow-soft),
+    0 0 0 4px var(--focus-ring, rgba(34, 91, 255, 0.18));
 }
 .radio-wrapper-22 .radio-input:focus + .radio-tile:before {
   transform: scale(1);
@@ -46,15 +47,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 21em;
-  min-height: 24em;
-  /* width: 9rem;
-  min-height: 9rem; */
-  border-radius: 0.5rem;
-  /* border: 2px solid #b5bfd9; */
-  border: 2px solid transparent;
-  background-color: #fff;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+  width: 21rem;
+  min-height: 24rem;
+  border-radius: var(--ui-border-radius, 0);
+  border: 1px solid var(--app-border-color, var(--border-subtle, #e2dcd6));
+  background-color: var(--surface-color);
+  box-shadow: var(--shadow-soft);
   transition: 0.15s ease;
   cursor: pointer;
   position: relative;
@@ -66,7 +64,7 @@
   width: 1.25rem;
   height: 1.25rem;
   border: 2px solid #b5bfd9;
-  background-color: #fff;
+  background-color: var(--surface-color);
   border-radius: 50%;
   top: 0.25rem;
   left: 0.25rem;
@@ -79,7 +77,7 @@
   background-position: 50% 50%;
 }
 .radio-wrapper-22 .radio-tile:hover {
-  border-color: #2260ff;
+  border-color: var(--nav-active, #225bff);
 }
 .radio-wrapper-22 .radio-tile:hover:before {
   transform: scale(1);
@@ -102,13 +100,13 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  /* font-size: 1.2em; */
+  /* font-size: 1.2rem; */
 }
 
 .onboarding_sec {
   display: flex;
   justify-content: space-around;
-  /* margin: 2.2em 0 1em 0; */
+  /* margin: 2.2rem 0 1rem 0; */
   position: absolute;
   top: 36%;
   left: 27%;

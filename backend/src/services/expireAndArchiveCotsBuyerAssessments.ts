@@ -4,7 +4,7 @@ import { hasCotsBuyerArchivedReportColumn, resetCotsBuyerArchivedColumnCache } f
 /**
  * Marks submitted assessments past expiry_at as expired, then moves live buyer vendor
  * risk JSON to archived_vendor_risk_assessment_report so active report endpoints stay empty
- * while preserving an audit snapshot (requires migration 0056 column).
+ * while preserving an audit snapshot (requires archived_vendor_risk_assessment_report).
  */
 export async function expireSubmittedAssessmentsAndArchiveBuyerReports(pool: Pool): Promise<void> {
   await pool.query(`

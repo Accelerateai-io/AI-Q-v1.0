@@ -25,6 +25,7 @@ export const accountStatusEnum = pgEnum("account_status", ["invited", "confirmed
 export const organizationStatusEnum = pgEnum("organizationStatus", [
   "active",
   "inactive",
+  "archived",
 ]);
 export const signup = pgEnum("user_signup_completed", [
   "true",

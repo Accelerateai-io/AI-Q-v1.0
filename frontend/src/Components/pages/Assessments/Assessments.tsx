@@ -27,10 +27,6 @@ import Button from "../../UI/Button";
 import Modal from "../../UI/Modal";
 import LoadingMessage from "../../UI/LoadingMessage";
 import ClickTooltip from "../../UI/ClickTooltip";
-import PreviewTable from "../../preview/PreviewTable";
-import type { PreviewField } from "../../../types/preview";
-import { BUYER_COTS_FIELD_KEYS } from "../../../constants/buyerCotsAssessmentKeys";
-import { formatPreviewValue } from "../../../utils/formatPreviewValue";
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js";
 import "../../../styles/page_tabs.css";
 import "../../../styles/popovers.css";
@@ -38,13 +34,14 @@ import "../Organizations/organization.css";
 import "../UserManagement/user_management.css";
 import "../UserProfile/user_profile.css";
 import "../VendorDirectory/VendorDirectory.css";
+import { premiumDataTableStyles } from "../../../styles/dataTableStyles";
 import "../Reports/general_reports.css";
-import "../../preview/preview_table.css";
 import "./assessments.css";
 import { toast } from "react-toastify";
 import { ReportsPagination } from "../Reports/ReportsPagination";
 import AssessmentPreviewModalContent from "./AssessmentPreviewModalContent";
 import AssessmentsLedgerPanel, {
+  type AssessmentStatusScope,
   type LedgerRowVM,
 } from "./AssessmentsLedgerPanel";
 
@@ -310,8 +307,12 @@ function mapRowToLedgerVM(
     progressPct = isBuyerRow ? getBuyerAssessmentProgress(row) : 40;
   }
   const leadName = getCompletedByDisplay(row) || "—";
-  const reportScore = getReportRiskScoreFromRow(row);
-  const hasReport = reportScore != null;
+  const storedScore = getReportRiskScoreFromRow(row);
+  // Type 2 stores sales risk → show readiness (100 − SRS).
+  // Type 3 stores IRS readiness → show implementation risk (100 − IRS).
+  const reportScore =
+    storedScore == null ? null : Math.round(Math.max(0, Math.min(100, 100 - storedScore)));
+  const hasReport = storedScore != null;
   const riskDisplay =
     reportScore != null
       ? `${reportScore} /100`
@@ -350,7 +351,10 @@ function mapRowToLedgerVM(
     statusKind,
     progressPct,
     leadName,
+    riskScore: storedScore,
+    displayScore: reportScore,
     riskDisplay,
+    riskGradeProfile: isBuyerRow ? "buyer" : "vendor",
     dateLine1,
     dateLine2,
     icon,
@@ -365,130 +369,6 @@ function mapRowToLedgerVM(
     hasReport,
   };
 }
-
-/** Get display value from assessment row (API shape: camelCase, arrays for jsonb) */
-function getRowPreviewValue(row, key) {
-  if (row == null) return undefined;
-  const v = row[key];
-  if (v == null || (typeof v === "string" && v.trim() === "")) return undefined;
-  if (key === "createdAt" || key === "cotsUpdatedAt" || key === "expiryAt")
-    return formatDateDDMMMYYYY(v);
-  return v;
-}
-
-/** Format sector for preview: object -> readable string; "[object Object]" -> N/A */
-function formatSectorForPreview(value) {
-  if (value == null || value === "") return undefined;
-  if (typeof value === "string") {
-    if (value === "[object Object]") return "N/A";
-    return value;
-  }
-  if (typeof value !== "object" || Array.isArray(value)) return value;
-  const sectorMap = {
-    "Public Sector": value.public_sector,
-    "Private Sector": value.private_sector,
-    "Non-Profit Sector": value.non_profit_sector,
-  };
-  const parts = [];
-  Object.entries(sectorMap).forEach(([label, values]) => {
-    if (Array.isArray(values) && values.length > 0) {
-      parts.push(`${label}: ${values.join(", ")}`);
-    }
-  });
-  return parts.length > 0 ? parts.join("; ") : "N/A";
-}
-
-/** Sectioned preview config for assessment row - same structure as COTS form preview */
-const ASSESSMENT_PREVIEW_SECTIONS = [
-  {
-    title: "Assessment",
-    fields: [
-      {
-        label: "Type",
-        value: (r) =>
-          r.type === "cots_buyer"
-            ? "COTS Assessment"
-            : r.type === "cots_vendor"
-              ? "COTS Vendor"
-              : (r.type ?? undefined),
-      },
-      { label: "Status", value: (r) => getAssessmentStatusLabel(r) },
-      {
-        label: "Created on",
-        value: (r) =>
-          formatDateDDMMMYYYY(
-            (r?.status ?? "").toLowerCase() === "draft"
-              ? (r.updatedAt ?? r.createdAt)
-              : r.createdAt,
-          ),
-      },
-      { label: "Expires on", value: (r) => formatDateDDMMMYYYY(r.expiryAt) },
-    ],
-  },
-  {
-    title: "Use Case",
-    fields: BUYER_COTS_FIELD_KEYS.useCase.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Vendor Evaluation",
-    fields: BUYER_COTS_FIELD_KEYS.vendorEvaluation.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Readiness",
-    fields: BUYER_COTS_FIELD_KEYS.readiness.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Risk Profile",
-    fields: BUYER_COTS_FIELD_KEYS.riskProfile.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Vendor Risk",
-    fields: BUYER_COTS_FIELD_KEYS.vendorRisk.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Implementation",
-    fields: BUYER_COTS_FIELD_KEYS.implementation.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-  {
-    title: "Evidence",
-    fields: BUYER_COTS_FIELD_KEYS.evidence.map((key) => ({
-      label: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (s) => s.toUpperCase()),
-      value: (r) => getRowPreviewValue(r, key),
-    })),
-  },
-];
 
 const SYSTEM_ROLES = [
   "system admin",
@@ -535,6 +415,10 @@ const Assessments = () => {
   const [assessmentSearch, setAssessmentSearch] = useState("");
   const [showArchivedBuyer, setShowArchivedBuyer] = useState(false);
   const [showArchivedVendor, setShowArchivedVendor] = useState(false);
+  const [buyerStatusScope, setBuyerStatusScope] =
+    useState<AssessmentStatusScope>("all");
+  const [vendorStatusScope, setVendorStatusScope] =
+    useState<AssessmentStatusScope>("all");
   const [deleteModal, setDeleteModal] = useState<{
     assessmentId: string | number | null;
     type: "draft" | "expired" | null;
@@ -555,15 +439,21 @@ const Assessments = () => {
   const [vendorArchivedCardPage, setVendorArchivedCardPage] = useState(1);
   const [assessmentCardPageSize, setAssessmentCardPageSize] = useState(10);
 
-  const LOADER_MIN_MS = 2500; // show loader at least 2–3 seconds
-
   useEffect(() => {
     setVendorCardPage(1);
     setBuyerCardPage(1);
     setMyCardPage(1);
     setBuyerArchivedCardPage(1);
     setVendorArchivedCardPage(1);
-  }, [assessmentSearch]);
+  }, [assessmentSearch, buyerStatusScope, vendorStatusScope, showArchivedBuyer, showArchivedVendor]);
+
+  function matchesStatusScope(row, scope: AssessmentStatusScope) {
+    if (scope === "all") return true;
+    const isDraft = String(row.status || "").toLowerCase() === "draft";
+    if (scope === "in_progress") return isDraft;
+    if (scope === "completed") return getAssessmentStatusLabel(row) === "Completed";
+    return true;
+  }
 
   useEffect(() => {
     const token = sessionStorage.getItem("bearerToken");
@@ -571,17 +461,19 @@ const Assessments = () => {
       setLoading(false);
       return;
     }
-    const startTime = Date.now();
     const organizationId = sessionStorage.getItem("organizationId");
     const query = organizationId
       ? `?organizationId=${encodeURIComponent(organizationId)}`
       : "";
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 20000);
     fetch(`${BASE_URL}/assessments${query}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
+      signal: controller.signal,
     })
       .then((res) => {
         return res.json().then((result) => {
@@ -602,9 +494,8 @@ const Assessments = () => {
         setAssessmentsList([]);
       })
       .finally(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, LOADER_MIN_MS - elapsed);
-        setTimeout(() => setLoading(false), remaining);
+        window.clearTimeout(timeoutId);
+        setLoading(false);
       });
   }, []);
 
@@ -978,15 +869,10 @@ const Assessments = () => {
   };
 
   const customStyles = {
-    table: {
-      style: {
-        width: "100%",
-        backgroundColor: "#f8f8f8",
-        border: "1px solid lightgray",
-      },
-    },
+    ...premiumDataTableStyles,
     cells: {
       style: {
+        ...premiumDataTableStyles.cells.style,
         "&:last-of-type": {
           paddingRight: "12px",
         },
@@ -1087,6 +973,13 @@ const Assessments = () => {
 
   return (
     <div className="sec_user_page org_settings_page">
+      {loading ? (
+        <LoadingMessage
+          message="Loading assessments…"
+          className="loading_message_wrapper--page"
+        />
+      ) : (
+        <>
       {!isBuyer && !isVendor && !isSystemUser && (
         <div
           className="org_settings_header page_header_align heading_user_page"
@@ -1189,7 +1082,7 @@ const Assessments = () => {
                             return (
                               <article
                                 key={row.assessmentId}
-                                className={`vendor_directory_card general_rpr_card${archived ? " general_rpr_card_archived" : ""}`}
+                                className={`vendor_directory_card general_rpr_card${archived ? " general_rpr_card_archived" : isDraft ? " assessment_card--draft" : statusLabel === "Completed" ? " assessment_card--completed" : ""}`}
                                 data-accent={accent}
                               >
                                 <div className="general_report_card_header">
@@ -1444,19 +1337,24 @@ const Assessments = () => {
             const base = showArchivedBuyer
               ? archivedBuyerAssessments
               : nonExpiredBuyer;
+            const scoped = showArchivedBuyer
+              ? base
+              : base.filter((row) => matchesStatusScope(row, buyerStatusScope));
             const filtered =
               q === ""
-                ? base
-                : base.filter((row) =>
+                ? scoped
+                : scoped.filter((row) =>
                     getAssessmentTitle(row, true).toLowerCase().includes(q),
                   );
             const emptyMessage = showArchivedBuyer
               ? archivedBuyerAssessments.length === 0
-                ? "No archived assessments."
-                : "No archived assessments match your search."
+                ? "Archived assessments will appear here once moved from Current."
+                : "Try a different search term to find archived assessments."
               : nonExpiredBuyer.length === 0
-                ? "No assessments yet."
-                : "No assessments match your search.";
+                ? "Create your first assessment to get started."
+                : buyerStatusScope !== "all"
+                  ? "No assessments match this status filter."
+                  : "No assessments match your search.";
             const currentPage = showArchivedBuyer
               ? buyerArchivedCardPage
               : buyerCardPage;
@@ -1478,8 +1376,15 @@ const Assessments = () => {
               <AssessmentsLedgerPanel
                 inProgressCount={buyerLedgerInProgress}
                 completedCount={buyerLedgerCompleted}
+                currentCount={nonExpiredBuyer.length}
+                archivedCount={archivedBuyerAssessments.length}
                 showArchived={showArchivedBuyer}
-                onShowArchivedChange={setShowArchivedBuyer}
+                onShowArchivedChange={(archived) => {
+                  setShowArchivedBuyer(archived);
+                  if (archived) setBuyerStatusScope("all");
+                }}
+                statusScope={buyerStatusScope}
+                onStatusScopeChange={setBuyerStatusScope}
                 search={assessmentSearch}
                 onSearchChange={setAssessmentSearch}
                 loading={loading}
@@ -1502,6 +1407,7 @@ const Assessments = () => {
                 showNewAssessment={!isAssessmentViewOnly}
                 onNewAssessment={handleNewAssessment}
                 newAssessmentLabel="Assessment"
+                scoreColumnLabel="Implementation risk"
               />
             );
           })()}
@@ -1515,19 +1421,26 @@ const Assessments = () => {
             const base = showArchivedVendor
               ? archivedVendorAssessments
               : nonExpiredVendor;
+            const scoped = showArchivedVendor
+              ? base
+              : base.filter((row) =>
+                  matchesStatusScope(row, vendorStatusScope),
+                );
             const filtered =
               q === ""
-                ? base
-                : base.filter((row) =>
+                ? scoped
+                : scoped.filter((row) =>
                     getAssessmentTitle(row, false).toLowerCase().includes(q),
                   );
             const emptyMessage = showArchivedVendor
               ? archivedVendorAssessments.length === 0
-                ? "No archived assessments."
-                : "No archived assessments match your search."
+                ? "Archived assessments will appear here once moved from Current."
+                : "Try a different search term to find archived assessments."
               : nonExpiredVendor.length === 0
-                ? "No vendor assessments yet."
-                : "No assessments match your search.";
+                ? "Create your first assessment to get started."
+                : vendorStatusScope !== "all"
+                  ? "No assessments match this status filter."
+                  : "No assessments match your search.";
             const currentPage = showArchivedVendor
               ? vendorArchivedCardPage
               : vendorCardPage;
@@ -1549,8 +1462,15 @@ const Assessments = () => {
               <AssessmentsLedgerPanel
                 inProgressCount={vendorLedgerInProgress}
                 completedCount={vendorLedgerCompleted}
+                currentCount={nonExpiredVendor.length}
+                archivedCount={archivedVendorAssessments.length}
                 showArchived={showArchivedVendor}
-                onShowArchivedChange={setShowArchivedVendor}
+                onShowArchivedChange={(archived) => {
+                  setShowArchivedVendor(archived);
+                  if (archived) setVendorStatusScope("all");
+                }}
+                statusScope={vendorStatusScope}
+                onStatusScopeChange={setVendorStatusScope}
                 search={assessmentSearch}
                 onSearchChange={setAssessmentSearch}
                 loading={loading}
@@ -1572,7 +1492,7 @@ const Assessments = () => {
                 assessmentViewOnly={isAssessmentViewOnly}
                 showNewAssessment={!isAssessmentViewOnly}
                 onNewAssessment={() => navigate("/vendorcots")}
-                newAssessmentLabel="Customer Assessment"
+                newAssessmentLabel="Assessment"
               />
             );
           })()}
@@ -1600,6 +1520,8 @@ const Assessments = () => {
                 data={assessmentsList}
                 pagination
                 persistTableHead
+                striped
+                highlightOnHover={false}
               />
             )}
           </div>
@@ -1711,7 +1633,7 @@ const Assessments = () => {
                   placeholder="Please provide a reason..."
                   rows={3}
                   disabled={deleteSubmitting}
-                  style={{ resize: "none", minHeight: "4em" }}
+                  style={{ resize: "none", minHeight: "4rem" }}
                 />
               </div>
             </div>
@@ -1811,7 +1733,7 @@ const Assessments = () => {
                   placeholder="Please provide a reason for this change…"
                   rows={3}
                   disabled={userArchiveSubmitting}
-                  style={{ resize: "none", minHeight: "4em" }}
+                  style={{ resize: "none", minHeight: "4rem" }}
                 />
               </div>
             </div>
@@ -1854,6 +1776,8 @@ const Assessments = () => {
           </div>
         </div>
       </Modal>
+        </>
+      )}
     </div>
   );
 };

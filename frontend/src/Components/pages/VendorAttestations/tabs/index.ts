@@ -11,4 +11,5 @@ export { default as TabDataHandlingPrivacy } from "./TabDataHandlingPrivacy";
 export { default as TabAiSafetyTesting } from "./TabAiSafetyTesting";
 export { default as TabOperationsReliability } from "./TabOperationsReliability";
 export { default as TabDeploymentArchitecture } from "./TabDeploymentArchitecture";
+export { default as TabVendorManagement } from "./TabVendorManagement";
 export { default as TabEvidenceSupportingDoc } from "./TabEvidenceSupportingDoc";

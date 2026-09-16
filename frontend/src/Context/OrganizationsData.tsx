@@ -22,10 +22,26 @@ export const getOrganizations = createAsyncThunk(
   },
 );
 
+type OrganizationRow = {
+  id?: number | string;
+  organizationId?: string;
+  organizationName?: string;
+  organizationStatus?: string;
+  hasAdmin?: boolean;
+};
+
+type OrganizationsState = {
+  data: OrganizationRow[];
+  status: "idle" | "loading" | "succeeded" | "failed";
+  error: string | null;
+};
+
 const organizationSlice = createSlice({
   name: "organizations",
   initialState: {
-    data: [],
+    data: [] as OrganizationRow[],
+    status: "idle" as OrganizationsState["status"],
+    error: null as string | null,
   },
   reducers: {},
   extraReducers: (builder) => {

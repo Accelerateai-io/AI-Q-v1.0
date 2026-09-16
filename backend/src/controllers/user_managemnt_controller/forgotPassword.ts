@@ -7,7 +7,9 @@ import emailConfig from "../../functions/emailconfig.js";
 import {
   EMAIL_BRAND_PRIMARY,
   EMAIL_PAGE_BG,
-  emailSignatureCheckmarkHtml,
+  emailClosingSignatureHtml,
+  emailCopyrightYear,
+  getAccelerateAiLogoAttachment,
 } from "../../email/emailBrand.js";
 
 const RESET_TOKEN_EXPIRY = "1h";
@@ -42,9 +44,8 @@ function resetPasswordEmailTemplate(resetLink: string) {
               </tr>
             </table>
             <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#333333;">This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
-            <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#333333;">Thanks,<br>The ${RESET_MAIL_PLATFORM_NAME} Team</p>
-            ${emailSignatureCheckmarkHtml()}
-            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; 2026 ${RESET_MAIL_PLATFORM_NAME}. All rights reserved.</p>
+            ${emailClosingSignatureHtml(RESET_MAIL_PLATFORM_NAME, "Thanks")}
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; ${emailCopyrightYear()} ${RESET_MAIL_PLATFORM_NAME}. All rights reserved.</p>
           </td>
         </tr>
       </table>
@@ -114,6 +115,7 @@ const forgotPassword = async (req: Request, res: Response) => {
         to: email,
         subject: `Reset your ${RESET_MAIL_PLATFORM_NAME} password`,
         html: resetPasswordEmailTemplate(resetLink),
+        attachments: [getAccelerateAiLogoAttachment()],
       });
     } catch (emailErr: unknown) {
       console.error("Forgot password: email send failed", emailErr);

@@ -9,7 +9,7 @@ function Home() {
   return (
     <div className="home">
       <section className="home__hero">
-        <h1 className="home__title">Welcome to the AI Eval Platform</h1>
+        <h1 className="home__title">Welcome to the AI-Q Platform</h1>
         <p className="home__subtitle">
           Access completed reports and past assessment analyses.
         </p>

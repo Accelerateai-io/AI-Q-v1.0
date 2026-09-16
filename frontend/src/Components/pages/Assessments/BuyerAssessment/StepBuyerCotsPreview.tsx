@@ -1,49 +1,18 @@
 import React from "react";
-import { BUYER_COTS_FIELD_KEYS } from "../../../../constants/buyerCotsAssessmentKeys";
-import { BUYER_COTS_ASSESSMENT } from "../../../../constants/buyerCOTSData 1";
+import { BUYER_COTS_FORM_SECTIONS } from "../../../../constants/buyerCotsFormSchema";
+import { BUYER_COTS_MULTISELECT_KEYS } from "../../../../constants/buyerCotsAssessmentKeys";
+import { flattenOnboardingSectorIndustries } from "../../../../constants/buyerCotsOnboardingMapping";
+import { parseEvidenceFilesByCategory } from "../../../../constants/buyerCotsDerived";
 import { formatPreviewValue } from "../../../../utils/formatPreviewValue";
 import FileUpload from "../../../UI/FileUpload";
 import "../../VendorOnboarding/StepVendorOnboardingPreview.css";
 
-const MULTISELECT_KEYS = [
-  "integrationSystems",
-  "techStack",
-  "implementationTeamComposition",
-  "regulatoryRequirements",
-  "impactedStakeholders",
-  "vendorCertifications",
-  "operatingRegions",
-];
-
 type FormData = Record<string, string>;
-
-// Auto-Generated step commented out in flow; omit from review sections
-const SECTION_ORDER: (keyof typeof BUYER_COTS_FIELD_KEYS)[] = [
-  "organizationProfile",
-  "useCase",
-  "vendorEvaluation",
-  "readiness",
-  "riskProfile",
-  "vendorRisk",
-  "implementation",
-  "evidence",
-];
-
-const SECTION_TITLES: Record<string, string> = {
-  organizationProfile: "Organization Profile",
-  useCase: "Use Case",
-  vendorEvaluation: "Vendor Evaluation",
-  readiness: "Readiness",
-  riskProfile: "Risk Profile",
-  vendorRisk: "Vendor Risk",
-  implementation: "Implementation",
-  evidence: "Evidence",
-};
 
 function getPreviewValue(data: FormData, key: string): unknown {
   const v = data[key];
   if (v == null || String(v).trim() === "") return undefined;
-  if (MULTISELECT_KEYS.includes(key)) {
+  if ((BUYER_COTS_MULTISELECT_KEYS as readonly string[]).includes(key)) {
     try {
       const parsed = JSON.parse(v);
       return Array.isArray(parsed) ? parsed : String(v);
@@ -52,12 +21,6 @@ function getPreviewValue(data: FormData, key: string): unknown {
     }
   }
   return String(v);
-}
-
-function isUploadField(config: { label?: string; placeholder?: string; options?: unknown }): boolean {
-  const label = (config.label ?? "").toLowerCase();
-  const placeholder = (config.placeholder ?? "").toLowerCase();
-  return !config.options && (label.includes("upload") || placeholder.includes("upload"));
 }
 
 function parseFileNamesValue(value: string | undefined): string[] {
@@ -84,61 +47,128 @@ function StepBuyerCotsPreview({ formData }: StepBuyerCotsPreviewProps) {
         Review your information below. Submit when everything looks correct.
       </p>
       <div className="vendor_preview_sections">
-        {SECTION_ORDER.map((sectionKey) => {
-          const keys = BUYER_COTS_FIELD_KEYS[sectionKey];
-          const sectionData = BUYER_COTS_ASSESSMENT[sectionKey] as Record<
-            number,
-            { label?: string; placeholder?: string; options?: unknown }
-          > | undefined;
-          const title = SECTION_TITLES[sectionKey] ?? sectionKey;
-          if (!keys?.length) return null;
-
-          return (
-            <section key={sectionKey} className="vendor_preview_card">
-              <h3 className="vendor_preview_card_title">{title}</h3>
-              <dl className="vendor_preview_list">
-                {keys.map((key, i) => {
-                  const config = sectionData?.[i];
-                  const label = config?.label ?? key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
-                  const uploadField = config && isUploadField(config);
-
-                  if (uploadField) {
-                    const fileNames = parseFileNamesValue(formData[key]);
-                    return (
-                      <div key={key} className="vendor_preview_row">
-                        <dt className="vendor_preview_label">{label}</dt>
-                        <dd className="vendor_preview_value">
-                          <FileUpload value={fileNames} readOnly />
-                        </dd>
-                      </div>
-                    );
-                  }
-
-                  const value = getPreviewValue(formData, key);
+        {BUYER_COTS_FORM_SECTIONS.map((section) => (
+          <section key={section.id} className="vendor_preview_card">
+            <h3 className="vendor_preview_card_title">{section.label}</h3>
+            <dl className="vendor_preview_list">
+              {section.fields.map((field) => {
+                if (field.inputType === "evidenceHold") {
+                  const byCategory = parseEvidenceFilesByCategory(formData.vendorComplianceDocumentation);
+                  const categoriesWithFiles = Object.entries(byCategory).filter(([, names]) => names.length > 0);
                   return (
-                    <div key={key} className="vendor_preview_row">
-                      <dt className="vendor_preview_label">{label}</dt>
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
                       <dd className="vendor_preview_value">
-                        {formatPreviewValue(value, label)}
+                        {formatPreviewValue(getPreviewValue(formData, "vendorEvidenceReceived"), field.label)}
+                        {categoriesWithFiles.map(([category, names]) => (
+                          <div key={category} style={{ marginTop: "0.75rem" }}>
+                            <div style={{ fontSize: "0.875rem", marginBottom: "0.35rem" }}>{category}</div>
+                            <FileUpload value={names} readOnly />
+                          </div>
+                        ))}
                       </dd>
                     </div>
                   );
-                })}
-                {sectionKey === "vendorEvaluation" &&
-                  (formData.integrationSystemsOther ?? "").trim() !== "" && (
-                    <div key="integrationSystemsOther" className="vendor_preview_row">
-                      <dt className="vendor_preview_label">
-                        Integration systems (other details)
-                      </dt>
+                }
+                if (field.inputType === "file") {
+                  const fileNames = parseFileNamesValue(formData[field.key]);
+                  return (
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
                       <dd className="vendor_preview_value">
-                        {formData.integrationSystemsOther}
+                        <FileUpload value={fileNames} readOnly />
                       </dd>
                     </div>
-                  )}
-              </dl>
-            </section>
-          );
-        })}
+                  );
+                }
+                if (field.inputType === "industrySector") {
+                  return (
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
+                      <dd className="vendor_preview_value">
+                        {formatPreviewValue(
+                          flattenOnboardingSectorIndustries(formData.industrySector),
+                          field.label,
+                        )}
+                      </dd>
+                    </div>
+                  );
+                }
+                if (field.inputType === "vendorProduct") {
+                  return (
+                    <React.Fragment key={field.key}>
+                      <div className="vendor_preview_row">
+                        <dt className="vendor_preview_label">Vendor</dt>
+                        <dd className="vendor_preview_value">
+                          {formatPreviewValue(formData.vendorName, "Vendor")}
+                        </dd>
+                      </div>
+                      <div className="vendor_preview_row">
+                        <dt className="vendor_preview_label">Product</dt>
+                        <dd className="vendor_preview_value">
+                          {formatPreviewValue(formData.productName, "Product")}
+                        </dd>
+                      </div>
+                    </React.Fragment>
+                  );
+                }
+                if (field.inputType === "targetOutcome") {
+                  return (
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
+                      <dd className="vendor_preview_value">
+                        {formatPreviewValue(formData.expectedOutcomes || formData.targetOutcomeMetric, field.label)}
+                      </dd>
+                    </div>
+                  );
+                }
+                if (field.inputType === "accountableOwner") {
+                  return (
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
+                      <dd className="vendor_preview_value">
+                        {formatPreviewValue(
+                          [formData.owningDepartment, formData.accountableOwnerName, formData.accountableOwnerRole]
+                            .filter(Boolean)
+                            .join(" — "),
+                          field.label,
+                        )}
+                      </dd>
+                    </div>
+                  );
+                }
+                if (field.inputType === "assessor") {
+                  return (
+                    <div key={field.key} className="vendor_preview_row">
+                      <dt className="vendor_preview_label">{field.label}</dt>
+                      <dd className="vendor_preview_value">
+                        {formatPreviewValue(
+                          [formData.assessorName, formData.assessorRole].filter(Boolean).join(" — "),
+                          field.label,
+                        )}
+                      </dd>
+                    </div>
+                  );
+                }
+                const value = getPreviewValue(formData, field.key);
+                return (
+                  <div key={field.key} className="vendor_preview_row">
+                    <dt className="vendor_preview_label">{field.label}</dt>
+                    <dd className="vendor_preview_value">
+                      {formatPreviewValue(value, field.label)}
+                    </dd>
+                  </div>
+                );
+              })}
+              {(formData.integrationSystemsOther ?? "").trim() !== "" && section.id === "environment" && (
+                <div className="vendor_preview_row">
+                  <dt className="vendor_preview_label">Other systems</dt>
+                  <dd className="vendor_preview_value">{formData.integrationSystemsOther}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+        ))}
       </div>
     </div>
   );

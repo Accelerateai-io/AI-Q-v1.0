@@ -7,7 +7,6 @@ import {
   Loader2,
   Mail,
   User,
-  UserCircle,
   Lock,
   MoveRightIcon,
 } from "lucide-react";
@@ -241,7 +240,7 @@ const SignUp = () => {
         <AuthShell
           variant="wide"
           title="Sign up"
-          subtitle="Create an account to get started with the AI Eval platform."
+          subtitle="Create an account to get started with the AI-Q platform."
         >
           <div className="signup-shell-body">
             <form
@@ -305,7 +304,7 @@ const SignUp = () => {
                     htmlFor="signup-firstName"
                     className="signin-field-label signin-field-label--inline"
                   >
-                    <UserCircle
+                    <User
                       className="signin-field-label__icon"
                       size={24}
                       strokeWidth={2}
@@ -329,7 +328,7 @@ const SignUp = () => {
                     htmlFor="signup-lastName"
                     className="signin-field-label signin-field-label--inline"
                   >
-                    <UserCircle
+                    <User
                       className="signin-field-label__icon"
                       size={24}
                       strokeWidth={2}

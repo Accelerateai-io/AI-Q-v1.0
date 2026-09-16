@@ -3,6 +3,8 @@ import { db, pool } from "../../database/db.js";
 import { expireSubmittedAssessmentsAndArchiveBuyerReports } from "../../services/expireAndArchiveCotsBuyerAssessments.js";
 import { usersTable } from "../../schema/schema.js";
 import { eq } from "drizzle-orm";
+import { buildScsRationaleFromReport } from "../../utils/buildScsRationaleFromReport.js";
+import { normalizeScoreRationaleType } from "../../utils/mergeScoreRationale.js";
 
 
 /**
@@ -147,7 +149,30 @@ const listAssessmentsByOrganization = async (req: Request, res: Response) => {
             ELSE NULL
           END,
           vcr.vendor_report_risk_score
-        ) AS "reportRiskScore"
+        ) AS "reportRiskScore",
+        COALESCE(
+          b.score_rationale,
+          b.vendor_risk_assessment_report->>'scoreRationale'
+        ) AS "buyerScoreRationale",
+        COALESCE(
+          b.score_rationale_type,
+          b.vendor_risk_assessment_report->>'scoreRationaleType'
+        ) AS "buyerScoreRationaleType",
+        vcr.vendor_report_score_rationale AS "vendorScoreRationale",
+        vcr.vendor_report_score_rationale_type AS "vendorScoreRationaleType",
+        COALESCE(
+          NULLIF(TRIM(b.llm_model_label), ''),
+          NULLIF(TRIM(b.llm_model_id), ''),
+          NULLIF(TRIM(b.vendor_risk_assessment_report->>'modelLabel'), ''),
+          NULLIF(TRIM(b.vendor_risk_assessment_report->>'modelId'), ''),
+          NULLIF(TRIM(vcr.vendor_llm_model_label), ''),
+          NULLIF(TRIM(vcr.vendor_llm_model_id), '')
+        ) AS "llmModelLabel",
+        COALESCE(
+          NULLIF(TRIM(b.llm_model_id), ''),
+          NULLIF(TRIM(b.vendor_risk_assessment_report->>'modelId'), ''),
+          NULLIF(TRIM(vcr.vendor_llm_model_id), '')
+        ) AS "llmModelId"
       FROM assessments a
       LEFT JOIN cots_buyer_assessments b ON a.id = b.assessment_id
       LEFT JOIN cots_vendor_assessments v ON a.id = v.assessment_id
@@ -178,7 +203,20 @@ const listAssessmentsByOrganization = async (req: Request, res: Response) => {
               )
             )::double precision
             ELSE NULL
-          END AS vendor_report_risk_score
+          END AS vendor_report_risk_score,
+          COALESCE(
+            cr.score_rationale,
+            cr.report->>'scoreRationale',
+            cr.report->'generatedAnalysis'->>'scoreRationale'
+          ) AS vendor_report_score_rationale,
+          COALESCE(
+            cr.score_rationale_type,
+            cr.report->>'scoreRationaleType',
+            cr.report->'generatedAnalysis'->>'scoreRationaleType'
+          ) AS vendor_report_score_rationale_type,
+          cr.report AS vendor_report_json,
+          cr.llm_model_id AS vendor_llm_model_id,
+          cr.llm_model_label AS vendor_llm_model_label
         FROM customer_risk_assessment_reports cr
         WHERE cr.assessment_id = a.id
         ORDER BY cr.created_at DESC
@@ -186,7 +224,7 @@ const listAssessmentsByOrganization = async (req: Request, res: Response) => {
       ) vcr ON TRUE
       LEFT JOIN users u ON b.user_id = u.id
       LEFT JOIN users u2 ON v.user_id = u2.id
-      WHERE ${whereClause}
+      WHERE ${whereClause} AND a.type <> 'vendor_self_attestation'
       ORDER BY a.created_at DESC`,
       queryParams
     );
@@ -308,6 +346,40 @@ const listAssessmentsByOrganization = async (req: Request, res: Response) => {
       reportRiskScore:
         r.reportRiskScore != null && Number.isFinite(Number(r.reportRiskScore))
           ? Number(r.reportRiskScore)
+          : null,
+      scoreRationale: (() => {
+        if (r.type === "cots_vendor") {
+          const raw =
+            typeof r.vendorScoreRationale === "string" ? r.vendorScoreRationale.trim() : "";
+          if (raw) return raw;
+          const rebuilt = buildScsRationaleFromReport(r.vendorReportJson);
+          return rebuilt?.trim() || null;
+        }
+        if (r.type === "cots_buyer") {
+          const raw =
+            typeof r.buyerScoreRationale === "string" ? r.buyerScoreRationale.trim() : "";
+          return raw || null;
+        }
+        return null;
+      })(),
+      scoreRationaleType: (() => {
+        const raw =
+          r.type === "cots_vendor"
+            ? r.vendorScoreRationaleType
+            : r.type === "cots_buyer"
+              ? r.buyerScoreRationaleType
+              : null;
+        const normalized = normalizeScoreRationaleType(raw);
+        if (normalized) return normalized;
+        if (r.type === "cots_vendor") return "SCS";
+        if (r.type === "cots_buyer") return "IRS";
+        return null;
+      })(),
+      llmModelId:
+        typeof r.llmModelId === "string" && r.llmModelId.trim() ? r.llmModelId.trim() : null,
+      llmModelLabel:
+        typeof r.llmModelLabel === "string" && r.llmModelLabel.trim()
+          ? r.llmModelLabel.trim()
           : null,
     };
     });

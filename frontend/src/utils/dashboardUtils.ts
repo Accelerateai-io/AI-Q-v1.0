@@ -21,7 +21,7 @@ export const formatCompletedDate = (dateStr: string | null | undefined): string 
 
 /** Minimal shape for assessment row label/display helpers (used by dashboard) */
 export interface AssessmentRowLabel {
-  assessmentId?: number;
+  assessmentId?: number | string;
   productName?: string | null;
   vendorName?: string | null;
   completedByUserFirstName?: string | null;

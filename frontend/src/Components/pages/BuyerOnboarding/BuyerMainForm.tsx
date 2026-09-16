@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react"
 import type { z } from "zod"
 import Button from "../../UI/Button"
+import LoadingMessage from "../../UI/LoadingMessage"
 import BuyerContactInformation from "./BuyerContactInformation"
 import BuyerOrganizationScale from "./BuyerOrganizationScale"
 import BuyerGeopgraphy from "./BuyerGeopgraphy"
@@ -401,8 +402,6 @@ const BuyerMainForm = ({ type }: { type: string }) => {
     return disabled
   }, [formBuyerData])
 
-  const handleBackToSelection = () => navigate(`/onboarding/${token}`)
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const url = `${BASE_URL}/buyerOnboarding`
@@ -453,9 +452,10 @@ const BuyerMainForm = ({ type }: { type: string }) => {
 
   if (!onboardingGateReady) {
     return (
-      <div className="form_card_centered">
-        <p style={{ textAlign: "center", color: "#64748b" }}>Loading…</p>
-      </div>
+      <LoadingMessage
+        message="Loading…"
+        className="loading_message_wrapper--page onboarding_page_loader"
+      />
     )
   }
 
@@ -478,11 +478,11 @@ const BuyerMainForm = ({ type }: { type: string }) => {
           />
 
           <div className="vendor_action_btns">
-            {!allStepsFilled && (
+            {!allStepsFilled && currentStep > 0 && (
               <div className="action_back">
                 <Button
                   type="button"
-                  onClick={currentStep === 0 ? handleBackToSelection : handleBack}
+                  onClick={handleBack}
                   className="back_btn"
                 >
                   <span>

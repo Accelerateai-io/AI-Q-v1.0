@@ -4,7 +4,7 @@ import HeaderForVendor from "../VendorOnboarding/HeaderForVendor";
 import FormField from "../../UI/FormField";
 import Select from "../../UI/Select";
 import Input from "../../UI/Input";
-import IndustrySectorDependency from "../../UI/IndustrySectorDependency";
+import IndustrySectorDependency, { type SectorValue } from "../../UI/IndustrySectorDependency";
 import ChipMultiSelect from "../../UI/ChipMultiSelect";
 import YearPicker from "../../UI/YearPicker";
 import {
@@ -15,6 +15,8 @@ import {
   OPERATING_REGIONS,
   VENDOR_HELPTEXT,
   VENDOR_OPERATING_REGIONS_GLOBAL_VALUE,
+  FUNDING_STATUS_OPTIONS,
+  FINANCIAL_POSITION_OPTIONS,
 } from "../../../constants/vendorOnboardingData";
 import type { AttestationCompanyProfile } from "../../../types/vendorSelfAttestation";
 
@@ -40,10 +42,12 @@ const StepCompanyProfileAttestation = ({
     setCompanyProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const sectorValue = {
-    public_sector: companyProfile.sector?.public_sector ?? [],
-    private_sector: companyProfile.sector?.private_sector ?? [],
-    non_profit_sector: companyProfile.sector?.non_profit_sector ?? [],
+  const asStringList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.map((item) => String(item)) : [];
+  const sectorValue: SectorValue = {
+    public_sector: asStringList(companyProfile.sector?.public_sector),
+    private_sector: asStringList(companyProfile.sector?.private_sector),
+    non_profit_sector: asStringList(companyProfile.sector?.non_profit_sector),
   };
 
   const currentYear = new Date().getFullYear();
@@ -89,7 +93,7 @@ const StepCompanyProfileAttestation = ({
                 id="industry_sec"
                 sector={sectorValue}
                 onChange={(sector) =>
-                  setCompanyProfile((prev) => ({ ...prev, sector }))
+                  setCompanyProfile((prev) => ({ ...prev, sector: sector as unknown as AttestationCompanyProfile["sector"] }))
                 }
                 defaultCategoryOption="Select sector category"
                 required
@@ -226,6 +230,88 @@ const StepCompanyProfileAttestation = ({
                 onChange={(selected) =>
                   setCompanyProfile((prev) => ({ ...prev, operatingRegions: selected }))
                 }
+              />
+            </FormField>
+          </div>
+          <div className="form_fields_vendor">
+            <FormField
+              label="What is your funding status?"
+              mandatory={true}
+              tooltipText={VENDOR_HELPTEXT.fundingStatus}
+              errorText={fieldErrors.fundingStatus}
+            >
+              <Select
+                labelName=""
+                id="fundingStatus"
+                name="fundingStatus"
+                value={companyProfile.fundingStatus || ""}
+                onChange={handleChange}
+                default_option="Select funding status"
+                options={FUNDING_STATUS_OPTIONS}
+                required
+              />
+            </FormField>
+          </div>
+          <div className="form_fields_vendor">
+            <FormField
+              label="How would you describe your financial position?"
+              mandatory={true}
+              tooltipText={VENDOR_HELPTEXT.financialPosition}
+              errorText={fieldErrors.financialPosition}
+            >
+              <Select
+                labelName=""
+                id="financialPosition"
+                name="financialPosition"
+                value={companyProfile.financialPosition || ""}
+                onChange={handleChange}
+                default_option="Select financial position"
+                options={FINANCIAL_POSITION_OPTIONS}
+                required
+              />
+            </FormField>
+          </div>
+          <div className="form_fields_vendor">
+            <FormField
+              label="How many enterprise customers do you have?"
+              mandatory={false}
+              tooltipText={VENDOR_HELPTEXT.enterpriseCustomers}
+              errorText={fieldErrors.enterpriseCustomers}
+            >
+              <Input
+                labelName=""
+                type="text"
+                id="enterpriseCustomers"
+                name="enterpriseCustomers"
+                inputMode="numeric"
+                value={companyProfile.enterpriseCustomers || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setCompanyProfile((prev) => ({ ...prev, enterpriseCustomers: value }));
+                }}
+              />
+            </FormField>
+          </div>
+          <div className="form_fields_vendor">
+            <FormField
+              label="What is your annual customer retention / logo retention rate?"
+              mandatory={false}
+              tooltipText={VENDOR_HELPTEXT.customerRetentionRate}
+              errorText={fieldErrors.customerRetentionRate}
+            >
+              <Input
+                labelName=""
+                type="text"
+                id="customerRetentionRate"
+                name="customerRetentionRate"
+                inputMode="decimal"
+                value={companyProfile.customerRetentionRate || ""}
+                onChange={(e) => {
+                  const value = e.target.value
+                    .replace(/[^\d.]/g, "")
+                    .replace(/^(\d*\.\d*).*$/, "$1");
+                  setCompanyProfile((prev) => ({ ...prev, customerRetentionRate: value }));
+                }}
               />
             </FormField>
           </div>

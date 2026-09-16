@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import "../../styles/chip_multi_select.css";
 
 export interface ChipOption {
@@ -18,6 +19,7 @@ interface ChipMultiSelectProps {
    * Selecting this option replaces the current selection with only this value.
    */
   globalExclusiveValue?: string;
+  disabled?: boolean;
 }
 
 function ChipMultiSelect({
@@ -28,11 +30,17 @@ function ChipMultiSelect({
   value,
   onChange,
   globalExclusiveValue,
+  disabled = false,
 }: ChipMultiSelectProps) {
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   function isChipDisabled(optionValue: string): boolean {
+    if (disabled) return true;
     if (!globalExclusiveValue) return false;
-    const hasGlobal = value.includes(globalExclusiveValue);
-    const hasNonGlobal = value.some((v) => v !== globalExclusiveValue);
+    const current = valueRef.current;
+    const hasGlobal = current.includes(globalExclusiveValue);
+    const hasNonGlobal = current.some((v) => v !== globalExclusiveValue);
     if (hasGlobal && hasNonGlobal) return false;
     if (hasGlobal && optionValue !== globalExclusiveValue) return true;
     if (hasNonGlobal && optionValue === globalExclusiveValue) return true;
@@ -40,29 +48,32 @@ function ChipMultiSelect({
   }
 
   function toggle(optionValue: string) {
+    const current = valueRef.current;
     if (globalExclusiveValue) {
       if (isChipDisabled(optionValue)) return;
 
       if (optionValue === globalExclusiveValue) {
-        if (value.includes(globalExclusiveValue)) {
-          onChange(value.filter((v) => v !== globalExclusiveValue));
-        } else {
-          onChange([globalExclusiveValue]);
-        }
+        const next = current.includes(globalExclusiveValue)
+          ? current.filter((v) => v !== globalExclusiveValue)
+          : [globalExclusiveValue];
+        valueRef.current = next;
+        onChange(next);
         return;
       }
 
-      const withoutGlobal = value.filter((v) => v !== globalExclusiveValue);
+      const withoutGlobal = current.filter((v) => v !== globalExclusiveValue);
       const next = withoutGlobal.includes(optionValue)
         ? withoutGlobal.filter((v) => v !== optionValue)
         : [...withoutGlobal, optionValue];
+      valueRef.current = next;
       onChange(next);
       return;
     }
 
-    const next = value.includes(optionValue)
-      ? value.filter((v) => v !== optionValue)
-      : [...value, optionValue];
+    const next = current.includes(optionValue)
+      ? current.filter((v) => v !== optionValue)
+      : [...current, optionValue];
+    valueRef.current = next;
     onChange(next);
   }
 

@@ -5,6 +5,43 @@ import FieldError from "../../../UI/FieldError";
 
 const defaultOption = "Select";
 
+/** Parse multiselect form value: JSON array, plain array, or comma-separated string (draft DB format). */
+function parseMultiselectValue(raw: unknown): string[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    return raw.map((x) => String(x).trim()).filter(Boolean);
+  }
+  const s = String(raw).trim();
+  if (!s) return [];
+  try {
+    const parsed = JSON.parse(s);
+    if (Array.isArray(parsed)) {
+      return parsed.map((x) => String(x).trim()).filter(Boolean);
+    }
+  } catch {
+    /* comma-separated draft storage */
+  }
+  return s
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+type BuyerCotsFieldProps = {
+  fieldKey: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean | string;
+  options?: { label: string; value: string }[];
+  multiselect?: boolean;
+  value?: unknown;
+  onChange: (val: string) => void;
+  readOnly?: boolean;
+  errorMessage?: string;
+  exclusiveValue?: string;
+  textarea?: boolean;
+};
+
 /** Renders input, single select, or multiselect based on field config. Multiselect values stored as JSON array string. */
 const BuyerCotsField = ({
   fieldKey,
@@ -12,35 +49,38 @@ const BuyerCotsField = ({
   placeholder,
   required,
   options,
-  multiselect,
+  multiselect = false,
   value,
   onChange,
-  readOnly,
+  readOnly = false,
   errorMessage,
-}) => {
-  const safeValue = value ?? "";
+  exclusiveValue,
+  textarea = false,
+}: BuyerCotsFieldProps) => {
+  const safeValue =
+    value == null
+      ? ""
+      : Array.isArray(value)
+        ? value.map(String).join(", ")
+        : typeof value === "string"
+          ? value
+          : String(value);
+  const isRequired = required === true || required === "true";
 
-  // Read-only from onboarding: show value only (no dropdown) so geographic regions / tech stack display as plain text
   if (readOnly) {
     if (options && multiselect) {
-      let displayText = "";
-      try {
-        if (typeof safeValue === "string" && safeValue.trim()) {
-          const parsed = JSON.parse(safeValue);
-          displayText = Array.isArray(parsed) ? parsed.join(", ") : String(safeValue);
-        }
-      } catch {
-        displayText = typeof safeValue === "string" ? safeValue : String(safeValue ?? "");
-      }
+      const selected = parseMultiselectValue(value);
       return (
         <>
-          <FormField label={label} mandatory={required} tooltipText={placeholder}>
-            <input
-              type="text"
-              value={displayText}
-              readOnly
-              style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed", color: "#333" }}
-              aria-label={label}
+          <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
+            <ChipMultiSelect
+              id={fieldKey}
+              labelName=""
+              options={options}
+              value={selected}
+              onChange={() => undefined}
+              globalExclusiveValue={exclusiveValue}
+              disabled
             />
           </FormField>
           {errorMessage && <FieldError message={errorMessage} />}
@@ -49,32 +89,20 @@ const BuyerCotsField = ({
     }
     if (options && !multiselect) {
       const strValue = typeof safeValue === "string" ? safeValue : String(safeValue);
-      const valueInOptions = options.some((o) => o.value === strValue || o.label === strValue);
+      const matched = options.find((o) => o.value === strValue || o.label === strValue);
+      const displayLabel = matched?.label ?? strValue;
       return (
         <>
-          <FormField label={label} mandatory={required} tooltipText={placeholder}>
-            <select
-              value={strValue || ""}
-              disabled
+          <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
+            <input
+              type="text"
+              id={fieldKey}
+              value={displayLabel}
               readOnly
-              className="select_input"
-              style={{
-                backgroundColor: "#f5f5f5",
-                cursor: "not-allowed",
-                color: "#333",
-              }}
+              className="input_readonly"
               aria-label={label}
-            >
-              <option value="">{placeholder || defaultOption}</option>
-              {options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-              {!valueInOptions && strValue ? (
-                <option value={strValue}>{strValue}</option>
-              ) : null}
-            </select>
+              aria-readonly="true"
+            />
           </FormField>
           {errorMessage && <FieldError message={errorMessage} />}
         </>
@@ -82,12 +110,12 @@ const BuyerCotsField = ({
     }
     return (
       <>
-        <FormField label={label} mandatory={required} tooltipText={placeholder}>
+        <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
           <input
             type="text"
-            value={typeof safeValue === "string" ? safeValue : (Array.isArray(safeValue) ? safeValue.join(", ") : JSON.stringify(safeValue))}
+            value={safeValue}
             readOnly
-            style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
+            className="input_readonly"
             aria-label={label}
           />
         </FormField>
@@ -97,24 +125,17 @@ const BuyerCotsField = ({
   }
 
   if (options && multiselect) {
-    let selected: string[] = [];
-    try {
-      if (typeof safeValue === "string" && safeValue.trim()) {
-        selected = JSON.parse(safeValue);
-        if (!Array.isArray(selected)) selected = [];
-      }
-    } catch {
-      selected = [];
-    }
+    const selected = parseMultiselectValue(safeValue);
     return (
       <>
-        <FormField label={label} mandatory={required} tooltipText={placeholder}>
+        <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
           <ChipMultiSelect
             id={fieldKey}
             labelName=""
             options={options}
             value={selected}
             onChange={(selectedValues) => onChange(JSON.stringify(selectedValues))}
+            globalExclusiveValue={exclusiveValue}
           />
         </FormField>
         {errorMessage && <FieldError message={errorMessage} />}
@@ -125,7 +146,7 @@ const BuyerCotsField = ({
   if (options && !multiselect) {
     return (
       <>
-        <FormField label={label} mandatory={required} tooltipText={placeholder}>
+        <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
           <select
             value={safeValue}
             onChange={(e) => onChange(e.target.value)}
@@ -145,9 +166,28 @@ const BuyerCotsField = ({
     );
   }
 
+  if (textarea) {
+    return (
+      <>
+        <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
+          <textarea
+            value={safeValue}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="input_field"
+            rows={4}
+            style={{ width: "100%" }}
+            aria-label={label}
+          />
+        </FormField>
+        {errorMessage && <FieldError message={errorMessage} />}
+      </>
+    );
+  }
+
   return (
     <>
-      <FormField label={label} mandatory={required} tooltipText={placeholder}>
+      <FormField label={label} mandatory={isRequired} tooltipText={placeholder}>
         <input
           type="text"
           value={safeValue}

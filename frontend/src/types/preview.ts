@@ -26,6 +26,15 @@ export interface PreviewSection<T> {
 /**
  * Represents the vendor datatype collected in the onboarding form for preview
  */
+export interface VendorSecurityIncidentPreview {
+  date?: string;
+  summary?: string;
+  sourceUrl?: string;
+  source_url?: string;
+  severity?: string;
+  resolved?: boolean;
+}
+
 export interface VendorFormData {
   vendorName?: string;
   vendorType?: string;
@@ -40,4 +49,11 @@ export interface VendorFormData {
   primaryContactRole?: string;
   primaryContactEmail?: string;
   sector?: Record<string, string[]>;
+  fundingStatus?: string;
+  financialPosition?: string;
+  enterpriseCustomers?: string | number | null;
+  customerRetentionRate?: string | number | null;
+  trustCentreUrl?: string;
+  hasPublicSecurityIncident?: string;
+  securityIncidents?: VendorSecurityIncidentPreview[];
 }

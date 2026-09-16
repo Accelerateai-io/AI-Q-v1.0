@@ -168,7 +168,12 @@ export function FrameworkMappingCardGrid({
   const navigate = useNavigate();
 
   if (rows.length === 0) {
-    return <div className="risk_mapping_empty_text">{emptyMessage}</div>;
+    if (!emptyMessage) return null;
+    return (
+      <div className="risk_mapping_empty_state" role="status">
+        <p className="risk_mapping_empty_state__title">{emptyMessage}</p>
+      </div>
+    );
   }
 
   return (
@@ -251,7 +256,7 @@ export function FrameworkMappingCardGrid({
                 {showKnowMore ? (
                   <button
                     type="button"
-                    className="risk_mapping_fw_know_more"
+                    className="dash_view_all_btn risk_mapping_fw_know_more"
                     onClick={() =>
                       navigate("/riskMappings/framework-detail", {
                         state: {
@@ -267,7 +272,7 @@ export function FrameworkMappingCardGrid({
                     aria-label={`Know more: ${fw}`}
                   >
                     Know More
-                    <ChevronRight size={16} aria-hidden />
+                    <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
                   </button>
                 ) : null}
               </footer>

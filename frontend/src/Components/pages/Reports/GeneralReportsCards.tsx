@@ -1,36 +1,25 @@
-import { ChevronRight, Download, FileText } from "lucide-react";
+import { Calendar, ChevronRight, Download, FileText } from "lucide-react";
 import React from "react";
-import ClickTooltip from "../../UI/ClickTooltip";
 import type { GeneratedReportItem } from "./GeneralReports";
 import { getReportTypeAccent, getReportTypeDisplayLabel, getReportTypeIcon } from "./reportTypes";
 import {
   isReportTimeExpired,
   reportArchivedStatusText,
 } from "../../../utils/reportArchiveStatusLabel";
+import "../UserManagement/user_management.css";
+import "../Assessments/assessments.css";
 import "../VendorDirectory/VendorDirectory.css";
+import "../Dashboard/dashboard.css";
+import "./general_reports.css";
 
 interface GeneralReportsCardsProps {
   reports: GeneratedReportItem[];
   onViewReport: (report: GeneratedReportItem) => void;
   onDownload?: (report: GeneratedReportItem) => void;
+  /** When true, View Report stays enabled for archived items (Archived tab). */
+  viewEnabledWhenArchived?: boolean;
   /** When true, render only the card(s) in a fragment (no wrapper div) for use inside a parent grid. */
   singleCard?: boolean;
-}
-
-function formatReportDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-      .replace(/\s+/g, "-");
-  } catch {
-    return "—";
-  }
 }
 
 /** Expiry: 1 year from generated date, or use API expiry when available. */
@@ -95,28 +84,42 @@ function GeneralReportsCards({
   reports,
   onViewReport,
   onDownload,
+  viewEnabledWhenArchived = false,
   singleCard = false,
 }: GeneralReportsCardsProps) {
   const cards = reports.map((report) => {
     const archived = isReportArchived(report);
-    return (
-        <article
-          key={report.id}
-          className={`vendor_directory_card general_rpr_card${archived ? " general_rpr_card_archived" : ""}`}
-          data-accent={getReportTypeAccent(report.reportType) ?? undefined}
-        >
-          <div className="general_report_card_header">
-            <p className="vendor_directory_card_products general_rpr_card_report_type">
+    const isExpiredStatus = archived && isReportTimeExpired(report);
+    const TypeIcon = getReportTypeIcon(report.reportType);
+    const typeLabel = getReportTypeDisplayLabel(report.reportType);
 
-              <span className="general_rpr_card_report_type_icon" aria-hidden>
-                {(() => {
-                  const TypeIcon = getReportTypeIcon(report.reportType);
-                  return <TypeIcon size={16} />;
-                })()}
+    return (
+      <article
+        key={report.id}
+        className={`vendor_directory_card general_rpr_card complete_rpr_card_design analysis_rpr_card${
+          archived ? " general_rpr_card_archived" : ""
+        }`}
+        data-accent={getReportTypeAccent(report.reportType) ?? undefined}
+      >
+        <div className="general_report_card_header complete_rpr_card_top">
+          {archived ? (
+            isExpiredStatus ? (
+              <span className="pill pill_status pill_status_inactive pill_status_with_dot">
+                <span className="pill_status_dot" aria-hidden />
+                Expired
               </span>
-              {getReportTypeDisplayLabel(report.reportType)}
-            </p>
-            
+            ) : (
+              <span className="assessments_vd_badge assessments_vd_badge--archived">
+                Archived
+              </span>
+            )
+          ) : (
+            <span className="analysis_rpr_card_header_spacer" aria-hidden />
+          )}
+          <div className="complete_rpr_card_header_actions">
+            <span className="complete_rpr_card_header_doc_icon" aria-hidden>
+              <FileText size={18} />
+            </span>
             {onDownload && !archived && (
               <span className="general_rpr_card_download_wrap">
                 <button
@@ -126,78 +129,78 @@ function GeneralReportsCards({
                     e.stopPropagation();
                     onDownload(report);
                   }}
-                  aria-label={`Download ${getReportTypeDisplayLabel(report.reportType)}`}
+                  aria-label={`Download ${typeLabel}`}
                 >
                   <Download size={14} aria-hidden />
                 </button>
               </span>
             )}
           </div>
-          <div className="general_rpr_title">
-            {/* <div className="report_card_icon general_rpr_card_type_icon">
-              <FileText size={20} aria-hidden />
-            </div> */}
-            <div className="vendor_directory_card_header_text">
-              <ClickTooltip
-                content={report.assessmentLabel}
-                position="top"
-                showOn="hover"
-              >
-                <span className="general_rpr_card_title_wrap">
-                  <h2 className="vendor_directory_card_name general_rpr_card_title_clamp">
-                    {report.assessmentLabel}
-                  </h2>
-                </span>
-              </ClickTooltip>
-            </div>
+        </div>
 
+        <div className="general_rpr_title complete_rpr_card_title_block">
+          <div className="vendor_directory_card_header_text complete_rpr_card_title_model_group">
+            <span className="general_rpr_card_title_wrap">
+              <h2 className="vendor_directory_card_name general_rpr_card_title_clamp">
+                {report.assessmentLabel}
+              </h2>
+            </span>
+            <span className="analysis_rpr_card_type">
+              <TypeIcon size={14} className="analysis_rpr_card_type_icon" aria-hidden />
+              {typeLabel}
+            </span>
           </div>
-          <div className="general_rpr_card_footer">
-            <div className="general_rpr_card_dates">
-              {/* <div className="general_rpr_card_date_row">
-                <span className="general_rpr_card_date_label">Generated:</span>
-                <span className="general_rpr_card_date_value">
-                  {formatReportDate(report.generatedAt)}
+        </div>
+
+        <div className="analysis_rpr_card_spacer" aria-hidden />
+
+        <div className="general_rpr_card_footer complete_rpr_card_footer">
+          <div className="general_rpr_card_dates complete_rpr_card_expiry_col">
+            {archived ? (
+              <span
+                className={
+                  isReportTimeExpired(report)
+                    ? "general_rpr_card_status general_rpr_card_status_expired"
+                    : "general_rpr_card_status general_rpr_card_status_archived"
+                }
+              >
+                {reportArchivedStatusText(report)}
+              </span>
+            ) : (
+              <>
+                <span className="complete_rpr_card_expiry_label">
+                  <Calendar
+                    size={14}
+                    className="complete_rpr_card_expiry_icon"
+                    aria-hidden
+                  />
+                  Expires on
                 </span>
-              </div> */}
-              <div className="general_rpr_card_date_row">
-                {archived ? (
-                  <span
-                    className={
-                      isReportTimeExpired(report)
-                        ? "general_rpr_card_status general_rpr_card_status_expired"
-                        : "general_rpr_card_status general_rpr_card_status_archived"
-                    }
-                  >
-                    {reportArchivedStatusText(report)}
-                  </span>
-                ) : (
-                  <>
-                    <span className="general_rpr_card_date_label_expiry">
-                      Expires on:
-                    </span>
-                    <span className="general_rpr_card_date_value_expiry">
-                      {getExpiryDate(report)}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="view_rpr_btn vendor_directory_card_action_btn"
-              onClick={() => onViewReport(report)}
-              aria-label={`View report: ${getReportTypeDisplayLabel(report.reportType)}`}
-            >
-              View Report
-              <ChevronRight size={16} aria-hidden />
-            </button>
+                <span className="complete_rpr_card_expiry_value">{getExpiryDate(report)}</span>
+              </>
+            )}
           </div>
-        </article>
-        );
+          <button
+            type="button"
+            className="dash_view_all_btn complete_rpr_card_view_btn"
+            onClick={() => onViewReport(report)}
+            aria-label={`View report: ${typeLabel}`}
+            disabled={archived && !viewEnabledWhenArchived}
+          >
+            View Report
+            <ChevronRight size={15} strokeWidth={2.25} aria-hidden />
+          </button>
+        </div>
+      </article>
+    );
   });
+
   if (singleCard) return <>{cards}</>;
-  return <div className="general_rpr_cards_sec vendor_directory_grid">{cards}</div>;
+  return (
+    <div className="general_rpr_cards_sec vendor_directory_grid complete_rpr_cards_grid">
+      {cards}
+    </div>
+  );
 }
 
 export default GeneralReportsCards;

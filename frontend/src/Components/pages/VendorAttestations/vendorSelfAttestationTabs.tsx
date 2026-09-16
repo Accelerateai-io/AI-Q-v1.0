@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Activity,
   Server,
+  Users,
   FileText,
   FileCheck,
 } from "lucide-react";
@@ -35,6 +36,7 @@ export const VENDOR_SELF_ATTESTATION_TAB_STEPS: VendorSelfAttestationStepConfig[
   { id: "ai-safety-testing", label: "AI Safety & Testing", subTitle: "Bias testing, adversarial security, and human oversight", icon: FlaskConical },
   { id: "operations-reliability", label: "Operations & Reliability", subTitle: "Uptime SLA, incident response, and rollback capability", icon: Activity },
   { id: "deployment-architecture", label: "Deployment Architecture", subTitle: "Hosting, deployment scale, and product stage", icon: Server },
+  { id: "vendor-management", label: "Vendor Management", subTitle: "Sub-processors and third-party processing", icon: Users },
   { id: "evidence-supporting-doc", label: "Evidence & Supporting Documentation", subTitle: "Interaction data, audit logs, and testing results", icon: FileText },
   { id: "review", label: "Review", subTitle: "Review and submit your self-attestation", icon: FileCheck },
 ];

@@ -4,6 +4,7 @@ import { Building2, CircleChevronLeft, Plus, Sparkles } from "lucide-react";
 import type { GeneratedProductProfileReport } from "../../../types/generatedProductProfile";
 import { mergeMissingProfileSectionsFromAttestation } from "../../../utils/mergeProductProfileReportFromAttestation";
 import GeneratedProductProfileCards from "../ProductProfile/GeneratedProductProfileCards";
+import LoadingMessage from "../../UI/LoadingMessage";
 import "../../../styles/card.css";
 import "./VendorDirectory.css";
 
@@ -28,7 +29,7 @@ const SECTION_ID_TO_VIS_KEY: Record<number, keyof SectionVisibility> = {
   2: "companyIdentity",
   3: "dataPrivacy",
   4: "compliance",
-  5: "modelRisk",
+  5: "securityPosture",
   6: "dataPractices",
   7: "complianceCertifications",
   8: "operationsSupport",
@@ -52,6 +53,9 @@ function parseGeneratedReport(raw: unknown): GeneratedProductProfileReport | nul
       scoreByCategory: ts.scoreByCategory as Record<string, string | number> | undefined,
     },
     sections: obj.sections as GeneratedProductProfileReport["sections"],
+    scoringSource: String(
+      obj.scoring_source ?? obj.scoringSource ?? (obj.scoringResult as { scoring_source?: string } | undefined)?.scoring_source ?? "",
+    ) || undefined,
   };
 }
 
@@ -217,7 +221,7 @@ const VendorDirectoryIntelligence = () => {
         )}
       </div>
 
-      {loading && <div className="vendor_directory_loading">Loading product intelligence...</div>}
+      {loading && <LoadingMessage message="Loading product intelligence…" />}
       {error && !loading && <div className="vendor_directory_error">{error}</div>}
       {!loading && !error && !visibleReport && (
         <div className="vendor_directory_empty">No intelligence report is available for this product.</div>
@@ -239,6 +243,11 @@ const VendorDirectoryIntelligence = () => {
                 <span className="vendor_intel_hero_score_value">{visibleReport.trustScore.overallScore}</span>
                 <span className="vendor_intel_hero_score_scale">/100</span>
               </div>
+              {visibleReport.scoringSource ? (
+                <span className="vendor_intel_score_source_chip" title="How this score was produced">
+                  {visibleReport.scoringSource}
+                </span>
+              ) : null}
             </div>
           </section>
 

@@ -2,6 +2,7 @@
  * Options / Validation values for Vendor COTS Assessment (from Excel Options/Validation column).
  * Used by VendorCotsDynamicStep for select and multiselect fields.
  */
+import { HEADQUARTERS_LOCATION } from "./vendorOnboardingData"
 
 export interface VendorCotsOptionItem {
   label: string
@@ -69,7 +70,7 @@ export const VENDOR_COTS_BUDGET_RANGE_OPTIONS: VendorCotsOptionItem[] = [
   { label: "$1M - $5M", value: "$1M - $5M" },
   { label: "$5M - $10M", value: "$5M - $10M" },
   { label: "Over $10M", value: "Over $10M" },
-  { label: "Not Yet Determined", value: "Not Yet Determined" },
+  { label: "Not known - estimate only", value: "Not known - estimate only" },
 ]
 
 export const VENDOR_COTS_IMPLEMENTATION_TIMELINE_OPTIONS: VendorCotsOptionItem[] = [
@@ -143,6 +144,9 @@ export const VENDOR_COTS_REGULATORY_REQUIREMENTS_OPTIONS: VendorCotsOptionItem[]
   { label: "ISO 27001 (Information Security)", value: "ISO 27001 (Information Security)" },
   { label: "SOC 2 (Service Organization Controls)", value: "SOC 2 (Service Organization Controls)" },
   { label: "NIST AI RMF (AI Risk Management)", value: "NIST AI RMF (AI Risk Management)" },
+  { label: "EU AI Act", value: "EU AI Act" },
+  { label: "Colorado AI Act", value: "Colorado AI Act" },
+  { label: "NYC LL144", value: "NYC LL144" },
   { label: "None/Not Applicable", value: "None/Not Applicable" },
   { label: "Other (Specify in Notes)", value: "Other (Specify in Notes)" },
 ]
@@ -156,12 +160,12 @@ export const VENDOR_COTS_DATA_SENSITIVITY_OPTIONS: VendorCotsOptionItem[] = [
 ]
 
 export const VENDOR_COTS_RISK_TOLERANCE_OPTIONS: VendorCotsOptionItem[] = [
- { label: "Very Low - Zero tolerance for risk, extensive controls required", value: "Very Low - Zero tolerance for risk, extensive controls required" },
+  { label: "Very Low - Zero tolerance for risk, extensive controls required", value: "Very Low - Zero tolerance for risk, extensive controls required" },
   { label: "Low - Risk-averse, prefers conservative approach", value: "Low - Risk-averse, prefers conservative approach" },
   { label: "Moderate - Balanced approach to risk and innovation", value: "Moderate - Balanced approach to risk and innovation" },
   { label: "High - Willing to accept risk for competitive advantage", value: "High - Willing to accept risk for competitive advantage" },
   { label: "Very High - Innovation-focused, minimal risk concerns", value: "Very High - Innovation-focused, minimal risk concerns" },
-
+  { label: "Not known - infer from sector", value: "Not known - infer from sector" },
 ]
 
 // ----- Customer Risk Mitigation -----
@@ -182,6 +186,235 @@ export const VENDOR_COTS_CUSTOMER_SPECIFIC_RISKS_OPTIONS: VendorCotsOptionItem[]
   { label: "Other (Specify Below)", value: "Other (Specify Below)" },
 ]
 
+export const VENDOR_COTS_EMPLOYEE_COUNT_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "1-50", value: "1-50" },
+  { label: "51-200", value: "51-200" },
+  { label: "201-500", value: "201-500" },
+  { label: "501-1,000", value: "501-1,000" },
+  { label: "1,001-5,000", value: "1,001-5,000" },
+  { label: "5,001-10,000", value: "5,001-10,000" },
+  { label: "10,001-50,000", value: "10,001-50,000" },
+  { label: "50,000+", value: "50,000+" },
+]
+
+export const VENDOR_COTS_ENG_HEADCOUNT_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Under 50", value: "Under 50" },
+  { label: "50-250", value: "50-250" },
+  { label: "250-1,000", value: "250-1,000" },
+  { label: "1,000-5,000", value: "1,000-5,000" },
+  { label: "5,000+", value: "5,000+" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_ANNUAL_REVENUE_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Under $10M", value: "Under $10M" },
+  { label: "$10M-$100M", value: "$10M-$100M" },
+  { label: "$100M-$500M", value: "$100M-$500M" },
+  { label: "$500M-$1B", value: "$500M-$1B" },
+  { label: "$1B-$10B", value: "$1B-$10B" },
+  { label: "Over $10B", value: "Over $10B" },
+  { label: "Not disclosed", value: "Not disclosed" },
+]
+
+export const VENDOR_COTS_OWNERSHIP_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Publicly traded", value: "Publicly traded" },
+  { label: "Private - VC backed", value: "Private - VC backed" },
+  { label: "Private - PE owned", value: "Private - PE owned" },
+  { label: "Founder / family owned", value: "Founder / family owned" },
+  { label: "Government or state-owned", value: "Government or state-owned" },
+  { label: "Non-profit / NGO", value: "Non-profit / NGO" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_OPERATING_REGION_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "North America", value: "North America" },
+  { label: "Europe (EU)", value: "Europe (EU)" },
+  { label: "Europe (non-EU)", value: "Europe (non-EU)" },
+  { label: "United Kingdom", value: "United Kingdom" },
+  { label: "Asia-Pacific", value: "Asia-Pacific" },
+  { label: "Middle East", value: "Middle East" },
+  { label: "Africa", value: "Africa" },
+  { label: "Latin America", value: "Latin America" },
+  { label: "Global (exclusive)", value: "Global (exclusive)" },
+]
+
+export const VENDOR_COTS_CUSTOMER_CERT_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "SOC 2 Type 2", value: "SOC 2 Type 2" },
+  { label: "ISO 27001", value: "ISO 27001" },
+  { label: "ISO 42001", value: "ISO 42001" },
+  { label: "ISO 9001", value: "ISO 9001" },
+  { label: "PCI DSS", value: "PCI DSS" },
+  { label: "HITRUST", value: "HITRUST" },
+  { label: "FedRAMP", value: "FedRAMP" },
+  { label: "CSA STAR", value: "CSA STAR" },
+  { label: "None found", value: "None found" },
+]
+
+export const VENDOR_COTS_REGULATOR_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "SEC", value: "SEC" },
+  { label: "FINRA", value: "FINRA" },
+  { label: "OCC / Federal Reserve", value: "OCC / Federal Reserve" },
+  { label: "FCA (UK)", value: "FCA (UK)" },
+  { label: "EU or national DPA", value: "EU or national DPA" },
+  { label: "HHS OCR", value: "HHS OCR" },
+  { label: "FDA", value: "FDA" },
+  { label: "State attorney general", value: "State attorney general" },
+  { label: "Sector regulator - other", value: "Sector regulator - other" },
+  { label: "None / unregulated", value: "None / unregulated" },
+]
+
+export const VENDOR_COTS_PUBLIC_INCIDENT_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "No known incident", value: "No known incident" },
+  { label: "Yes - within 12 months", value: "Yes - within 12 months" },
+  { label: "Yes - 12-24 months ago", value: "Yes - 12-24 months ago" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_CLOUD_PROVIDER_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "AWS", value: "AWS" },
+  { label: "Microsoft Azure", value: "Microsoft Azure" },
+  { label: "Google Cloud", value: "Google Cloud" },
+  { label: "Multi-cloud", value: "Multi-cloud" },
+  { label: "Predominantly on-premise", value: "Predominantly on-premise" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_IDENTITY_PROVIDER_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Okta", value: "Okta" },
+  { label: "Microsoft Entra ID", value: "Microsoft Entra ID" },
+  { label: "Ping Identity", value: "Ping Identity" },
+  { label: "Google Workspace", value: "Google Workspace" },
+  { label: "Other", value: "Other" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_SCM_PLATFORM_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "GitHub Enterprise", value: "GitHub Enterprise" },
+  { label: "GitLab", value: "GitLab" },
+  { label: "Bitbucket", value: "Bitbucket" },
+  { label: "Azure DevOps", value: "Azure DevOps" },
+  { label: "Self-hosted / other", value: "Self-hosted / other" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_INCUMBENT_AI_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "GitHub Copilot", value: "GitHub Copilot" },
+  { label: "Cursor", value: "Cursor" },
+  { label: "Amazon Q Developer", value: "Amazon Q Developer" },
+  { label: "Gemini Code Assist", value: "Gemini Code Assist" },
+  { label: "Tabnine", value: "Tabnine" },
+  { label: "ChatGPT Enterprise", value: "ChatGPT Enterprise" },
+  { label: "Microsoft Copilot", value: "Microsoft Copilot" },
+  { label: "None known", value: "None known" },
+]
+
+export const VENDOR_COTS_LIKELY_INTEGRATION_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Identity / SSO", value: "Identity / SSO" },
+  { label: "Code hosting", value: "Code hosting" },
+  { label: "CI/CD", value: "CI/CD" },
+  { label: "Ticketing (Jira, ServiceNow)", value: "Ticketing (Jira, ServiceNow)" },
+  { label: "Data warehouse", value: "Data warehouse" },
+  { label: "SIEM", value: "SIEM" },
+  { label: "CRM", value: "CRM" },
+  { label: "ERP", value: "ERP" },
+  { label: "Custom internal APIs", value: "Custom internal APIs" },
+  { label: "None", value: "None" },
+]
+
+export const VENDOR_COTS_AI_MATURITY_EVIDENCE_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Named AI/ML leadership in post", value: "Named AI/ML leadership in post" },
+  { label: "AI product shipped publicly", value: "AI product shipped publicly" },
+  { label: "Actively hiring AI/ML roles", value: "Actively hiring AI/ML roles" },
+  { label: "Public AI partnership announced", value: "Public AI partnership announced" },
+  { label: "Conference talks or engineering blog on AI", value: "Conference talks or engineering blog on AI" },
+  { label: "Public AI policy published", value: "Public AI policy published" },
+  { label: "No public evidence", value: "No public evidence" },
+]
+
+export const VENDOR_COTS_AI_LEADERSHIP_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Chief AI Officer", value: "Chief AI Officer" },
+  { label: "Chief Data / Analytics Officer", value: "Chief Data / Analytics Officer" },
+  { label: "VP-level AI or ML leader", value: "VP-level AI or ML leader" },
+  { label: "Director-level only", value: "Director-level only" },
+  { label: "None found", value: "None found" },
+]
+
+export const VENDOR_COTS_PUBLIC_AI_POLICY_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Yes - public policy published", value: "Yes - public policy published" },
+  { label: "Mentioned in annual report only", value: "Mentioned in annual report only" },
+  { label: "No public position found", value: "No public position found" },
+]
+
+export const VENDOR_COTS_OPPORTUNITY_TYPE_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "New logo", value: "New logo" },
+  { label: "Expansion of existing customer", value: "Expansion of existing customer" },
+  { label: "Renewal", value: "Renewal" },
+  { label: "Competitive displacement", value: "Competitive displacement" },
+  { label: "Speculative - no contact yet", value: "Speculative - no contact yet" },
+]
+
+export const VENDOR_COTS_TARGET_FUNCTION_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Engineering / Development", value: "Engineering / Development" },
+  { label: "Data & Analytics", value: "Data & Analytics" },
+  { label: "IT Operations", value: "IT Operations" },
+  { label: "Customer Support", value: "Customer Support" },
+  { label: "Legal & Compliance", value: "Legal & Compliance" },
+  { label: "Finance", value: "Finance" },
+  { label: "HR", value: "HR" },
+  { label: "Marketing", value: "Marketing" },
+  { label: "Operations", value: "Operations" },
+  { label: "Multiple functions", value: "Multiple functions" },
+]
+
+export const VENDOR_COTS_ESTIMATED_USERS_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "1-10 (pilot)", value: "1-10 (pilot)" },
+  { label: "11-50", value: "11-50" },
+  { label: "51-250", value: "51-250" },
+  { label: "251-1,000", value: "251-1,000" },
+  { label: "1,001-5,000", value: "1,001-5,000" },
+  { label: "5,000+", value: "5,000+" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_YES_NO_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Yes", value: "Yes" },
+  { label: "No", value: "No" },
+]
+
+export const VENDOR_COTS_COMPETITOR_BASIS_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Publicly confirmed", value: "Publicly confirmed" },
+  { label: "Market inference", value: "Market inference" },
+]
+
+export const VENDOR_COTS_BUILD_VS_BUY_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Yes - public evidence of internal build", value: "Yes - public evidence of internal build" },
+  { label: "Possible - large platform engineering org", value: "Possible - large platform engineering org" },
+  { label: "No signal", value: "No signal" },
+  { label: "Not known", value: "Not known" },
+]
+
+export const VENDOR_COTS_ADVANTAGE_CATEGORY_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Product", value: "Product" },
+  { label: "Security", value: "Security" },
+  { label: "Compliance", value: "Compliance" },
+  { label: "Price", value: "Price" },
+  { label: "Support", value: "Support" },
+  { label: "Ecosystem", value: "Ecosystem" },
+]
+
+export const VENDOR_COTS_INFORMATION_BASIS_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "Public sources only", value: "Public sources only" },
+  { label: "Product team knowledge", value: "Product team knowledge" },
+  { label: "Partner or analyst input", value: "Partner or analyst input" },
+  { label: "Customer conversation", value: "Customer conversation" },
+]
+
+export const VENDOR_COTS_ANSWER_CONFIDENCE_OPTIONS: VendorCotsOptionItem[] = [
+  { label: "High - verified from primary sources", value: "High - verified from primary sources" },
+  { label: "Medium - partly verified", value: "Medium - partly verified" },
+  { label: "Low - inference only", value: "Low - inference only" },
+]
+
 /** Map optionsKey (from form schema) to options array. Used by VendorCotsDynamicStep. */
 export const VENDOR_COTS_FIELD_OPTIONS: Record<string, VendorCotsOptionItem[]> = {
   industrySector: VENDOR_COTS_INDUSTRY_SECTOR_OPTIONS,
@@ -195,8 +428,43 @@ export const VENDOR_COTS_FIELD_OPTIONS: Record<string, VendorCotsOptionItem[]> =
   dataSensitivity: VENDOR_COTS_DATA_SENSITIVITY_OPTIONS,
   riskTolerance: VENDOR_COTS_RISK_TOLERANCE_OPTIONS,
   customerSpecificRisks: VENDOR_COTS_CUSTOMER_SPECIFIC_RISKS_OPTIONS,
+  employeeCount: VENDOR_COTS_EMPLOYEE_COUNT_OPTIONS,
+  engHeadcount: VENDOR_COTS_ENG_HEADCOUNT_OPTIONS,
+  annualRevenue: VENDOR_COTS_ANNUAL_REVENUE_OPTIONS,
+  ownership: VENDOR_COTS_OWNERSHIP_OPTIONS,
+  hqCountry: HEADQUARTERS_LOCATION,
+  operatingRegions: VENDOR_COTS_OPERATING_REGION_OPTIONS,
+  customerCertifications: VENDOR_COTS_CUSTOMER_CERT_OPTIONS,
+  customerRegulators: VENDOR_COTS_REGULATOR_OPTIONS,
+  publicIncident: VENDOR_COTS_PUBLIC_INCIDENT_OPTIONS,
+  cloudProvider: VENDOR_COTS_CLOUD_PROVIDER_OPTIONS,
+  identityProvider: VENDOR_COTS_IDENTITY_PROVIDER_OPTIONS,
+  scmPlatform: VENDOR_COTS_SCM_PLATFORM_OPTIONS,
+  incumbentAiTooling: VENDOR_COTS_INCUMBENT_AI_OPTIONS,
+  likelyIntegrationSystems: VENDOR_COTS_LIKELY_INTEGRATION_OPTIONS,
+  aiMaturityEvidence: VENDOR_COTS_AI_MATURITY_EVIDENCE_OPTIONS,
+  aiLeadership: VENDOR_COTS_AI_LEADERSHIP_OPTIONS,
+  publicAiPolicy: VENDOR_COTS_PUBLIC_AI_POLICY_OPTIONS,
+  opportunityType: VENDOR_COTS_OPPORTUNITY_TYPE_OPTIONS,
+  targetUserFunction: VENDOR_COTS_TARGET_FUNCTION_OPTIONS,
+  estimatedUsers: VENDOR_COTS_ESTIMATED_USERS_OPTIONS,
+  yesNo: VENDOR_COTS_YES_NO_OPTIONS,
+  competitorBasis: VENDOR_COTS_COMPETITOR_BASIS_OPTIONS,
+  buildVsBuy: VENDOR_COTS_BUILD_VS_BUY_OPTIONS,
+  advantageCategory: VENDOR_COTS_ADVANTAGE_CATEGORY_OPTIONS,
+  informationBasis: VENDOR_COTS_INFORMATION_BASIS_OPTIONS,
+  answerConfidence: VENDOR_COTS_ANSWER_CONFIDENCE_OPTIONS,
 }
 
 export function getVendorCotsFieldOptions(optionsKey: string): VendorCotsOptionItem[] | undefined {
   return VENDOR_COTS_FIELD_OPTIONS[optionsKey]
+}
+
+export function getVendorCotsGlobalExclusiveValue(optionsKey?: string): string | undefined {
+  if (!optionsKey) return undefined
+  const opts = VENDOR_COTS_FIELD_OPTIONS[optionsKey]
+  const exclusive = opts?.find((o) =>
+    /^(none\b|no public evidence|global \(exclusive\))/i.test(o.value),
+  )
+  return exclusive?.value
 }

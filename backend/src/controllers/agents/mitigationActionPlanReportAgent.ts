@@ -1,9 +1,6 @@
 import "dotenv/config";
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-
-const REGION = process.env.AWS_DEFAULT_REGION || "us-east-1";
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-sonnet-20240229-v1:0";
-const client = new BedrockRuntimeClient({ region: REGION });
+import { invokeBedrockAnthropicText } from "../../utils/invokeBedrockWithUsage.js";
+import { isTokenQuotaExceededError } from "../../services/admin/featureTokenQuota.service.js";
 
 export type MitigationActionRow = {
   rank: number;
@@ -199,21 +196,12 @@ function fallbackFromCompleteReport(complete: Record<string, unknown>): Mitigati
 }
 
 async function invokeModel(prompt: string): Promise<string> {
-  const body = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 8192,
+  return invokeBedrockAnthropicText({
+    prompt,
+    maxTokens: 8192,
     temperature: 0.25,
-    messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+    feature: "reports",
   });
-  const command = new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: "application/json",
-    accept: "application/json",
-    body,
-  });
-  const response = await client.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content?.[0]?.text ?? "";
 }
 
 export async function generateMitigationActionPlanReport(
@@ -241,6 +229,7 @@ export async function generateMitigationActionPlanReport(
     const parsed = extractJsonObject(rawText);
     if (parsed) return normalizePayload(parsed, fb);
   } catch (e) {
+    if (isTokenQuotaExceededError(e)) throw e;
     console.error("generateMitigationActionPlanReport LLM error:", e);
   }
   return fb;

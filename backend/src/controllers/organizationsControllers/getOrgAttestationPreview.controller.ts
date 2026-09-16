@@ -1,86 +1,55 @@
 import type { Request, Response } from "express";
 import { db } from "../../database/db.js";
-import { createOrganization } from "../../schema/organizations/createOrganization.js";
-import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
+import { createOrganization, vendors, vendorSelfAttestations } from "../../schema/schema.js";
 import { and, eq, or } from "drizzle-orm";
+import {
+  mapAttestationRow,
+  companyProfileFromAttestationRow,
+} from "../../utils/mapVendorSelfAttestationApi.js";
+import {
+  firstNonEmptyString,
+  lookupOrganizationName,
+} from "../../utils/lookupOrganizationName.js";
 
-/** Map one attestation row to API shape (same as fetchVendorSelfAttestation). */
-function mapAttestationRow(attestRow: Record<string, unknown>): Record<string, unknown> {
-  const raw = String(attestRow.status ?? "").toUpperCase();
-  const rowStatus = raw === "DRAFT" ? "DRAFT" : "COMPLETED";
-  return {
-    id: attestRow.id,
-    status: rowStatus,
-    created_at: attestRow.created_at ?? undefined,
-    updated_at: attestRow.updated_at ?? undefined,
-    product_name: attestRow.product_name ?? undefined,
-    visible_to_buyer: attestRow.visible_to_buyer === true || attestRow.visible_to_buyer === 1,
-    visible_ai_governance: attestRow.visible_ai_governance === true,
-    visible_security_posture: attestRow.visible_security_posture === true,
-    visible_data_privacy: attestRow.visible_data_privacy === true,
-    visible_compliance: attestRow.visible_compliance === true,
-    visible_model_risk: attestRow.visible_model_risk === true,
-    visible_data_practices: attestRow.visible_data_practices === true,
-    visible_compliance_certifications: attestRow.visible_compliance_certifications === true,
-    visible_operations_support: attestRow.visible_operations_support === true,
-    visible_vendor_management: attestRow.visible_vendor_management === true,
-    purchase_decision_makers: attestRow.purchase_decisions_by ?? undefined,
-    pain_points_solved: attestRow.pain_points ?? undefined,
-    alternatives_considered: attestRow.alternatives_consider ?? undefined,
-    unique_value_proposition: attestRow.unique_solution ?? undefined,
-    typical_customer_roi: attestRow.roi_value_metrics ?? undefined,
-    ai_capabilities: attestRow.product_capabilities ?? undefined,
-    ai_model_types: attestRow.ai_models_usage ?? undefined,
-    model_transparency: attestRow.ai_model_transparency ?? undefined,
-    decision_autonomy: attestRow.ai_autonomy_level ?? undefined,
-    security_certifications: attestRow.security_compliance_certificates ?? undefined,
-    assessment_completion_level: attestRow.assessment_feedback ?? undefined,
-    pii_handling: attestRow.pii_information ?? undefined,
-    data_residency_options: attestRow.data_residency_options ?? undefined,
-    data_retention_policy: attestRow.data_retention_policy ?? undefined,
-    bias_testing_approach: attestRow.bias_ai ?? undefined,
-    adversarial_security_testing: attestRow.security_testing ?? undefined,
-    human_oversight: attestRow.human_oversight ?? undefined,
-    training_data_documentation: attestRow.training_data_document ?? undefined,
-    uptime_sla: attestRow.sla_guarantee ?? undefined,
-    incident_response_plan: attestRow.incident_response_plan ?? undefined,
-    rollback_capability: attestRow.rollback_deployment_issues ?? undefined,
-    hosting_deployment: attestRow.solution_hosted ?? undefined,
-    deployment_scale: attestRow.deployment_scale ?? undefined,
-    product_stage: attestRow.stage_product ?? undefined,
-    interaction_data_available: attestRow.available_usage_data ?? undefined,
-    audit_logs_available: attestRow.audit_logs ?? undefined,
-    testing_results_available: attestRow.test_results ?? undefined,
-    document_uploads: attestRow.document_uploads ?? undefined,
-    compliance_document_expiries: attestRow.compliance_document_expiries ?? undefined,
-  };
-}
-
-function companyProfileFromAttestationRow(row: Record<string, unknown>): Record<string, unknown> {
-  const sectorRaw = row.target_industries;
-  let sector: Record<string, unknown> = {};
+function parseVendorSector(sectorRaw: unknown): Record<string, unknown> {
   if (sectorRaw != null && typeof sectorRaw === "object" && !Array.isArray(sectorRaw)) {
-    sector = sectorRaw as Record<string, unknown>;
-  } else if (typeof sectorRaw === "string" && sectorRaw.trim()) {
+    return sectorRaw as Record<string, unknown>;
+  }
+  if (typeof sectorRaw === "string" && sectorRaw.trim()) {
     try {
-      const p = JSON.parse(sectorRaw);
-      sector = typeof p === "object" && p !== null ? p : {};
+      const parsed = JSON.parse(sectorRaw);
+      return typeof parsed === "object" && parsed !== null ? parsed : {};
     } catch {
-      sector = {};
+      return {};
     }
   }
-  const opReg = row.operate_regions;
-  const operatingRegions = Array.isArray(opReg) ? opReg : (opReg != null && typeof opReg === "object" ? (opReg as string[]) : []);
+  return {};
+}
+
+function companyProfileFromVendorRow(row: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!row) return {};
+  const operatingRegions = Array.isArray(row.operatingRegions)
+    ? row.operatingRegions
+    : (row.operatingRegions != null && typeof row.operatingRegions === "object"
+      ? (row.operatingRegions as string[])
+      : []);
   return {
-    vendorType: row.vendor_type ?? "",
-    sector,
-    vendorMaturity: row.company_stage ?? "",
-    companyWebsite: row.company_website ?? "",
-    companyDescription: row.company_description ?? "",
-    employeeCount: row.no_of_employees ?? "",
-    yearFounded: row.year_founded ?? null,
-    headquartersLocation: row.headquarter_location ?? "",
+    vendorName: row.vendorName ?? "",
+    vendorType: row.vendorType ?? "",
+    sector: parseVendorSector(row.sector),
+    vendorMaturity: row.vendorMaturity ?? "",
+    companyWebsite: row.companyWebsite ?? "",
+    companyDescription: row.companyDescription ?? "",
+    employeeCount: row.employeeCount ?? "",
+    yearFounded: row.yearFounded ?? null,
+    headquartersLocation: row.headquartersLocation ?? "",
     operatingRegions,
+    fundingStatus: row.fundingStatus ?? "",
+    financialPosition: row.financialPosition ?? "",
+    enterpriseCustomers: row.enterpriseCustomers ?? "",
+    customerRetentionRate: row.customerRetentionRate ?? "",
+    trustCentreUrl: row.trustCentreUrl ?? "",
+    securityIncidents: Array.isArray(row.securityIncidents) ? row.securityIncidents : [],
   };
 }
 
@@ -105,7 +74,10 @@ const getOrgAttestationPreview = async (req: Request, res: Response) => {
       .where(eq(createOrganization.id, Number(orgIdParam) || 0))
       .limit(1);
 
-    const orgName = orgRow[0]?.organizationName ?? null;
+    let orgName: string | null = orgRow[0]?.organizationName ?? null;
+    if (!orgName) {
+      orgName = (await lookupOrganizationName(orgIdParam)) || null;
+    }
 
     const whereClause = orgName
       ? and(
@@ -137,7 +109,70 @@ const getOrgAttestationPreview = async (req: Request, res: Response) => {
 
     const oneRow = one as Record<string, unknown>;
     const attestation = mapAttestationRow(oneRow);
-    const companyProfile = companyProfileFromAttestationRow(oneRow);
+
+    const vendorWhere = orgName
+      ? or(eq(vendors.organizationId, orgIdParam), eq(vendors.organizationId, orgName))
+      : eq(vendors.organizationId, orgIdParam);
+
+    const [vendorRow] = await db
+      .select({
+        vendorName: vendors.vendorName,
+        vendorType: vendors.vendorType,
+        sector: vendors.sector,
+        vendorMaturity: vendors.vendorMaturity,
+        companyWebsite: vendors.companyWebsite,
+        companyDescription: vendors.companyDescription,
+        employeeCount: vendors.employeeCount,
+        yearFounded: vendors.yearFounded,
+        headquartersLocation: vendors.headquartersLocation,
+        operatingRegions: vendors.operatingRegions,
+        fundingStatus: vendors.fundingStatus,
+        financialPosition: vendors.financialPosition,
+        enterpriseCustomers: vendors.enterpriseCustomers,
+        customerRetentionRate: vendors.customerRetentionRate,
+        trustCentreUrl: vendors.trustCentreUrl,
+        securityIncidents: vendors.securityIncidents,
+      })
+      .from(vendors)
+      .where(vendorWhere)
+      .limit(1);
+
+    const fromOnboarding = companyProfileFromVendorRow(vendorRow as Record<string, unknown> | undefined);
+    const fromAttestation = companyProfileFromAttestationRow(oneRow);
+    const companyProfile: Record<string, unknown> = { ...fromOnboarding };
+    for (const [key, value] of Object.entries(fromAttestation)) {
+      if (value == null || value === "") continue;
+      if (Array.isArray(value) && value.length === 0) continue;
+      if (
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        Object.keys(value as Record<string, unknown>).length === 0
+      ) {
+        continue;
+      }
+      companyProfile[key] = value;
+    }
+    companyProfile.vendorName = firstNonEmptyString(
+      fromOnboarding.vendorName,
+      await lookupOrganizationName(
+        oneRow.organization_id == null ? undefined : String(oneRow.organization_id),
+      ),
+      orgName,
+    );
+
+    if (!attestation.trust_centre_url && fromOnboarding.trustCentreUrl) {
+      attestation.trust_centre_url = fromOnboarding.trustCentreUrl;
+    }
+    if (
+      (!Array.isArray(attestation.security_incidents) || attestation.security_incidents.length === 0) &&
+      Array.isArray(fromOnboarding.securityIncidents) &&
+      fromOnboarding.securityIncidents.length > 0
+    ) {
+      attestation.security_incidents = fromOnboarding.securityIncidents;
+      if (!attestation.has_public_security_incident) {
+        attestation.has_public_security_incident = "yes";
+      }
+    }
 
     return res.status(200).json({
       success: true,

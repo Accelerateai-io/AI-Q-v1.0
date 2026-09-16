@@ -25,7 +25,7 @@ const rootDir = getDirname();
 const migrationsDir = path.join(rootDir, "migrations");
 
 export default defineConfig({
-  schema: "./dist/schema/schema.js",
+  schema: "./dist/schema/schema.tables.js",
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {

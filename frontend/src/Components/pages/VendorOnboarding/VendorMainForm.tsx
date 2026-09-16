@@ -2,10 +2,12 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import type { z } from "zod";
 import "./vendor_onboarding.css";
 import Button from "../../UI/Button";
+import LoadingMessage from "../../UI/LoadingMessage";
 import StepCompanyProfile from "./StepCompanyProfile";
 import StepContactInformation from "./StepContactInformation";
 import StepCompanyScale from "./StepCompanyScale";
 import StepGeopgraphy from "./StepGeopgraphy";
+import StepBusinessClaims from "./StepBusinessClaims";
 import { ChevronLeftCircle, ChevronRightCircle, Send } from "lucide-react";
 import StepVendorOnboardingPreview from "./StepVendorOnboardingPreview";
 import { useNavigate, useParams } from "react-router-dom";
@@ -16,11 +18,12 @@ import CardConfirmation from "../../UI/CardConfirmation";
 import MultiStepTabs from "../../UI/MultiStepTabs";
 import { toast } from "react-toastify";
 import { VENDOR_ONBOARDING_TAB_STEPS } from "./vendorOnboardingTabs";
-import type { VendorDataInterface } from "../../../types/formDataVendor";
+import type { VendorDataInterface, VendorSecurityIncident } from "../../../types/formDataVendor";
 import { vendorStep1CompanyProfileSchema } from "../../../schemas/onboarding/vendor.schema";
 import { vendorStep2ContactSchema } from "../../../schemas/onboarding/vendorStep2.schema";
 import { vendorStep3CompanyScaleSchema } from "../../../schemas/onboarding/vendorStep3.schema";
 import { vendorStep4GeographySchema } from "../../../schemas/onboarding/vendorStep4.schema";
+import { vendorStep5BusinessSchema } from "../../../schemas/onboarding/vendorStep5Business.schema";
 import { getApiBaseUrl } from "../../../utils/apiBaseUrl";
 import { fetchOnboardingAccessStatus } from "../../../utils/onboardingAccessStatus";
 
@@ -39,18 +42,80 @@ function getValidationMessages(error: z.ZodError): string[] {
   return [...form, ...field].filter(Boolean)
 }
 
+const REVIEW_STEP_INDEX = 5
+const LAST_FORM_STEP_INDEX = 4
+
+const vendorStepSchemas = [
+  vendorStep1CompanyProfileSchema,
+  vendorStep2ContactSchema,
+  vendorStep3CompanyScaleSchema,
+  vendorStep4GeographySchema,
+  vendorStep5BusinessSchema,
+]
+
+function getVendorStepData(form: VendorDataInterface) {
+  return [
+    {
+      vendorType: form.vendorType,
+      vendorName: form.vendorName,
+      sector: form.sector,
+      vendorMaturity: form.vendorMaturity,
+      companyWebsite: form.companyWebsite,
+      companyDescription: form.companyDescription,
+    },
+    {
+      primaryContactName: form.primaryContactName,
+      primaryContactEmail: form.primaryContactEmail,
+      primaryContactRole: form.primaryContactRole,
+    },
+    {
+      employeeCount: form.employeeCount,
+      yearFounded: form.yearFounded,
+    },
+    {
+      headquartersLocation: form.headquartersLocation,
+      operatingRegions: form.operatingRegions ?? [],
+    },
+    {
+      fundingStatus: form.fundingStatus,
+      financialPosition: form.financialPosition,
+      enterpriseCustomers: form.enterpriseCustomers,
+      customerRetentionRate: form.customerRetentionRate,
+      trustCentreUrl: form.trustCentreUrl,
+      hasPublicSecurityIncident: form.hasPublicSecurityIncident,
+      securityIncidents: form.securityIncidents ?? [],
+    },
+  ]
+}
+
+function mapSecurityIncidents(raw: unknown): VendorSecurityIncident[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => {
+    if (!item || typeof item !== "object") {
+      return { date: "", summary: "", sourceUrl: "", severity: "", resolved: false }
+    }
+    const o = item as Record<string, unknown>
+    return {
+      date: String(o.date ?? ""),
+      summary: String(o.summary ?? ""),
+      sourceUrl: String(o.source_url ?? o.sourceUrl ?? ""),
+      severity: String(o.severity ?? ""),
+      resolved: Boolean(o.resolved),
+    }
+  })
+}
+
 /** Per-field errors for inline display. Step 0: assign formErrors (e.g. sector refine) to "sector". */
 function getFieldErrorsFromZod(error: z.ZodError, stepIndex: number): Record<string, string> {
-  const flat = error.flatten()
   const result: Record<string, string> = {}
-  const fieldErrors = flat.fieldErrors as Record<string, string[] | undefined> | undefined
-  if (fieldErrors) {
-    for (const [key, messages] of Object.entries(fieldErrors)) {
-      if (Array.isArray(messages) && messages[0]) result[key] = messages[0]
+  for (const issue of error.issues) {
+    const path = issue.path.join(".")
+    if (path) {
+      if (!result[path]) result[path] = issue.message
+      continue
     }
+    if (stepIndex === 0) result.sector = issue.message
   }
-  const formErrors = flat.formErrors ?? []
-  if (stepIndex === 0 && formErrors.length > 0) result.sector = formErrors[0]
   return result
 }
 
@@ -85,6 +150,13 @@ const getDefaultVendorFormState = (
   yearFounded: "" as unknown as number,
   headquartersLocation: "",
   operatingRegions: [],
+  fundingStatus: "",
+  financialPosition: "",
+  enterpriseCustomers: "",
+  customerRetentionRate: "",
+  trustCentreUrl: "",
+  hasPublicSecurityIncident: "",
+  securityIncidents: [],
 });
 
 /**
@@ -98,6 +170,7 @@ function mapApiDataToFormState(
   vendorId?: string | null;
   organization_Id?: string;
 } {
+  const securityIncidents = mapSecurityIncidents(apiData.securityIncidents);
   const sector = apiData.sector;
   let sectorNormalized = defaults.sector;
   if (sector && typeof sector === "object" && !Array.isArray(sector)) {
@@ -137,6 +210,23 @@ function mapApiDataToFormState(
     operatingRegions: Array.isArray(apiData.operatingRegions)
       ? (apiData.operatingRegions as string[])
       : [],
+    fundingStatus: (apiData.fundingStatus as string) ?? "",
+    financialPosition: (apiData.financialPosition as string) ?? "",
+    enterpriseCustomers:
+      apiData.enterpriseCustomers != null && apiData.enterpriseCustomers !== ""
+        ? String(apiData.enterpriseCustomers)
+        : "",
+    customerRetentionRate:
+      apiData.customerRetentionRate != null && apiData.customerRetentionRate !== ""
+        ? String(apiData.customerRetentionRate)
+        : "",
+    trustCentreUrl: (apiData.trustCentreUrl as string) ?? "",
+    securityIncidents,
+    hasPublicSecurityIncident: securityIncidents.length
+      ? "yes"
+      : apiData.fundingStatus
+        ? "no"
+        : "",
   };
 }
 
@@ -320,38 +410,10 @@ export default function VendorMainForm({ type }: { type: string }) {
   }, [BASE_URL]);
 
   const handleContinue = async () => {
-    if (currentStep >= 4) return
+    if (currentStep >= REVIEW_STEP_INDEX) return
 
-    const stepSchemas = [
-      vendorStep1CompanyProfileSchema,
-      vendorStep2ContactSchema,
-      vendorStep3CompanyScaleSchema,
-      vendorStep4GeographySchema,
-    ]
-    const schema = stepSchemas[currentStep]
-    const stepData = [
-      {
-        vendorType: formVendorData.vendorType,
-        vendorName: formVendorData.vendorName,
-        sector: formVendorData.sector,
-        vendorMaturity: formVendorData.vendorMaturity,
-        companyWebsite: formVendorData.companyWebsite,
-        companyDescription: formVendorData.companyDescription,
-      },
-      {
-        primaryContactName: formVendorData.primaryContactName,
-        primaryContactEmail: formVendorData.primaryContactEmail,
-        primaryContactRole: formVendorData.primaryContactRole,
-      },
-      {
-        employeeCount: formVendorData.employeeCount,
-        yearFounded: formVendorData.yearFounded,
-      },
-      {
-        headquartersLocation: formVendorData.headquartersLocation,
-        operatingRegions: formVendorData.operatingRegions ?? [],
-      },
-    ][currentStep]
+    const schema = vendorStepSchemas[currentStep]
+    const stepData = getVendorStepData(formVendorData)[currentStep]
 
     const result = schema.safeParse(stepData)
     if (!result.success) {
@@ -397,38 +459,10 @@ export default function VendorMainForm({ type }: { type: string }) {
   }, [currentStep]);
 
   // After Continue failed, re-validate on change so errors clear/update as the user edits (no errors before first Continue).
-  const vendorStepSchemas = [
-    vendorStep1CompanyProfileSchema,
-    vendorStep2ContactSchema,
-    vendorStep3CompanyScaleSchema,
-    vendorStep4GeographySchema,
-  ]
   useEffect(() => {
-    if (currentStep > 3) return
+    if (currentStep > LAST_FORM_STEP_INDEX) return
     const schema = vendorStepSchemas[currentStep]
-    const stepData = [
-      {
-        vendorType: formVendorData.vendorType,
-        vendorName: formVendorData.vendorName,
-        sector: formVendorData.sector,
-        vendorMaturity: formVendorData.vendorMaturity,
-        companyWebsite: formVendorData.companyWebsite,
-        companyDescription: formVendorData.companyDescription,
-      },
-      {
-        primaryContactName: formVendorData.primaryContactName,
-        primaryContactEmail: formVendorData.primaryContactEmail,
-        primaryContactRole: formVendorData.primaryContactRole,
-      },
-      {
-        employeeCount: formVendorData.employeeCount,
-        yearFounded: formVendorData.yearFounded,
-      },
-      {
-        headquartersLocation: formVendorData.headquartersLocation,
-        operatingRegions: formVendorData.operatingRegions ?? [],
-      },
-    ][currentStep]
+    const stepData = getVendorStepData(formVendorData)[currentStep]
     const result = schema.safeParse(stepData)
     if (!showInlineErrors) return
     if (result.success) setValidationError(null)
@@ -437,37 +471,15 @@ export default function VendorMainForm({ type }: { type: string }) {
 
   // Step-specific field errors for inline display (only when validation failed on that step)
   const stepFieldErrors = useMemo(() => {
-    if (!showInlineErrors || !validationError || currentStep > 3) return {}
+    if (!showInlineErrors || !validationError || currentStep > LAST_FORM_STEP_INDEX) return {}
     return getFieldErrorsFromZod(validationError, currentStep)
   }, [validationError, currentStep, showInlineErrors])
 
   // Can advance to next step via tab icon (same condition as Continue: current step valid). Used only for steps 0-3; step 4 has no next.
   const canGoNext = useMemo(() => {
-    if (currentStep > 3) return true
+    if (currentStep > LAST_FORM_STEP_INDEX) return true
     const schema = vendorStepSchemas[currentStep]
-    const stepData = [
-      {
-        vendorType: formVendorData.vendorType,
-        vendorName: formVendorData.vendorName,
-        sector: formVendorData.sector,
-        vendorMaturity: formVendorData.vendorMaturity,
-        companyWebsite: formVendorData.companyWebsite,
-        companyDescription: formVendorData.companyDescription,
-      },
-      {
-        primaryContactName: formVendorData.primaryContactName,
-        primaryContactEmail: formVendorData.primaryContactEmail,
-        primaryContactRole: formVendorData.primaryContactRole,
-      },
-      {
-        employeeCount: formVendorData.employeeCount,
-        yearFounded: formVendorData.yearFounded,
-      },
-      {
-        headquartersLocation: formVendorData.headquartersLocation,
-        operatingRegions: formVendorData.operatingRegions ?? [],
-      },
-    ][currentStep]
+    const stepData = getVendorStepData(formVendorData)[currentStep]
     return schema.safeParse(stepData).success
   }, [currentStep, formVendorData])
 
@@ -516,6 +528,16 @@ export default function VendorMainForm({ type }: { type: string }) {
       },
       {
         ...VENDOR_ONBOARDING_TAB_STEPS[4],
+        content: (
+          <StepBusinessClaims
+            formVendorData={formVendorData}
+            setFormVendorData={setFormVendorData}
+            fieldErrors={currentStep === 4 ? stepFieldErrors : undefined}
+          />
+        ),
+      },
+      {
+        ...VENDOR_ONBOARDING_TAB_STEPS[5],
         content: allStepsFilled ? (
           <CardConfirmation
             pageNavigateLink="Proceed to Vendor Self Attestation"
@@ -557,7 +579,7 @@ export default function VendorMainForm({ type }: { type: string }) {
       companyDescription: formVendorData.companyDescription,
     });
     if (!step1Result.success) {
-      disabled.push(1, 2, 3, 4);
+      disabled.push(1, 2, 3, 4, 5);
       return disabled;
     }
     const step2Result = vendorStep2ContactSchema.safeParse({
@@ -566,7 +588,7 @@ export default function VendorMainForm({ type }: { type: string }) {
       primaryContactRole: formVendorData.primaryContactRole,
     });
     if (!step2Result.success) {
-      disabled.push(2, 3, 4);
+      disabled.push(2, 3, 4, 5);
       return disabled;
     }
     const step3Result = vendorStep3CompanyScaleSchema.safeParse({
@@ -574,7 +596,7 @@ export default function VendorMainForm({ type }: { type: string }) {
       yearFounded: formVendorData.yearFounded,
     });
     if (!step3Result.success) {
-      disabled.push(3, 4);
+      disabled.push(3, 4, 5);
       return disabled;
     }
     const step4Result = vendorStep4GeographySchema.safeParse({
@@ -582,13 +604,17 @@ export default function VendorMainForm({ type }: { type: string }) {
       operatingRegions: formVendorData.operatingRegions ?? [],
     });
     if (!step4Result.success) {
-      disabled.push(4);
+      disabled.push(4, 5);
+      return disabled;
+    }
+    const step5Result = vendorStep5BusinessSchema.safeParse(
+      getVendorStepData(formVendorData)[4],
+    );
+    if (!step5Result.success) {
+      disabled.push(5);
     }
     return disabled;
   }, [formVendorData]);
-
-  const handleBackToSelection = () =>
-    navigate(`/onboarding/${onboardingToken}`);
 
   const handleSubmitPreview = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -669,9 +695,10 @@ export default function VendorMainForm({ type }: { type: string }) {
 
   if (!onboardingGateReady) {
     return (
-      <div className="form_card_centered">
-        <p style={{ textAlign: "center", color: "#64748b" }}>Loading…</p>
-      </div>
+      <LoadingMessage
+        message="Loading…"
+        className="loading_message_wrapper--page onboarding_page_loader"
+      />
     );
   }
 
@@ -715,11 +742,11 @@ export default function VendorMainForm({ type }: { type: string }) {
           {/* Navigation buttons */}
         <div className="vendor_action_btns">
           {/* Show back button only if confirmation is NOT shown */}
-          {!allStepsFilled && (
+          {!allStepsFilled && currentStep > 0 && (
             <div className="action_back">
               <Button
                 type="button"
-                onClick={currentStep === 0 ? handleBackToSelection : handleBack}
+                onClick={handleBack}
                 className="back_btn"
               >
                 <span>
@@ -730,8 +757,8 @@ export default function VendorMainForm({ type }: { type: string }) {
             </div>
           )}
 
-          {/* Continue button for steps 0-3 */}
-          {currentStep < 4 && (
+          {/* Continue button for steps 0-4 */}
+          {currentStep < REVIEW_STEP_INDEX && (
             <div className="action_continue_btn">
               <Button
                 onClick={handleContinue}
@@ -746,7 +773,7 @@ export default function VendorMainForm({ type }: { type: string }) {
           )}
 
           {/* Submit button for preview step */}
-          {currentStep === 4 && !allStepsFilled && (
+          {currentStep === REVIEW_STEP_INDEX && !allStepsFilled && (
             <div className="action_submit_btn">
               <Button type="submit" className="submit_btn_vendor">
                 <span>

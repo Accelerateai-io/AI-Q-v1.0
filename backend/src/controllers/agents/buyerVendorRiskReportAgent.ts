@@ -1,14 +1,18 @@
 import "dotenv/config";
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import {
   getTop5RisksWithMitigations,
   formatTop5RisksForPrompt,
+  applyRiEnrichmentToPayload,
 } from "../../services/getTop5RisksFromAssessmentContext.js";
-import { calculateBuyerImplementationRiskScore } from "../../services/buyerImplementationRiskScore.js";
-
-const REGION = process.env.AWS_DEFAULT_REGION || "us-east-1";
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-sonnet-20240229-v1:0";
-const client = new BedrockRuntimeClient({ region: REGION });
+import { invokePythonLlmWithVector } from "../../services/pythonAssessmentLlmClient.js";
+import { scoreCotsBuyerWithPython } from "../../services/pythonScoringClient.js";
+import {
+  calculateBuyerImplementationRiskScore,
+  extractVendorTrustScore,
+  irsFinalScoreFromParts,
+} from "../../services/buyerImplementationRiskScore.js";
+import { invokeBedrockAnthropicText } from "../../utils/invokeBedrockWithUsage.js";
+import { isTokenQuotaExceededError } from "../../services/admin/featureTokenQuota.service.js";
 
 export type VendorRiskRecommendation = {
   priority: "High" | "Medium" | "Low";
@@ -72,6 +76,14 @@ export type BuyerVendorRiskReport = {
   implementationRiskDecision?: string;
   implementationRiskRecommendedAction?: string;
   implementationRiskBreakdown?: Record<string, unknown>;
+  /** Human-readable readiness profile from IRS formula. */
+  readinessProfile?: string;
+  implementationRiskSource?: Record<string, unknown>;
+  vendorName?: string;
+  productName?: string;
+  /** Python-generated IMPLEMENTATION READINESS SCORE (Type 3) - EXPLAINED block. */
+  scoreRationale?: string;
+  scoreRationaleType?: "IRS";
   recommendationLabel: string;
   executiveSummary: string;
   keyStrengths: string[];
@@ -94,9 +106,9 @@ const SYSTEM_PROMPT = `You are an enterprise AI risk analyst. Output ONLY valid 
 
 The JSON must match this structure exactly:
 {
-  "overallRiskScore": <integer 0-100, higher = safer/better fit>,
+  "overallRiskScore": <integer 0-100, higher = safer/better fit for this buyer engagement — do NOT invent Vendor Trust Score here>,
   "recommendationLabel": "<e.g. Recommended for Approval | Conditional Approval | Further Review Required>",
-  "executiveSummary": "<3-5 sentences combining buyer context and vendor attestation; MUST explicitly mention 'Vendor trust score: <overallRiskScore>/100'>",
+  "executiveSummary": "<3-5 sentences combining buyer context and vendor attestation; MUST explicitly mention 'Vendor trust score: <USE_PROVIDED_VENDOR_TRUST_SCORE>/100' using the Vendor Trust Score supplied in the user message — never invent or substitute overallRiskScore>",
   "keyStrengths": ["<6-10 short bullet strings from attestation: certs, SLA, security, compliance>"],
   "areasForImprovement": ["<4-8 caution items: gaps, residual risks, deployment limits>"],
   "riskAnalysis": [
@@ -157,15 +169,54 @@ CRITICAL ORDER: Put actionable "recommendations" BEFORE "implementationNotes" in
 
 If the user message includes a block "--- Database-matched top risks and mitigations ---", those rows come from the same risk_mappings and risk_top5_mitigations database tables used for vendor assessments (matched to this buyer context). You MUST weight overallRiskScore and riskAnalysis against those catalog risks; reference their themes and the listed mitigations in recommendations and implementationNotes where relevant. Do not invent fake risk IDs; narrate using the provided titles/descriptions.
 
-Use only facts inferable from the inputs. If attestation data is sparse, say so in summaries and score conservatively.`;
+Use only facts inferable from the inputs. If attestation data is sparse, say so in summaries and score conservatively.
 
-function ensureExecutiveSummaryHasTrustScore(summary: string, overallRiskScore: number): string {
-  const trustPattern = /vendor\s+trust\s+score\s*:/i;
-  const scoreText = `Vendor trust score: ${overallRiskScore}/100.`;
+CRITICAL: The user message supplies the authoritative Vendor Trust Score from the vendor self-attestation. In executiveSummary you MUST write exactly 'Vendor trust score: <that number>/100' — do not invent a different trust score and do not use overallRiskScore as the Vendor Trust Score.
+
+CRITICAL: Do NOT discuss, quote, or display scoring formulas, equations, or weight algebra (e.g. VTS =, IRS =, × 0.35) anywhere in the report. Buyer priority weightPercent values are decision criteria only — never explain how VTS/IRS are computed.`;
+
+/**
+ * Force executive summary to cite the real Vendor Trust Score (from attestation VTS),
+ * replacing any LLM-invented "Vendor trust score: N/100" text.
+ * When vendorTrustScore is unknown, leave the summary unchanged.
+ */
+function ensureExecutiveSummaryHasTrustScore(
+  summary: string,
+  vendorTrustScore: number | null | undefined,
+): string {
   const cleanSummary = summary.trim();
+  if (vendorTrustScore == null || !Number.isFinite(Number(vendorTrustScore))) {
+    return cleanSummary;
+  }
+  const score = Math.min(100, Math.max(0, Math.round(Number(vendorTrustScore))));
+  const scoreText = `Vendor trust score: ${score}/100.`;
   if (!cleanSummary) return scoreText;
-  if (trustPattern.test(cleanSummary)) return cleanSummary;
+  if (/vendor\s+trust\s+score\s*:/i.test(cleanSummary)) {
+    return cleanSummary
+      .replace(/vendor\s+trust\s+score\s*:\s*\d{1,3}(?:\s*\/\s*100)?\.?/gi, scoreText)
+      .replace(/\.\s*\./g, ".")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .slice(0, 4000);
+  }
   return `${scoreText} ${cleanSummary}`.slice(0, 4000);
+}
+
+/** Prefer explicit VTS, then IRS breakdown.vendorTrustScore; undefined when unknown. */
+function resolveVendorTrustScoreForSummary(
+  vendorTrustScore: number | undefined,
+  breakdown: Record<string, unknown> | undefined,
+): number | undefined {
+  if (vendorTrustScore != null && Number.isFinite(vendorTrustScore)) {
+    return Math.min(100, Math.max(0, Math.round(Number(vendorTrustScore))));
+  }
+  const fromBreakdown = Number(
+    breakdown?.vendorTrustScore ?? breakdown?.vendor_trust_score,
+  );
+  if (Number.isFinite(fromBreakdown)) {
+    return Math.min(100, Math.max(0, Math.round(fromBreakdown)));
+  }
+  return undefined;
 }
 
 function vendorProductLabel(vendorName: string, productName: string): string {
@@ -324,15 +375,17 @@ function buildFallbackReport(
   vendorName: string,
   productName: string,
   hasAttestation: boolean,
+  vendorTrustScore = 50,
 ): BuyerVendorRiskReport {
   const now = new Date().toISOString();
   const overallRiskScore = hasAttestation ? 75 : 55;
+  const vts = Math.min(100, Math.max(0, Math.round(vendorTrustScore)));
   const executiveSummaryBase = `This assessment evaluates ${vendorName}'s ${productName} against your stated requirements. ${
     hasAttestation
       ? "Vendor self-attestation data was available and informs this summary."
       : "A matching public vendor attestation was not found; strengthen due diligence with direct vendor evidence."
   } Review recommendations before implementation.`;
-  const executiveSummary = ensureExecutiveSummaryHasTrustScore(executiveSummaryBase, overallRiskScore);
+  const executiveSummary = ensureExecutiveSummaryHasTrustScore(executiveSummaryBase, vts);
   const areasForImprovement = [
     "Confirm data residency and sub-processor alignment with your policies.",
     "Define human-in-the-loop controls for high-stakes AI decisions.",
@@ -590,8 +643,17 @@ function normalizeReport(
   vendorName: string,
   productName: string,
   hasAttestation: boolean,
+  vendorTrustScore?: number,
 ): BuyerVendorRiskReport {
-  const fb = buildFallbackReport(vendorName, productName, hasAttestation);
+  const implementationRiskBreakdownEarly =
+    raw.implementationRiskBreakdown != null && typeof raw.implementationRiskBreakdown === "object"
+      ? (raw.implementationRiskBreakdown as Record<string, unknown>)
+      : undefined;
+  const vts = resolveVendorTrustScoreForSummary(
+    vendorTrustScore,
+    implementationRiskBreakdownEarly,
+  );
+  const fb = buildFallbackReport(vendorName, productName, hasAttestation, vts ?? 50);
   const score = Number(raw.overallRiskScore);
   const recs = Array.isArray(raw.recommendations)
     ? (raw.recommendations as unknown[])
@@ -634,7 +696,7 @@ function normalizeReport(
     : fb.areasForImprovement;
   const executiveSummary = ensureExecutiveSummaryHasTrustScore(
     String(raw.executiveSummary ?? fb.executiveSummary).slice(0, 4000),
-    overallRiskScore,
+    vts,
   );
   const recommendations = recs.length > 0 ? recs : fb.recommendations;
   const riskAnalysis = domains.length >= 5 ? domains : fb.riskAnalysis;
@@ -704,22 +766,40 @@ function normalizeReport(
   };
 }
 
-async function invokeModel(prompt: string): Promise<string> {
-  const body = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 8192,
+async function invokeModelLocal(prompt: string): Promise<string> {
+  return invokeBedrockAnthropicText({
+    prompt,
+    maxTokens: 8192,
     temperature: 0.35,
-    messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+    feature: "assessment",
   });
-  const command = new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: "application/json",
-    accept: "application/json",
-    body,
-  });
-  const response = await client.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content?.[0]?.text ?? "";
+}
+
+/** Type 3 (cots_buyer): prefer Python LLM + pgvector formulas; fall back to local Bedrock. */
+async function invokeModel(prompt: string): Promise<string> {
+  try {
+    const result = await invokePythonLlmWithVector({
+      assessmentType: "cots_buyer",
+      userPrompt: prompt,
+      maxTokens: 8192,
+      temperature: 0.35,
+      includeFormulaContext: false,
+    });
+    console.log(
+      "[cots_buyer] LLM+vector source=",
+      result.scoring_source,
+      "chunks=",
+      result.vector?.chunks?.length ?? 0,
+    );
+    return result.text;
+  } catch (err) {
+    if (isTokenQuotaExceededError(err)) throw err;
+    console.error(
+      "[cots_buyer] Python LLM+vector failed; falling back to local Bedrock:",
+      err instanceof Error ? err.message : err,
+    );
+    return invokeModelLocal(prompt);
+  }
 }
 
 /**
@@ -732,12 +812,154 @@ export async function generateBuyerVendorRiskReport(
   productName: string,
 ): Promise<BuyerVendorRiskReport> {
   const hasAttestation = attestationRow != null;
-  const implementationRisk = calculateBuyerImplementationRiskScore(
-    buyerPayload,
-    attestationRow,
-    vendorName,
-    productName,
-  );
+
+  // Local AI-Q risk DB first; AI Risk Intellect supplies intent for IRS when API key is set.
+  // RI is best-effort — never block or fail the report/score if RI is unreachable.
+  let dbRisksBlock = "";
+  let scoringBuyerPayload = buyerPayload;
+  try {
+    const top5 = await getTop5RisksWithMitigations(buyerPayload);
+    dbRisksBlock = formatTop5RisksForPrompt(top5);
+    scoringBuyerPayload = applyRiEnrichmentToPayload(buyerPayload, top5);
+  } catch (e) {
+    console.error("getTop5RisksWithMitigations (buyer vendor risk report):", e);
+  }
+
+  // Formula IRS does not depend on LLM text — overlap it with Bedrock.
+  const scorePromise = (async () => {
+    try {
+      return await scoreCotsBuyerWithPython({
+        buyerPayload: scoringBuyerPayload,
+        attestationRow,
+        vendorName,
+        productName,
+      });
+    } catch (scoreErr) {
+      console.error(
+        "Python buyer IRS formula failed; using local Node IRS fallback:",
+        scoreErr,
+      );
+      try {
+        const local = calculateBuyerImplementationRiskScore(
+          scoringBuyerPayload,
+          attestationRow,
+          vendorName,
+          productName,
+        );
+        const intentRaw = Number(
+          scoringBuyerPayload.intent_multiplier_value ??
+            scoringBuyerPayload.intentMultiplierValue ??
+            1,
+        );
+        const intent =
+          Number.isFinite(intentRaw) && intentRaw > 0
+            ? Math.min(1.5, Math.max(0.5, intentRaw))
+            : 1;
+        const parts = irsFinalScoreFromParts(
+          local.breakdown.vendorRisk,
+          local.breakdown.organizationalReadinessGap,
+          local.breakdown.integrationRisk,
+          intent,
+        );
+        const grade =
+          parts.score >= 76
+            ? "A"
+            : parts.score >= 51
+              ? "B"
+              : parts.score >= 26
+                ? "C"
+                : "D";
+        const classification =
+          grade === "A"
+            ? "High Readiness"
+            : grade === "B"
+              ? "Moderate Readiness"
+              : grade === "C"
+                ? "Low Readiness"
+                : "Readiness Review Required";
+        const decision =
+          grade === "A"
+            ? "PROCEED"
+            : grade === "D"
+              ? "DO NOT PROCEED"
+              : "PROCEED WITH CAUTION";
+        const formula =
+          "IRS = 100 - (((Vendor_Risk × 0.35) + (Organizational_Readiness_Gap × 0.35) + (Integration_Risk × 0.30)) × Intent)";
+        const vrC = parts.vendorRisk * 0.35;
+        const orgC = parts.orgGap * 0.35;
+        const integC = parts.integrationRisk * 0.3;
+        const baseW = vrC + orgC + integC;
+        const riskTerm = baseW * intent;
+        return {
+          implementationRiskScore: parts.score,
+          grade,
+          classification,
+          decision,
+          readiness_profile: local.readiness_profile,
+          recommendedAction: local.recommendedAction,
+          formula,
+          formula_console: [
+            "IRS FORMULA CALCULATION (console)  [Buyer COTS / Type 3] (node fallback)",
+            formula,
+            `  Vendor_Trust_Score = ${local.breakdown.vendorTrustScore}`,
+            `  Vendor_Risk        = ${parts.vendorRisk}   (100 - VTS)`,
+            `  OrgGap             = ${parts.orgGap}`,
+            `  Integration_Risk   = ${parts.integrationRisk}`,
+            `  Intent             = ${intent}`,
+            `  VR x 0.35          = ${vrC.toFixed(4)}`,
+            `  OrgGap x 0.35      = ${orgC.toFixed(4)}`,
+            `  Integ x 0.30       = ${integC.toFixed(4)}`,
+            `  base_weighted_sum  = ${baseW.toFixed(4)}`,
+            `  x Intent           = ${riskTerm.toFixed(4)}`,
+            `  IRS                = 100 - ${riskTerm.toFixed(4)} = ${parts.score}`,
+            `  Grade              = ${grade} - ${classification}`,
+          ].join("\n"),
+          breakdown: {
+            vendorRisk: parts.vendorRisk,
+            organizationalReadinessGap: parts.orgGap,
+            integrationRisk: parts.integrationRisk,
+            vendorTrustScore: local.breakdown.vendorTrustScore,
+            intentMultiplier: intent,
+            intentProfile: String(
+              scoringBuyerPayload.intent_profile ??
+                scoringBuyerPayload.intentProfile ??
+                "Mixed",
+            ),
+          },
+          source: local.source,
+          scoring_source: "node-fallback",
+          scoring_version: "irs-node-1.0",
+        };
+      } catch (localErr) {
+        console.error("Local Node IRS fallback also failed; using neutral 50:", localErr);
+        return {
+          implementationRiskScore: 50,
+          grade: "B",
+          classification: "Moderate Readiness",
+          decision: "PROCEED WITH CAUTION",
+          readiness_profile: "Score temporarily unavailable — using neutral fallback.",
+          recommendedAction: "Re-run scoring after the scoring service is available.",
+          formula:
+            "IRS = 100 - ((Vendor_Risk × 0.35) + (Organizational_Readiness_Gap × 0.35) + (Integration_Risk × 0.30))",
+          breakdown: {
+            vendorRisk: 50,
+            organizationalReadinessGap: 50,
+            integrationRisk: 50,
+            vendorTrustScore: 50,
+            intentMultiplier: 1,
+            intentProfile: "Mixed",
+          },
+          source: {
+            vendorName: vendorName || "Vendor",
+            productName: productName || "Product",
+            usedAttestation: attestationRow != null,
+          },
+          scoring_source: "fallback",
+          scoring_version: "irs-fallback",
+        };
+      }
+    }
+  })();
   const attestationSlice: Record<string, unknown> = attestationRow
     ? {
         product_name: attestationRow.product_name,
@@ -754,31 +976,52 @@ export async function generateBuyerVendorRiskReport(
       }
     : {};
 
-  let dbRisksBlock = "";
-  try {
-    const top5 = await getTop5RisksWithMitigations(buyerPayload);
-    dbRisksBlock = formatTop5RisksForPrompt(top5);
-  } catch (e) {
-    console.error("getTop5RisksWithMitigations (buyer vendor risk report):", e);
-  }
+  const canonicalVendorTrustScore = Math.round(extractVendorTrustScore(attestationRow));
 
   const userPrompt = [
     SYSTEM_PROMPT,
     "",
     "--- Buyer assessment (answers) ---",
-    JSON.stringify(buyerPayload, null, 2).slice(0, 14000),
+    JSON.stringify(scoringBuyerPayload).slice(0, 14000),
     "--- Vendor attestation (selected product; may be empty) ---",
-    JSON.stringify(attestationSlice, null, 2).slice(0, 12000),
+    JSON.stringify(attestationSlice).slice(0, 12000),
     dbRisksBlock ? `\n${dbRisksBlock}\n` : "",
     `Vendor display name: ${vendorName}. Product: ${productName}.`,
+    `Vendor Trust Score (from vendor self-attestation; use EXACTLY this value in executiveSummary as 'Vendor trust score: ${canonicalVendorTrustScore}/100'): ${canonicalVendorTrustScore}/100.`,
     "Respond with ONLY the JSON object.",
   ].join("\n");
 
   try {
-    const rawText = await invokeModel(userPrompt);
+    const [implementationRisk, rawText] = await Promise.all([
+      scorePromise,
+      invokeModel(userPrompt),
+    ]);
+    console.log("irs", implementationRisk.implementationRiskScore);
+    if (implementationRisk.formula_console?.trim()) {
+      console.log(implementationRisk.formula_console);
+    }
+    if (implementationRisk.rationale?.trim()) {
+      console.log(implementationRisk.rationale);
+    } else {
+      console.log(
+        "[cots_buyer] IRS",
+        implementationRisk.implementationRiskScore,
+        "|",
+        implementationRisk.grade,
+        implementationRisk.classification,
+        "|",
+        implementationRisk.decision,
+      );
+    }
     const parsed = extractJsonObject(rawText);
     if (parsed) {
-      const normalized = normalizeReport(parsed, vendorName, productName, hasAttestation);
+      const normalized = normalizeReport(
+        parsed,
+        vendorName,
+        productName,
+        hasAttestation,
+        canonicalVendorTrustScore,
+      );
       return {
         ...normalized,
         implementationRiskScore: implementationRisk.implementationRiskScore,
@@ -787,12 +1030,25 @@ export async function generateBuyerVendorRiskReport(
         implementationRiskDecision: implementationRisk.decision,
         implementationRiskRecommendedAction: implementationRisk.recommendedAction,
         implementationRiskBreakdown: implementationRisk.breakdown,
+        readinessProfile: implementationRisk.readiness_profile,
+        implementationRiskSource: implementationRisk.source,
+        vendorName: vendorName || "Vendor",
+        productName: productName || "Product",
+        scoreRationale: implementationRisk.rationale?.trim() || undefined,
+        scoreRationaleType: "IRS" as const,
       };
     }
   } catch (e) {
+    if (isTokenQuotaExceededError(e)) throw e;
     console.error("generateBuyerVendorRiskReport LLM error:", e);
   }
-  const fallback = buildFallbackReport(vendorName, productName, hasAttestation);
+  const implementationRisk = await scorePromise;
+  const fallback = buildFallbackReport(
+    vendorName,
+    productName,
+    hasAttestation,
+    canonicalVendorTrustScore,
+  );
   return {
     ...fallback,
     implementationRiskScore: implementationRisk.implementationRiskScore,
@@ -801,6 +1057,12 @@ export async function generateBuyerVendorRiskReport(
     implementationRiskDecision: implementationRisk.decision,
     implementationRiskRecommendedAction: implementationRisk.recommendedAction,
     implementationRiskBreakdown: implementationRisk.breakdown,
+    readinessProfile: implementationRisk.readiness_profile,
+    implementationRiskSource: implementationRisk.source,
+    vendorName: vendorName || "Vendor",
+    productName: productName || "Product",
+    scoreRationale: implementationRisk.rationale?.trim() || undefined,
+    scoreRationaleType: "IRS" as const,
   };
 }
 
@@ -828,15 +1090,32 @@ export function regulatorySnippetFromJson(reg: unknown): string | null {
 /**
  * Ensures stored JSON (including legacy reports) exposes structured buyer-side sections
  * and buyer-linked priority weights when missing.
+ * When vendorTrustScoreOverride is provided (product-profile VTS), executive summary is rewritten to match.
  */
 export function enrichStoredBuyerVendorReport(
   report: Record<string, unknown>,
   vendorName: string,
   productName: string,
   ctx: BuyerReportEnrichContext,
+  vendorTrustScoreOverride?: number | null,
 ): BuyerVendorRiskReport {
   const hasAttestationHint = Array.isArray(report.keyStrengths) && (report.keyStrengths as unknown[]).length >= 2;
-  const normalized = normalizeReport(report, vendorName, productName, hasAttestationHint);
+  const breakdown =
+    report.implementationRiskBreakdown != null &&
+    typeof report.implementationRiskBreakdown === "object"
+      ? (report.implementationRiskBreakdown as Record<string, unknown>)
+      : undefined;
+  const vendorTrustScore =
+    vendorTrustScoreOverride != null && Number.isFinite(Number(vendorTrustScoreOverride))
+      ? Math.min(100, Math.max(0, Math.round(Number(vendorTrustScoreOverride))))
+      : resolveVendorTrustScoreForSummary(undefined, breakdown);
+  const normalized = normalizeReport(
+    report,
+    vendorName,
+    productName,
+    hasAttestationHint,
+    vendorTrustScore,
+  );
   const regSnip = ctx.regulatorySnippet ?? null;
   const priorities =
     parseBuyerPriorities(report.buyerPrioritiesAndWeights) ??

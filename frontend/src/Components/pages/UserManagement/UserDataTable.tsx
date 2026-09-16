@@ -17,16 +17,18 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import DataTable from "react-data-table-component";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../../../Context/hooks";
 import { getOrganizations } from "../../../Context/OrganizationsData";
 import EditUsers from "./EditUsers";
 import LoadingMessage from "../../UI/LoadingMessage";
 import Modal from "../../UI/Modal";
 import Button from "../../UI/Button";
+import OrgNameWithLogo from "../../UI/OrgNameWithLogo";
 import { toast } from "react-toastify";
 import "../UserProfile/user_profile.css";
 import "../Assessments/assessments.css";
 import "../../../styles/popovers.css";
+import { premiumDataTableStyles } from "../../../styles/dataTableStyles";
 
 const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: number; viewOnly?: boolean }) => {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -37,8 +39,8 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
     React.useState(false);
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const dispatch = useDispatch();
-  const { data } = useSelector((state) => state.organizations);
+  const dispatch = useAppDispatch();
+  const { data } = useAppSelector((state) => state.organizations);
   const [isUserId, setUserId] = useState("");
   const [isEdit, setIsEdit] = useState(false);
   const [isSelectedUser, selectedIsUser] = useState(null);
@@ -82,12 +84,10 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
     console.log("Organization map:", orgMap);
   }, [orgMap]);
 
-  const LOADER_MIN_MS = 1500; // show loader at least 2–3 seconds
-
-  const usersData = async () => {
+  const usersData = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     const token = sessionStorage.getItem("bearerToken");
-    setLoading(true);
-    const startTime = Date.now();
+    if (!silent) setLoading(true);
     try {
       const response = await fetch(`${BASE_URL}/allUsers`, {
         method: "GET",
@@ -104,10 +104,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
     } catch (error) {
       console.log(error);
     } finally {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, LOADER_MIN_MS - elapsed);
-      await new Promise((r) => setTimeout(r, remaining));
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -164,6 +161,44 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
       statusLabel.includes(search)
     );
   });
+
+  const handleUserUpdated = (patch?: {
+    id?: string | number;
+    role?: string;
+    userStatus?: string;
+  }) => {
+    // Immediate local update so Role/Status change without a full page refresh
+    if (patch?.id != null) {
+      setTableData((prev) =>
+        prev.map((row) => {
+          if (String(row.id) !== String(patch.id)) return row;
+          return {
+            ...row,
+            ...(patch.role != null && patch.role !== ""
+              ? {
+                  role: patch.role,
+                  // Keep platform role fields in sync for system org roles
+                  ...(String(patch.role).toLowerCase().startsWith("system")
+                    ? { user_platform_role: patch.role }
+                    : {}),
+                }
+              : {}),
+            ...(patch.userStatus != null && patch.userStatus !== ""
+              ? { userStatus: patch.userStatus }
+              : {}),
+          };
+        }),
+      );
+      // If status moved to inactive while viewing Active (or vice versa), switch tab so the row stays visible
+      if (patch.userStatus) {
+        const next = String(patch.userStatus).toLowerCase().trim();
+        if (next === "inactive" && statusScope === "active") setStatusScope("inactive");
+        if (next === "active" && statusScope === "inactive") setStatusScope("active");
+      }
+    }
+    // Silent refetch to stay in sync with server
+    void usersData({ silent: true });
+  };
 
   const updateUser = (row) => {
     setUserId(row.id);
@@ -231,20 +266,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
   //     );
   //   }, [filterText, resetPaginationToggle]);
 
-  const customStyles = {
-    table: {
-      style: {
-        width: "100%",
-        backgroundColor: "#f8f8f8",
-        border: "1px solid lightgray",
-      },
-    },
-    tableWrapper: {
-      style: {
-        width: "100%",
-      },
-    },
-  };
+  const customStyles = premiumDataTableStyles;
 
   /** Get 2-letter initial from name or email */
   function getInitial(row: { user_name?: string; email?: string }): string {
@@ -336,13 +358,20 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
       selector: (row) => (row.organization_name ?? "").trim() || "—",
       sortable: true,
       cell: (row) => (
-        <span className="team_member_org">{(row.organization_name ?? "").trim() || "—"}</span>
+        <OrgNameWithLogo
+          name={row.organization_name}
+          id={row.organization_id}
+          size="sm"
+        />
       ),
     },
     {
       name: <div className="tableHeader">Role</div>,
       selector: (row) => getRoleLabel(row),
       sortable: true,
+      wrap: false,
+      grow: 1.2,
+      minWidth: "160px",
       cell: (row) => (
         <span className="pill pill_role pill_role_with_icon">
           <Shield size={14} aria-hidden />
@@ -359,7 +388,6 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
         return accountStatus;
       },
       sortable: true,
-      center: true,
       cell: (row) => {
         const accountStatus = (row.account_status ?? "invited").toString().toLowerCase();
         const onboardingStatus = (row.onboarding_status ?? "pending").toString().toLowerCase();
@@ -367,8 +395,14 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
         const isConfirmed = accountStatus === "confirmed";
         const label = isConfirmed ? "Confirmed" : isExpired ? "Expired" : "Invited";
         const pillClass = isConfirmed ? "pill_status_active" : isExpired ? "pill_status_inactive" : "pill_status_invited";
+        const showDot = isConfirmed || isExpired;
         return (
-          <span className={`pill pill_status ${pillClass}`}>
+          <span
+            className={`pill pill_status ${pillClass}${
+              showDot ? " pill_status_with_dot" : ""
+            }`}
+          >
+            {showDot ? <span className="pill_status_dot" aria-hidden /> : null}
             {label}
           </span>
         );
@@ -378,7 +412,6 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
       name: <div className="tableHeader">Onboarding status</div>,
       selector: (row) => (row.onboarding_status ?? "pending").toString().toLowerCase(),
       sortable: true,
-      center: true,
       cell: (row) => {
         const status = (row.onboarding_status ?? "pending").toString().toLowerCase();
         const isCompleted = status === "completed";
@@ -389,8 +422,14 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
             ? "pill_status_inactive"
             : "pill_status_pending";
         const label = status === "completed" ? "Completed" : status === "expired" ? "Expired" : "Pending";
+        const showDot = isCompleted || isExpired;
         return (
-          <span className={`pill pill_status ${pillClass}`}>
+          <span
+            className={`pill pill_status ${pillClass}${
+              showDot ? " pill_status_with_dot" : ""
+            }`}
+          >
+            {showDot ? <span className="pill_status_dot" aria-hidden /> : null}
             {label}
           </span>
         );
@@ -400,12 +439,16 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
       name: <div className="tableHeader">Status</div>,
       selector: (row) => (row.userStatus ?? "active").toString().toLowerCase(),
       sortable: true,
-      center: true,
       cell: (row) => {
         const status = (row.userStatus ?? "active").toString().toLowerCase();
         const isActive = status === "active";
         return (
-          <span className={`pill pill_status ${isActive ? "pill_status_active" : "pill_status_inactive"}`}>
+          <span
+            className={`pill pill_status ${
+              isActive ? "pill_status_active" : "pill_status_inactive"
+            } pill_status_with_dot`}
+          >
+            <span className="pill_status_dot" aria-hidden />
             {isActive ? "Active" : "Inactive"}
           </span>
         );
@@ -413,7 +456,6 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
     },
     {
       name: <div className="tableHeader">Actions</div>,
-      center: true,
       cell: (row) => {
         const accountStatus = (row.account_status ?? "invited").toString().toLowerCase();
         const onboardingStatus = (row.onboarding_status ?? "pending").toString().toLowerCase();
@@ -438,7 +480,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
               title="View"
               aria-label="View user details"
             >
-              <Eye size={16} />
+              <Eye size={14} />
             </button>
             {!viewOnly && (
               <>
@@ -451,7 +493,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
                   disabled={!editEnabled}
                   aria-disabled={!editEnabled}
                 >
-                  <SquarePen size={16} />
+                  <SquarePen size={14} />
                 </button>
                 <button
                   type="button"
@@ -462,7 +504,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
                   disabled={!reinviteEnabled}
                   aria-disabled={!reinviteEnabled}
                 >
-                  <Send size={16} />
+                  <Send size={14} />
                 </button>
                 <button
                   type="button"
@@ -473,7 +515,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
                   disabled={!resendOnboardingEnabled}
                   aria-disabled={!resendOnboardingEnabled}
                 >
-                  <RefreshCw size={16} />
+                  <RefreshCw size={14} />
                 </button>
               </>
             )}
@@ -533,7 +575,7 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
         </div>
       </div>
       {loading ? (
-        <LoadingMessage message="Loading users…" />
+        <LoadingMessage message="Loading users…" compact />
       ) : (
         <DataTable
           customStyles={customStyles}
@@ -543,11 +585,19 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
           paginationResetDefaultPage={resetPaginationToggle}
           selectableRows
           persistTableHead
+          striped
+          highlightOnHover={false}
         />
       )}
     </div>
     {isEdit && (
-      <EditUsers isUserId={isUserId} setIsEdit={setIsEdit} isEdit={isEdit} isSelectedUser={isSelectedUser} />
+      <EditUsers
+        isUserId={isUserId}
+        setIsEdit={setIsEdit}
+        isEdit={isEdit}
+        isSelectedUser={isSelectedUser}
+        onUpdated={handleUserUpdated}
+      />
     )}
 
     <Modal isOpen={!!resendConfirm} onClose={closeResendConfirm}>
@@ -661,14 +711,17 @@ const UserDataTable = ({ refreshKey = 0, viewOnly = false }: { refreshKey?: numb
                         <Landmark size={16} aria-hidden />
                         Organization
                       </label>
-                      <input
+                      <div
                         id="user_details_organization"
-                        type="text"
-                        className="settings_input settings_input_readonly"
-                        value={(viewUser.organization_name ?? "").trim() || "—"}
-                        readOnly
+                        className="settings_input settings_input_readonly team_member_org_field"
                         aria-readonly="true"
-                      />
+                      >
+                        <OrgNameWithLogo
+                          name={viewUser.organization_name}
+                          id={viewUser.organization_id}
+                          size="sm"
+                        />
+                      </div>
                     </div>
                     <div className="settings_form_group">
                       <label htmlFor="user_details_role">

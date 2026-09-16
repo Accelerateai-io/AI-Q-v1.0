@@ -26,6 +26,8 @@ interface FileUploadProps {
   fileSizes?: (number | undefined)[];
   /** When true, upload button is disabled and no new files can be added (existing files can still be removed unless readOnly). */
   disabled?: boolean;
+  /** When true, allow selecting more than one file in the picker. */
+  multiple?: boolean;
 }
 
 const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx";
@@ -46,6 +48,7 @@ const FileUpload = ({
   readOnly = false,
   fileSizes = [],
   disabled = false,
+  multiple = true,
 }: FileUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
@@ -129,7 +132,7 @@ const FileUpload = ({
           </div>
           <input
             type="file"
-            multiple
+            multiple={multiple}
             accept={accept}
             ref={fileInputRef}
             onChange={handleFileChange}

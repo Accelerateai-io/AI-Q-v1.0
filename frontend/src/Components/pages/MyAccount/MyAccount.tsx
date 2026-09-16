@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import {
   Landmark,
   LockKeyhole,
-  Mail,
   User,
   UserCircle,
-  UserStar,
   Eye,
   EyeOff,
   Loader2,
@@ -14,10 +12,10 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import "../VendorOnboarding/StepVendorOnboardingPreview.css";
-import "../../../styles/page_tabs.css";
 import "../UserManagement/user_management.css";
 import "../UserProfile/user_profile.css";
 import Button from "../../UI/Button";
+import LoadingMessage from "../../UI/LoadingMessage";
 import {
   buildOnboardingFields,
   formatOnboardingDate,
@@ -43,9 +41,18 @@ function formatRoleForDisplay(role: string | null): string {
 
 type AccountTab = "organization" | "personal" | "password";
 
-const MyAccount = () => {
+/** Which detail row is expanded into its editor; only one at a time */
+type EditableRow = "name" | "username" | "password" | null;
+
+type MyAccountProps = {
+  /** Hide the page title block when the content is shown inside the settings modal */
+  hidePageHeader?: boolean;
+};
+
+const MyAccount = ({ hidePageHeader = false }: MyAccountProps) => {
   const [, bump] = useState(0);
-  const [activeTab, setActiveTab] = useState<AccountTab>("organization");
+  const [activeTab, setActiveTab] = useState<AccountTab>("personal");
+  const [editingRow, setEditingRow] = useState<EditableRow>(null);
 
   const [pUsername, setPUsername] = useState("");
   const [pFirst, setPFirst] = useState("");
@@ -98,8 +105,6 @@ const MyAccount = () => {
     pFirst.trim() !== (firstName || "") ||
     pLast.trim() !== (lastName || "");
 
-  const hasPasswordFieldContent =
-    newPassword.trim().length > 0 || confirmPassword.trim().length > 0;
   const canSubmitPasswordChange =
     newPassword.trim().length > 0 && confirmPassword.trim().length > 0;
 
@@ -205,6 +210,19 @@ const MyAccount = () => {
     setPasswordError("");
   };
 
+  const resetPersonalForm = () => {
+    setPUsername(getSession("userName"));
+    setPFirst(getSession("userFirstName"));
+    setPLast(getSession("userLastName"));
+    setPersonalError("");
+  };
+
+  const closeEditingRow = () => {
+    if (editingRow === "password") resetPasswordForm();
+    else resetPersonalForm();
+    setEditingRow(null);
+  };
+
   const handlePersonalSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPersonalError("");
@@ -254,6 +272,7 @@ const MyAccount = () => {
           new CustomEvent("userProfileUpdated", { detail: u ?? {} }),
         );
         toast.success(data.message ?? "Profile updated.");
+        setEditingRow(null);
         bump((n) => n + 1);
       } else {
         setPersonalError(data.message ?? "Update failed.");
@@ -297,6 +316,7 @@ const MyAccount = () => {
       if (res.ok) {
         toast.success(data.message ?? "Password updated.");
         resetPasswordForm();
+        setEditingRow(null);
       } else {
         setPasswordError(data.message ?? "Update failed.");
       }
@@ -330,487 +350,596 @@ const MyAccount = () => {
 
   return (
     <div className="sec_user_page org_settings_page">
-      <div className="org_settings_header page_header_align">
-        <div className="org_settings_headers page_header_row">
-          <span className="icon_size_header" aria-hidden>
-            <UserCircle size={24} className="header_icon_svg" />
-          </span>
-          <div className="page_header_title_block">
-            <h1 className="org_settings_title page_header_title">My Account</h1>
-            <p className="org_settings_subtitle page_header_subtitle">
-              View your organization, update personal details, or change your
-              password.
-            </p>
+      {!hidePageHeader && (
+        <div className="org_settings_header page_header_align">
+          <div className="org_settings_headers page_header_row">
+            <span className="icon_size_header" aria-hidden>
+              <UserCircle size={24} className="header_icon_svg" />
+            </span>
+            <div className="page_header_title_block">
+              <h1 className="org_settings_title page_header_title">
+                My Account
+              </h1>
+              <p className="org_settings_subtitle page_header_subtitle">
+                View your organization, update personal details, or change your
+                password.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="page_tabs">
-        <button
-          type="button"
-          className={`page_tab ${activeTab === "organization" ? "page_tab_active" : ""}`}
-          onClick={() => setActiveTab("organization")}
-        >
-          <Landmark size={18} aria-hidden />
-          Organization
-        </button>
-        <button
-          type="button"
-          className={`page_tab ${activeTab === "personal" ? "page_tab_active" : ""}`}
-          onClick={() => setActiveTab("personal")}
-        >
-          <User size={18} aria-hidden />
-          Personal Details
-        </button>
-        <button
-          type="button"
-          className={`page_tab ${activeTab === "password" ? "page_tab_active" : ""}`}
-          onClick={() => {
-            setActiveTab("password");
-            resetPasswordForm();
-          }}
-        >
-          <LockKeyhole size={18} aria-hidden />
-          Change Password
-        </button>
-      </div>
-
-      <div className="org_settings_card">
-        {activeTab === "organization" && (
-          <section
-            className="profile_form_section"
-            aria-labelledby="tab-organization-heading"
-          >
-            <h2 id="tab-organization-heading" className="org_settings_card_title">
-              Organization
-            </h2>
-            <p className="org_settings_card_subtitle">
-              Your organization summary and onboarding records. Organization
-              name and role are managed by your administrator.
-            </p>
-            <div className="settings_form">
-              <div className="settings_form_row">
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_organization">
-                    <Landmark size={16} aria-hidden />
-                    Organization
-                  </label>
-                  <input
-                    id="my_account_organization"
-                    type="text"
-                    className="settings_input settings_input_readonly"
-                    value={organizationName || "—"}
-                    readOnly
-                    aria-readonly="true"
-                  />
-                </div>
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_role">
-                    <UserStar size={16} aria-hidden />
-                    Role
-                  </label>
-                  <input
-                    id="my_account_role"
-                    type="text"
-                    className="settings_input settings_input_readonly"
-                    value={roleLabel}
-                    readOnly
-                    aria-readonly="true"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {!organizationId && (
-              <p className="vendor_preview_not_done my_account_onboarding_notice">
-                No organization is linked to your account, so onboarding
-                details cannot be loaded.
-              </p>
-            )}
-
-            {organizationId && orgOnboardingLoading && (
-              <p className="org_settings_card_subtitle my_account_onboarding_notice">
-                Loading onboarding data…
-              </p>
-            )}
-            {organizationId && orgOnboardingError && (
-              <p className="settings_error my_account_onboarding_notice" role="alert">
-                {orgOnboardingError}
-              </p>
-            )}
-
-            {organizationId && !orgOnboardingLoading && !orgOnboardingError && (
-              <div
-                className="vendor_preview_sections my_account_onboarding_sections"
-                aria-label="Organization onboarding"
+      <div className="account_settings_shell">
+        <nav className="account_settings_nav" aria-label="Account settings">
+          <p className="account_settings_nav_title">Account settings</p>
+          <ul className="account_settings_nav_list">
+            <li>
+              <button
+                type="button"
+                className={`account_settings_nav_item ${activeTab === "personal" ? "account_settings_nav_item--active" : ""}`}
+                aria-current={activeTab === "personal"}
+                onClick={() => setActiveTab("personal")}
               >
-                {showBuyerOnboardingSection && (
-                  <section className="vendor_preview_card">
-                    <h3 className="vendor_preview_card_title">Buyer onboarding</h3>
-                    {orgOnboardingData.buyer ? (
-                      <>
-                        {(() => {
-                          const row = orgOnboardingData.buyer;
-                          const { label, dateLabel } =
-                            onboardingCompletedMeta(row);
-                          return (
-                            <div className="org_preview_completed_by">
-                              <User size={16} aria-hidden />
-                              <span>
-                                Completed by <strong>{label}</strong>
-                                {dateLabel ? <> on {dateLabel}</> : null}
-                              </span>
-                            </div>
-                          );
-                        })()}
-                        <dl className="vendor_preview_list">
-                          {buildOnboardingFields(orgOnboardingData.buyer).map(
-                            (field) => {
-                              const row = orgOnboardingData.buyer as Record<
-                                string,
-                                unknown
-                              >;
-                              return (
-                                <div
-                                  key={field.label}
-                                  className="vendor_preview_row"
-                                >
-                                  <dt className="vendor_preview_label">
-                                    {field.label}
-                                  </dt>
-                                  <dd className="vendor_preview_value">
-                                    {formatPreviewValue(
-                                      field.value(row),
-                                      field.label,
-                                    )}
-                                  </dd>
-                                </div>
-                              );
-                            },
-                          )}
-                        </dl>
-                      </>
-                    ) : (
-                      <p className="vendor_preview_not_done">
-                        Not completed for this organization.
-                      </p>
-                    )}
-                  </section>
-                )}
+                <User size={18} aria-hidden />
+                Personal information
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`account_settings_nav_item ${activeTab === "password" ? "account_settings_nav_item--active" : ""}`}
+                aria-current={activeTab === "password"}
+                onClick={() => {
+                  setActiveTab("password");
+                  resetPasswordForm();
+                }}
+              >
+                <LockKeyhole size={18} aria-hidden />
+                Login & security
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`account_settings_nav_item ${activeTab === "organization" ? "account_settings_nav_item--active" : ""}`}
+                aria-current={activeTab === "organization"}
+                onClick={() => setActiveTab("organization")}
+              >
+                <Landmark size={18} aria-hidden />
+                Organization
+              </button>
+            </li>
+          </ul>
+        </nav>
 
-                {showVendorOnboardingSection && (
-                  <section className="vendor_preview_card">
-                    <h3 className="vendor_preview_card_title">Vendor onboarding</h3>
-                    {orgOnboardingData.vendor ? (
-                      <>
-                        {(() => {
-                          const row = orgOnboardingData.vendor;
-                          const { label, dateLabel } =
-                            onboardingCompletedMeta(row);
-                          return (
-                            <div className="org_preview_completed_by">
-                              <User size={16} aria-hidden />
-                              <span>
-                                Completed by <strong>{label}</strong>
-                                {dateLabel ? <> on {dateLabel}</> : null}
-                              </span>
-                            </div>
-                          );
-                        })()}
-                        <dl className="vendor_preview_list">
-                          {buildOnboardingFields(orgOnboardingData.vendor).map(
-                            (field) => {
-                              const row = orgOnboardingData.vendor as Record<
-                                string,
-                                unknown
-                              >;
-                              return (
-                                <div
-                                  key={field.label}
-                                  className="vendor_preview_row"
-                                >
-                                  <dt className="vendor_preview_label">
-                                    {field.label}
-                                  </dt>
-                                  <dd className="vendor_preview_value">
-                                    {formatPreviewValue(
-                                      field.value(row),
-                                      field.label,
-                                    )}
-                                  </dd>
-                                </div>
-                              );
-                            },
-                          )}
-                        </dl>
-                      </>
-                    ) : (
-                      <p className="vendor_preview_not_done">
-                        Not completed for this organization.
-                      </p>
-                    )}
-                  </section>
-                )}
-
-                {showBuyerOnboardingSection &&
-                  showVendorOnboardingSection &&
-                  !orgOnboardingData.buyer &&
-                  !orgOnboardingData.vendor && (
-                    <p className="vendor_preview_not_done">
-                      No onboarding data has been saved for this organization
-                      yet.
+        <div className="account_settings_pane">
+          {activeTab === "organization" && (
+            <section
+              className="profile_form_section"
+              aria-labelledby="tab-organization-heading"
+            >
+              <h2 id="tab-organization-heading" className="account_settings_heading">
+                Organization
+              </h2>
+              <div className="account_rows">
+                <div className="account_row">
+                  <div className="account_row_main">
+                    <p className="account_row_label">Organization</p>
+                    <p className="account_row_value">
+                      {organizationName || "Not provided"}
                     </p>
-                  )}
+                  </div>
+                  <span className="account_row_note">
+                    Managed by your administrator
+                  </span>
+                </div>
+                <div className="account_row account_row--role">
+                  <div className="account_row_main">
+                    <p className="account_row_label">Role</p>
+                    <p className="account_row_value">{roleLabel}</p>
+                  </div>
+                  <span className="account_row_note">
+                    Managed by your administrator
+                  </span>
+                </div>
               </div>
-            )}
-          </section>
-        )}
 
-        {activeTab === "personal" && (
-          <section className="profile_form_section" aria-labelledby="tab-personal-heading">
-            <h2 id="tab-personal-heading" className="org_settings_card_title">
-              Personal details
-            </h2>
-            <p className="org_settings_card_subtitle">
-              Email cannot be changed here. For other account issues, contact
-              your administrator.
-            </p>
-            <form onSubmit={handlePersonalSubmit} className="settings_form">
-              <div className="settings_form_row">
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_email">
-                    <Mail size={16} aria-hidden />
-                    Email
-                  </label>
-                  <input
-                    id="my_account_email"
-                    type="text"
-                    className="settings_input settings_input_readonly"
-                    value={email || "—"}
-                    readOnly
-                    aria-readonly="true"
-                  />
-                </div>
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_username">
-                    <User size={16} aria-hidden />
-                    User name
-                  </label>
-                  <input
-                    id="my_account_username"
-                    type="text"
-                    className="settings_input"
-                    value={pUsername}
-                    onChange={(ev) => setPUsername(ev.target.value)}
-                    placeholder="Username (must be unique)"
-                    autoComplete="username"
-                  />
-                </div>
-              </div>
-              <div className="settings_form_row">
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_first_name">
-                    <User size={16} aria-hidden />
-                    First name
-                  </label>
-                  <input
-                    id="my_account_first_name"
-                    type="text"
-                    className="settings_input"
-                    value={pFirst}
-                    onChange={(ev) => setPFirst(ev.target.value)}
-                    placeholder="First name"
-                    autoComplete="given-name"
-                  />
-                </div>
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_last_name">
-                    <User size={16} aria-hidden />
-                    Last name
-                  </label>
-                  <input
-                    id="my_account_last_name"
-                    type="text"
-                    className="settings_input"
-                    value={pLast}
-                    onChange={(ev) => setPLast(ev.target.value)}
-                    placeholder="Last name"
-                    autoComplete="family-name"
-                  />
-                </div>
-              </div>
-              {personalError && (
-                <p className="settings_error" role="alert">
-                  {personalError}
+              {!organizationId && (
+                <p className="vendor_preview_not_done my_account_onboarding_notice">
+                  No organization is linked to your account, so onboarding
+                  details cannot be loaded.
                 </p>
               )}
-              <div className="settings_form_actions">
-                <Button
-                  type="button"
-                  className="orgCancelBtn"
-                  onClick={() => {
-                    setPUsername(getSession("userName"));
-                    setPFirst(getSession("userFirstName"));
-                    setPLast(getSession("userLastName"));
-                    setPersonalError("");
-                  }}
-                  disabled={personalSaving || !hasPersonalChanges}
-                >
-                  <Ban size={16} aria-hidden />
-                  Reset
-                </Button>
-                <Button
-                  type="submit"
-                  className="orgCreateBtn"
-                  disabled={personalSaving || !hasPersonalChanges}
-                  aria-busy={personalSaving}
-                >
-                  {personalSaving ? (
-                    <>
-                      Saving…
-                      <Loader2
-                        size={18}
-                        className="auth_spinner"
-                        aria-hidden
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <CircleArrowUp size={16} aria-hidden />
-                      Save changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </section>
-        )}
 
-        {activeTab === "password" && (
-          <section className="profile_form_section" aria-labelledby="tab-password-heading">
-            <h2 id="tab-password-heading" className="org_settings_card_title">
-              Change password
-            </h2>
-            <p className="org_settings_card_subtitle">
-              Choose a strong password you do not use elsewhere.
-            </p>
-            <form onSubmit={handlePasswordSubmit} className="settings_form">
-              <div className="settings_form_row">
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_new_password">
-                    <LockKeyhole size={16} aria-hidden />
-                    New password
-                  </label>
-                  <div className="settings_password_wrap">
-                    <input
-                      id="my_account_new_password"
-                      type={showNewPassword ? "text" : "password"}
-                      className="settings_input"
-                      value={newPassword}
-                      onChange={(ev) => setNewPassword(ev.target.value)}
-                      placeholder="Min 6 characters"
-                      autoComplete="new-password"
-                      minLength={6}
-                    />
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setShowNewPassword((v) => !v)}
-                      onKeyDown={(ev) =>
-                        ev.key === "Enter" && setShowNewPassword((v) => !v)
-                      }
-                      className="passwordVisible"
-                      aria-label={
-                        showNewPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showNewPassword ? (
-                        <Eye size={20} strokeWidth={1.5} aria-hidden />
-                      ) : (
-                        <EyeOff size={20} strokeWidth={1.5} aria-hidden />
-                      )}
-                    </span>
-                  </div>
-                </div>
-                <div className="settings_form_group">
-                  <label htmlFor="my_account_confirm_password">
-                    <LockKeyhole size={16} aria-hidden />
-                    Confirm password
-                  </label>
-                  <div className="settings_password_wrap">
-                    <input
-                      id="my_account_confirm_password"
-                      type={showConfirmPassword ? "text" : "password"}
-                      className="settings_input"
-                      value={confirmPassword}
-                      onChange={(ev) => setConfirmPassword(ev.target.value)}
-                      placeholder="Confirm password"
-                      autoComplete="new-password"
-                    />
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setShowConfirmPassword((v) => !v)}
-                      onKeyDown={(ev) =>
-                        ev.key === "Enter" && setShowConfirmPassword((v) => !v)
-                      }
-                      className="passwordVisible"
-                      aria-label={
-                        showConfirmPassword
-                          ? "Hide password"
-                          : "Show password"
-                      }
-                    >
-                      {showConfirmPassword ? (
-                        <Eye size={20} strokeWidth={1.5} aria-hidden />
-                      ) : (
-                        <EyeOff size={20} strokeWidth={1.5} aria-hidden />
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {passwordError && (
-                <p className="settings_error" role="alert">
-                  {passwordError}
+              {organizationId && orgOnboardingLoading && (
+                <LoadingMessage message="Loading onboarding data…" compact />
+              )}
+              {organizationId && orgOnboardingError && (
+                <p className="settings_error my_account_onboarding_notice" role="alert">
+                  {orgOnboardingError}
                 </p>
               )}
-              <div className="settings_form_actions">
-                <Button
-                  type="button"
-                  className="orgCancelBtn"
-                  onClick={resetPasswordForm}
-                  disabled={passwordSaving || !hasPasswordFieldContent}
+
+              {organizationId && !orgOnboardingLoading && !orgOnboardingError && (
+                <div
+                  className="vendor_preview_sections my_account_onboarding_sections"
+                  aria-label="Organization onboarding"
                 >
-                  <Ban size={16} aria-hidden />
-                  Clear
-                </Button>
-                <Button
-                  type="submit"
-                  className="orgCreateBtn"
-                  disabled={passwordSaving || !canSubmitPasswordChange}
-                  aria-busy={passwordSaving}
+                  {showBuyerOnboardingSection && (
+                    <section className="vendor_preview_card">
+                      <h3 className="vendor_preview_card_title">Buyer onboarding</h3>
+                      {orgOnboardingData.buyer ? (
+                        <>
+                          {(() => {
+                            const row = orgOnboardingData.buyer;
+                            const { label, dateLabel } =
+                              onboardingCompletedMeta(row);
+                            return (
+                              <div className="org_preview_completed_by">
+                                <User size={16} aria-hidden />
+                                <span>
+                                  Completed by <strong>{label}</strong>
+                                  {dateLabel ? <> on {dateLabel}</> : null}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                          <dl className="vendor_preview_list">
+                            {buildOnboardingFields(orgOnboardingData.buyer).map(
+                              (field) => {
+                                const row = orgOnboardingData.buyer as Record<
+                                  string,
+                                  unknown
+                                >;
+                                return (
+                                  <div
+                                    key={field.label}
+                                    className="vendor_preview_row"
+                                  >
+                                    <dt className="vendor_preview_label">
+                                      {field.label}
+                                    </dt>
+                                    <dd className="vendor_preview_value">
+                                      {formatPreviewValue(
+                                        field.value(row),
+                                        field.label,
+                                      )}
+                                    </dd>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </dl>
+                        </>
+                      ) : (
+                        <p className="vendor_preview_not_done">
+                          Not completed for this organization.
+                        </p>
+                      )}
+                    </section>
+                  )}
+
+                  {showVendorOnboardingSection && (
+                    <section className="vendor_preview_card">
+                      <h3 className="vendor_preview_card_title">Vendor onboarding</h3>
+                      {orgOnboardingData.vendor ? (
+                        <>
+                          {(() => {
+                            const row = orgOnboardingData.vendor;
+                            const { label, dateLabel } =
+                              onboardingCompletedMeta(row);
+                            return (
+                              <div className="org_preview_completed_by">
+                                <User size={16} aria-hidden />
+                                <span>
+                                  Completed by <strong>{label}</strong>
+                                  {dateLabel ? <> on {dateLabel}</> : null}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                          <dl className="vendor_preview_list">
+                            {buildOnboardingFields(orgOnboardingData.vendor).map(
+                              (field) => {
+                                const row = orgOnboardingData.vendor as Record<
+                                  string,
+                                  unknown
+                                >;
+                                return (
+                                  <div
+                                    key={field.label}
+                                    className="vendor_preview_row"
+                                  >
+                                    <dt className="vendor_preview_label">
+                                      {field.label}
+                                    </dt>
+                                    <dd className="vendor_preview_value">
+                                      {formatPreviewValue(
+                                        field.value(row),
+                                        field.label,
+                                      )}
+                                    </dd>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </dl>
+                        </>
+                      ) : (
+                        <p className="vendor_preview_not_done">
+                          Not completed for this organization.
+                        </p>
+                      )}
+                    </section>
+                  )}
+
+                  {showBuyerOnboardingSection &&
+                    showVendorOnboardingSection &&
+                    !orgOnboardingData.buyer &&
+                    !orgOnboardingData.vendor && (
+                      <p className="vendor_preview_not_done">
+                        No onboarding data has been saved for this organization
+                        yet.
+                      </p>
+                    )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "personal" && (
+            <section className="profile_form_section" aria-labelledby="tab-personal-heading">
+              <h2 id="tab-personal-heading" className="account_settings_heading">
+                Personal info
+              </h2>
+              <div className="account_rows">
+                <div
+                  className={`account_row ${editingRow === "name" ? "account_row--editing" : ""}`}
                 >
-                  {passwordSaving ? (
-                    <>
-                      Updating…
-                      <Loader2
-                        size={18}
-                        className="auth_spinner"
-                        aria-hidden
-                      />
-                    </>
+                  {editingRow === "name" ? (
+                    <form onSubmit={handlePersonalSubmit}>
+                      <p className="account_row_label">Legal name</p>
+                      <div className="account_row_fields">
+                        <div className="settings_form_group">
+                          <label htmlFor="my_account_first_name">First name</label>
+                          <input
+                            id="my_account_first_name"
+                            type="text"
+                            className="settings_input"
+                            value={pFirst}
+                            onChange={(ev) => setPFirst(ev.target.value)}
+                            placeholder="First name"
+                            autoComplete="given-name"
+                          />
+                        </div>
+                        <div className="settings_form_group">
+                          <label htmlFor="my_account_last_name">Last name</label>
+                          <input
+                            id="my_account_last_name"
+                            type="text"
+                            className="settings_input"
+                            value={pLast}
+                            onChange={(ev) => setPLast(ev.target.value)}
+                            placeholder="Last name"
+                            autoComplete="family-name"
+                          />
+                        </div>
+                      </div>
+                      {personalError && (
+                        <p className="settings_error" role="alert">
+                          {personalError}
+                        </p>
+                      )}
+                      <div className="account_row_actions">
+                        <Button
+                          type="button"
+                          className="orgCancelBtn"
+                          onClick={closeEditingRow}
+                          disabled={personalSaving}
+                        >
+                          <Ban size={16} aria-hidden />
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="orgCreateBtn"
+                          disabled={personalSaving || !hasPersonalChanges}
+                          aria-busy={personalSaving}
+                        >
+                          {personalSaving ? (
+                            <>
+                              Saving…
+                              <Loader2 size={18} className="auth_spinner" aria-hidden />
+                            </>
+                          ) : (
+                            <>
+                              <CircleArrowUp size={16} aria-hidden />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
                   ) : (
                     <>
-                      <CircleArrowUp size={16} aria-hidden />
-                      Update password
+                      <div className="account_row_main">
+                        <p className="account_row_label">Legal name</p>
+                        <p className="account_row_value">
+                          {[firstName, lastName].filter(Boolean).join(" ") ||
+                            "Not provided"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="account_row_edit"
+                        onClick={() => {
+                          resetPersonalForm();
+                          setEditingRow("name");
+                        }}
+                      >
+                        Edit
+                      </button>
                     </>
                   )}
-                </Button>
+                </div>
+
+                <div
+                  className={`account_row ${editingRow === "username" ? "account_row--editing" : ""}`}
+                >
+                  {editingRow === "username" ? (
+                    <form onSubmit={handlePersonalSubmit}>
+                      <p className="account_row_label">User name</p>
+                      <div className="account_row_fields">
+                        <div className="settings_form_group">
+                          <label htmlFor="my_account_username">User name</label>
+                          <input
+                            id="my_account_username"
+                            type="text"
+                            className="settings_input"
+                            value={pUsername}
+                            onChange={(ev) => setPUsername(ev.target.value)}
+                            placeholder="Username (must be unique)"
+                            autoComplete="username"
+                          />
+                        </div>
+                      </div>
+                      {personalError && (
+                        <p className="settings_error" role="alert">
+                          {personalError}
+                        </p>
+                      )}
+                      <div className="account_row_actions">
+                        <Button
+                          type="button"
+                          className="orgCancelBtn"
+                          onClick={closeEditingRow}
+                          disabled={personalSaving}
+                        >
+                          <Ban size={16} aria-hidden />
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="orgCreateBtn"
+                          disabled={personalSaving || !hasPersonalChanges}
+                          aria-busy={personalSaving}
+                        >
+                          {personalSaving ? (
+                            <>
+                              Saving…
+                              <Loader2 size={18} className="auth_spinner" aria-hidden />
+                            </>
+                          ) : (
+                            <>
+                              <CircleArrowUp size={16} aria-hidden />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="account_row_main">
+                        <p className="account_row_label">User name</p>
+                        <p className="account_row_value">
+                          {userName || "Not provided"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="account_row_edit"
+                        onClick={() => {
+                          resetPersonalForm();
+                          setEditingRow("username");
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="account_row">
+                  <div className="account_row_main">
+                    <p className="account_row_label">Email address</p>
+                    <p className="account_row_value">{email || "Not provided"}</p>
+                  </div>
+                  <span className="account_row_note">
+                    Contact your administrator to change
+                  </span>
+                </div>
+
+                <div className="account_row account_row--role">
+                  <div className="account_row_main">
+                    <p className="account_row_label">Role</p>
+                    <p className="account_row_value">{roleLabel}</p>
+                  </div>
+                  <span className="account_row_note">
+                    Managed by your administrator
+                  </span>
+                </div>
               </div>
-            </form>
-          </section>
-        )}
+            </section>
+          )}
+
+          {activeTab === "password" && (
+            <section className="profile_form_section" aria-labelledby="tab-password-heading">
+              <h2 id="tab-password-heading" className="account_settings_heading">
+                Login &amp; security
+              </h2>
+              <div className="account_rows">
+                <div
+                  className={`account_row ${editingRow === "password" ? "account_row--editing" : ""}`}
+                >
+                  {editingRow === "password" ? (
+                    <form onSubmit={handlePasswordSubmit}>
+                      <p className="account_row_label">Password</p>
+                      <p className="account_row_value">
+                        Choose a strong password you do not use elsewhere.
+                      </p>
+                      <div className="account_row_fields">
+                        <div className="settings_form_group">
+                          <label htmlFor="my_account_new_password">
+                            <LockKeyhole size={16} aria-hidden />
+                            New password
+                          </label>
+                          <div className="settings_password_wrap">
+                            <input
+                              id="my_account_new_password"
+                              type={showNewPassword ? "text" : "password"}
+                              className="settings_input"
+                              value={newPassword}
+                              onChange={(ev) => setNewPassword(ev.target.value)}
+                              placeholder="Min 6 characters"
+                              autoComplete="new-password"
+                              minLength={6}
+                            />
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setShowNewPassword((v) => !v)}
+                              onKeyDown={(ev) =>
+                                ev.key === "Enter" && setShowNewPassword((v) => !v)
+                              }
+                              className="passwordVisible"
+                              aria-label={
+                                showNewPassword ? "Hide password" : "Show password"
+                              }
+                            >
+                              {showNewPassword ? (
+                                <Eye size={20} strokeWidth={1.5} aria-hidden />
+                              ) : (
+                                <EyeOff size={20} strokeWidth={1.5} aria-hidden />
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="settings_form_group">
+                          <label htmlFor="my_account_confirm_password">
+                            <LockKeyhole size={16} aria-hidden />
+                            Confirm password
+                          </label>
+                          <div className="settings_password_wrap">
+                            <input
+                              id="my_account_confirm_password"
+                              type={showConfirmPassword ? "text" : "password"}
+                              className="settings_input"
+                              value={confirmPassword}
+                              onChange={(ev) =>
+                                setConfirmPassword(ev.target.value)
+                              }
+                              placeholder="Confirm password"
+                              autoComplete="new-password"
+                            />
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setShowConfirmPassword((v) => !v)}
+                              onKeyDown={(ev) =>
+                                ev.key === "Enter" &&
+                                setShowConfirmPassword((v) => !v)
+                              }
+                              className="passwordVisible"
+                              aria-label={
+                                showConfirmPassword
+                                  ? "Hide password"
+                                  : "Show password"
+                              }
+                            >
+                              {showConfirmPassword ? (
+                                <Eye size={20} strokeWidth={1.5} aria-hidden />
+                              ) : (
+                                <EyeOff size={20} strokeWidth={1.5} aria-hidden />
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {passwordError && (
+                        <p className="settings_error" role="alert">
+                          {passwordError}
+                        </p>
+                      )}
+                      <div className="account_row_actions">
+                        <Button
+                          type="button"
+                          className="orgCancelBtn"
+                          onClick={closeEditingRow}
+                          disabled={passwordSaving}
+                        >
+                          <Ban size={16} aria-hidden />
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="orgCreateBtn"
+                          disabled={passwordSaving || !canSubmitPasswordChange}
+                          aria-busy={passwordSaving}
+                        >
+                          {passwordSaving ? (
+                            <>
+                              Updating…
+                              <Loader2
+                                size={18}
+                                className="auth_spinner"
+                                aria-hidden
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <CircleArrowUp size={16} aria-hidden />
+                              Update password
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="account_row_main">
+                        <p className="account_row_label">Password</p>
+                        <p className="account_row_value">
+                          Last updated password is hidden for security
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="account_row_edit"
+                        onClick={() => {
+                          resetPasswordForm();
+                          setEditingRow("password");
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -88,6 +88,18 @@ export const DOCUMENTED_AI_GOVERNANCE_POLICY_OPTIONS: OptionItem[] = [
   { label: "No", value: "No" },
 ];
 
+export const AI_ETHICS_GOVERNANCE_MATURITY_OPTIONS: OptionItem[] = [
+  { label: "Board-approved and operationalized", value: "board_approved_operationalized" },
+  { label: "Documented, not operationalized", value: "documented_not_operationalized" },
+  { label: "Draft", value: "draft" },
+];
+
+export const MODEL_VERSIONING_METHOD_OPTIONS: OptionItem[] = [
+  { label: "Automated MLOps pipeline", value: "automated_mlops_pipeline" },
+  { label: "Manual, documented", value: "manual_documented" },
+  { label: "Basic tracking", value: "basic_tracking" },
+];
+
 export const DECISION_AUTONOMY_OPTIONS: OptionItem[] = [
   {
     label: "Advisory (AI suggests, human always decides)",
@@ -117,14 +129,77 @@ export const SECURITY_CERTIFICATIONS_OPTIONS: OptionItem[] = [
   { label: "SOC 2 Type 2", value: "SOC 2 Type 2" },
   { label: "ISO 27001", value: "ISO 27001" },
   { label: "ISO 42001 (AI Management)", value: "ISO 42001 (AI Management)" },
-  { label: "HIPAA BAA", value: "HIPAA BAA" },
+  // { label: "HIPAA BAA", value: "HIPAA BAA" },
   { label: "HITRUST", value: "HITRUST" },
   { label: "FedRAMP", value: "FedRAMP" },
   { label: "PCI DSS", value: "PCI DSS" },
-  { label: "GDPR Compliant", value: "GDPR Compliant" },
-  { label: "CCPA Compliant", value: "CCPA Compliant" },
+  // { label: "GDPR Compliant", value: "GDPR Compliant" },
+  // { label: "CCPA Compliant", value: "CCPA Compliant" },
   { label: "None Currently", value: "None Currently" },
 ];
+
+export const FEDRAMP_STATUS_OPTIONS: OptionItem[] = [
+  { label: "Authorized", value: "authorized" },
+  { label: "In process", value: "in_process" },
+  { label: "Not authorized", value: "not_authorized" },
+  { label: "Not applicable", value: "not_applicable" },
+];
+
+export const FEDRAMP_LEVEL_OPTIONS: OptionItem[] = [
+  { label: "Low", value: "low" },
+  { label: "Moderate", value: "moderate" },
+  { label: "High", value: "high" },
+  { label: "Li-SaaS", value: "li_saas" },
+];
+
+export const HIPAA_BAA_OPTIONS: OptionItem[] = [
+  { label: "HIPAA BAA", value: "HIPAA BAA" },
+  { label: "GDPR Compliant", value: "GDPR Compliant" },
+  { label: "CCPA Compliant", value: "CCPA Compliant" },
+  { label: "None / Not applicable", value: "not_applicable" },
+];
+
+const HIPAA_BAA_LEGACY_TO_VALUE: Record<string, string> = {
+  yes: "HIPAA BAA",
+  yes_standard: "HIPAA BAA",
+  yes_on_request: "HIPAA BAA",
+  no: "not_applicable",
+  not_applicable: "not_applicable",
+};
+
+/** Normalize stored HIPAA/GDPR/CCPA answers (legacy yes/no or comma-separated) into chip values. */
+export function normalizeHipaaBaaSelection(raw: unknown): string[] {
+  const known = new Set(HIPAA_BAA_OPTIONS.map((o) => o.value));
+  const tokens: string[] = [];
+  const push = (s: string) => {
+    const t = s.trim();
+    if (!t) return;
+    const mapped = HIPAA_BAA_LEGACY_TO_VALUE[t.toLowerCase()] ?? t;
+    if (known.has(mapped) && !tokens.includes(mapped)) tokens.push(mapped);
+  };
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    raw.forEach((x) => push(String(x)));
+    return tokens;
+  }
+  const s = String(raw).trim();
+  if (!s) return [];
+  if (HIPAA_BAA_LEGACY_TO_VALUE[s.toLowerCase()]) {
+    push(s);
+    return tokens;
+  }
+  try {
+    const parsed = JSON.parse(s);
+    if (Array.isArray(parsed)) {
+      parsed.forEach((x) => push(String(x)));
+      return tokens;
+    }
+  } catch {
+    /* not JSON */
+  }
+  s.split(/[,|]/).forEach(push);
+  return tokens;
+}
 
 export const ASSESSMENT_COMPLETION_LEVEL_OPTIONS: OptionItem[] = [
   {
@@ -203,6 +278,76 @@ export const DATA_RESIDENCY_OPTIONS_OPTIONS: OptionItem[] = [
 export const DATA_RETENTION_DELETION_OPTIONS: OptionItem[] = [
   { label: "Yes", value: "Yes" },
   { label: "No", value: "No" },
+];
+
+export const PRIVACY_PROGRAMME_SCOPE_OPTIONS: OptionItem[] = [
+  { label: "Comprehensive (GDPR / CCPA)", value: "comprehensive_gdpr_ccpa" },
+  { label: "Standard", value: "standard" },
+  { label: "Basic", value: "basic" },
+];
+
+export const TYPICAL_DATA_VOLUME_OPTIONS: OptionItem[] = [
+  { label: "Minimal", value: "minimal" },
+  { label: "Moderate", value: "moderate" },
+  { label: "Large", value: "large" },
+  { label: "Very large", value: "very_large" },
+  { label: "Petabyte scale", value: "petabyte_scale" },
+];
+
+export const ENCRYPTION_AT_REST_OPTIONS: OptionItem[] = [
+  { label: "AES-256", value: "aes_256" },
+  { label: "AES-128", value: "aes_128" },
+  { label: "Customer-managed keys", value: "customer_managed_keys" },
+  { label: "Platform-managed keys", value: "platform_managed_keys" },
+  { label: "Not disclosed", value: "not_disclosed" },
+];
+
+export const TLS_IN_TRANSIT_OPTIONS: OptionItem[] = [
+  { label: "TLS 1.2", value: "TLS 1.2" },
+  { label: "TLS 1.2+", value: "1.2+" },
+  { label: "TLS 1.3", value: "1.3" },
+  { label: "Other", value: "Other" },
+];
+
+export const DATA_SUBJECT_RIGHTS_OPTIONS: OptionItem[] = [
+  { label: "Access", value: "access" },
+  { label: "Rectification", value: "rectification" },
+  { label: "Erasure", value: "erasure" },
+  { label: "Restriction", value: "restriction" },
+  { label: "Portability", value: "portability" },
+  { label: "Objection", value: "objection" },
+];
+
+export const CONTROLLER_OR_PROCESSOR_OPTIONS: OptionItem[] = [
+  { label: "Controller", value: "controller" },
+  { label: "Processor", value: "processor" },
+  { label: "Both", value: "both" },
+];
+
+export const VDP_STATUS_OPTIONS: OptionItem[] = [
+  { label: "Published", value: "published" },
+  { label: "On request", value: "on_request" },
+  { label: "None", value: "none" },
+];
+
+export const BUG_BOUNTY_STATUS_OPTIONS: OptionItem[] = [
+  { label: "Public", value: "public" },
+  { label: "Private", value: "private" },
+  { label: "None", value: "none" },
+];
+
+export const INDEPENDENT_PEN_TEST_FREQUENCY_OPTIONS: OptionItem[] = [
+  { label: "Continuous", value: "continuous" },
+  { label: "Quarterly", value: "quarterly" },
+  { label: "Annually", value: "annually" },
+  { label: "Ad hoc", value: "ad_hoc" },
+  { label: "None", value: "none" },
+];
+
+export const DPA_AVAILABLE_OPTIONS: OptionItem[] = [
+  { label: "Publicly available", value: "publicly_available" },
+  { label: "On request", value: "on_request" },
+  { label: "None", value: "none" },
 ];
 
 // ----- AI Safety & Testing -----
@@ -304,6 +449,55 @@ export const INCIDENT_RESPONSE_PLAN_OPTIONS: OptionItem[] = [
   { label: "No", value: "No" },
 ];
 
+export const PRODUCTION_MODEL_MONITORING_OPTIONS: OptionItem[] = [
+  { label: "Real-time alerting", value: "real_time_alerting" },
+  { label: "Daily dashboard", value: "daily_dashboard" },
+  { label: "Weekly reports", value: "weekly_reports" },
+  { label: "Monthly reviews", value: "monthly_reviews" },
+  { label: "None", value: "none" },
+];
+
+export const CRITICAL_INCIDENT_RESPONSE_TARGET_OPTIONS: OptionItem[] = [
+  { label: "< 15 minutes", value: "< 15 minutes" },
+  { label: "< 1 hour", value: "< 1 hour" },
+  { label: "< 4 hours", value: "< 4 hours" },
+  { label: "< 24 hours", value: "< 24 hours" },
+  { label: "> 24 hours", value: "> 24 hours" },
+];
+
+export const CRITICAL_INCIDENT_RESOLUTION_TARGET_OPTIONS: OptionItem[] = [
+  { label: "< 4 hours", value: "< 4 hours" },
+  { label: "< 24 hours", value: "< 24 hours" },
+  { label: "< 72 hours", value: "< 72 hours" },
+  { label: "> 72 hours", value: "> 72 hours" },
+];
+
+export const IR_PLAN_TEST_FREQUENCY_OPTIONS: OptionItem[] = [
+  { label: "Quarterly drills", value: "quarterly_drills" },
+  { label: "Annual test", value: "annual_test" },
+  { label: "Documented, untested", value: "documented_untested" },
+];
+
+export const INCIDENT_CUSTOMER_COMMUNICATION_OPTIONS: OptionItem[] = [
+  { label: "Proactive status page", value: "proactive_status_page" },
+  { label: "Email notifications", value: "email_notifications" },
+  { label: "Reactive only", value: "reactive_only" },
+  { label: "None", value: "none" },
+];
+
+export const SUPPORT_COVERAGE_OPTIONS: OptionItem[] = [
+  { label: "24/7 phone, chat, and email", value: "24_7_phone_chat_email" },
+  { label: "Business hours phone and chat", value: "business_hours_phone_chat" },
+  { label: "Business hours email", value: "business_hours_email" },
+  { label: "Email only", value: "email_only" },
+];
+
+export const ACCOUNT_MANAGEMENT_OPTIONS: OptionItem[] = [
+  { label: "Dedicated TAM", value: "dedicated_tam" },
+  { label: "Shared TAM", value: "shared_tam" },
+  { label: "Standard support", value: "standard_support" },
+];
+
 export const ROLLBACK_CAPABILITY_OPTIONS: OptionItem[] = [
   { label: "Automated instant rollback", value: "Automated instant rollback" },
   {
@@ -356,6 +550,28 @@ export const DEPLOYMENT_SCALE_OPTIONS: OptionItem[] = [
   },
 ];
 
+export const TENANT_ISOLATION_MODEL_OPTIONS: OptionItem[] = [
+  { label: "Full instance isolation", value: "full_instance_isolation" },
+  { label: "Schema isolation", value: "schema_isolation" },
+  { label: "Row-level security", value: "row_level_security" },
+];
+
+export const DEPLOYMENT_CUSTOMIZATION_OPTIONS: OptionItem[] = [
+  { label: "None / out of the box", value: "none" },
+  { label: "Configuration only", value: "configuration_only" },
+  { label: "Light customization", value: "light_customization" },
+  { label: "Significant customization", value: "significant_customization" },
+  { label: "Heavy custom development", value: "heavy_custom_development" },
+];
+
+export const INTEGRATION_COMPLEXITY_OPTIONS: OptionItem[] = [
+  { label: "None", value: "none" },
+  { label: "Simple", value: "simple" },
+  { label: "Standard", value: "standard" },
+  { label: "Complex", value: "complex" },
+  { label: "Highly complex", value: "highly_complex" },
+];
+
 export const PRODUCT_STAGE_OPTIONS: OptionItem[] = [
   { label: "Design/Planning", value: "Design/Planning" },
   { label: "Development/Alpha", value: "Development/Alpha" },
@@ -400,22 +616,43 @@ export const ATTESTATION_FIELD_OPTIONS: Record<string, OptionItem[]> = {
   model_transparency: MODEL_TRANSPARENCY_OPTIONS,
   decision_autonomy: DECISION_AUTONOMY_OPTIONS,
   documented_ai_governance_policy: DOCUMENTED_AI_GOVERNANCE_POLICY_OPTIONS,
+  ai_ethics_governance_maturity: AI_ETHICS_GOVERNANCE_MATURITY_OPTIONS,
+  model_versioning_method: MODEL_VERSIONING_METHOD_OPTIONS,
   security_certifications: SECURITY_CERTIFICATIONS_OPTIONS,
   assessment_completion_level: ASSESSMENT_COMPLETION_LEVEL_OPTIONS,
   audit_frequency: AUDIT_FREQUENCY_OPTIONS,
+  hipaa_baa: HIPAA_BAA_OPTIONS,
   pii_handling: PII_HANDLING_OPTIONS,
   data_residency_options: DATA_RESIDENCY_OPTIONS_OPTIONS,
   data_retention_policy: DATA_RETENTION_DELETION_OPTIONS,
+  privacy_programme_scope: PRIVACY_PROGRAMME_SCOPE_OPTIONS,
+  typical_data_volume: TYPICAL_DATA_VOLUME_OPTIONS,
+  encryption_at_rest: ENCRYPTION_AT_REST_OPTIONS,
+  tls_in_transit: TLS_IN_TRANSIT_OPTIONS,
+  data_subject_rights: DATA_SUBJECT_RIGHTS_OPTIONS,
+  controller_or_processor: CONTROLLER_OR_PROCESSOR_OPTIONS,
+  independent_pen_test_frequency: INDEPENDENT_PEN_TEST_FREQUENCY_OPTIONS,
+  dpa_available: DPA_AVAILABLE_OPTIONS,
   bias_testing_approach: BIAS_TESTING_APPROACH_OPTIONS,
   adversarial_security_testing: ADVERSARIAL_SECURITY_TESTING_OPTIONS,
   human_oversight: HUMAN_OVERSIGHT_OPTIONS,
   training_data_documentation: TRAINING_DATA_DOCUMENTATION_OPTIONS,
   uptime_sla: UPTIME_SLA_OPTIONS,
   incident_response_plan: INCIDENT_RESPONSE_PLAN_OPTIONS,
+  production_model_monitoring: PRODUCTION_MODEL_MONITORING_OPTIONS,
+  critical_incident_response_target: CRITICAL_INCIDENT_RESPONSE_TARGET_OPTIONS,
+  critical_incident_resolution_target: CRITICAL_INCIDENT_RESOLUTION_TARGET_OPTIONS,
+  ir_plan_test_frequency: IR_PLAN_TEST_FREQUENCY_OPTIONS,
+  incident_customer_communication: INCIDENT_CUSTOMER_COMMUNICATION_OPTIONS,
+  support_coverage: SUPPORT_COVERAGE_OPTIONS,
+  account_management: ACCOUNT_MANAGEMENT_OPTIONS,
   rollback_capability: ROLLBACK_CAPABILITY_OPTIONS,
   hosting_deployment: HOSTING_DEPLOYMENT_OPTIONS,
   deployment_scale: DEPLOYMENT_SCALE_OPTIONS,
   product_stage: PRODUCT_STAGE_OPTIONS,
+  tenant_isolation_model: TENANT_ISOLATION_MODEL_OPTIONS,
+  deployment_customization: DEPLOYMENT_CUSTOMIZATION_OPTIONS,
+  integration_complexity: INTEGRATION_COMPLEXITY_OPTIONS,
   interaction_data_available: INTERACTION_DATA_AVAILABLE_OPTIONS,
   audit_logs_available: AUDIT_LOGS_AVAILABLE_OPTIONS,
   testing_results_available: TESTING_RESULTS_AVAILABLE_OPTIONS,

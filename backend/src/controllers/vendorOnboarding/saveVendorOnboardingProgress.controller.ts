@@ -3,6 +3,10 @@ import { db } from "../../database/db.js";
 import { usersTable, vendors } from "../../schema/schema.js";
 import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import {
+  normalizeVendorOnboardingBusinessFields,
+  persistVendorOnboardingBusinessFields,
+} from "../../utils/normalizeVendorOnboardingBusinessFields.js";
 
 /**
  * POST /vendorOnboarding/save-progress
@@ -15,9 +19,7 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
-    if (user.user_onboarding_completed === "true") {
-      return res.status(200).json({ message: "Onboarding already completed" });
-    }
+    const alreadyCompleted = user.user_onboarding_completed === "true";
 
     const {
       organization_Id: bodyOrgId,
@@ -36,6 +38,10 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
       headquartersLocation,
       operatingRegions,
     } = req.body;
+
+    const businessFields = normalizeVendorOnboardingBusinessFields(
+      req.body as Record<string, unknown>,
+    );
 
     const organizationIdRaw = bodyOrgId ?? bodyOrgIdCamel ?? user.organization_id;
     const organizationId = String(organizationIdRaw ?? "").trim();
@@ -74,6 +80,12 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
       yearFounded: Number.isNaN(yearFoundedNum) ? new Date().getFullYear() : yearFoundedNum,
       headquartersLocation: String(headquartersLocation ?? ""),
       operatingRegions: operatingRegionsValue,
+      fundingStatus: businessFields.fundingStatus,
+      financialPosition: businessFields.financialPosition,
+      enterpriseCustomers: businessFields.enterpriseCustomers,
+      customerRetentionRate: businessFields.customerRetentionRate,
+      trustCentreUrl: businessFields.trustCentreUrl,
+      securityIncidents: businessFields.securityIncidents,
     };
 
     await db
@@ -96,9 +108,24 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
           yearFounded: vendorValues.yearFounded,
           headquartersLocation: vendorValues.headquartersLocation,
           operatingRegions: vendorValues.operatingRegions,
+          fundingStatus: vendorValues.fundingStatus,
+          financialPosition: vendorValues.financialPosition,
+          enterpriseCustomers: vendorValues.enterpriseCustomers,
+          customerRetentionRate: vendorValues.customerRetentionRate,
+          trustCentreUrl: vendorValues.trustCentreUrl,
+          securityIncidents: vendorValues.securityIncidents,
           updatedAt: sql`now()`,
         },
       });
+
+    await persistVendorOnboardingBusinessFields(
+      organizationId,
+      req.body as Record<string, unknown>,
+    );
+
+    if (alreadyCompleted) {
+      return res.status(200).json({ message: "Onboarding already completed" });
+    }
 
     res.status(200).json({ success: true, message: "Progress saved" });
   } catch (error) {

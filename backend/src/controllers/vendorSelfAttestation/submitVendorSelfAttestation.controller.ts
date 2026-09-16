@@ -7,6 +7,23 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { buildVendorDataFromPayload } from "../../utils/buildVendorDataFromPayload.js";
 import { generateVendorAttestationReport, buildReportPayloadAndSummary } from "../agents/vendorAttestation.js";
 import { parseAndStoreComplianceDocumentExpiries } from "../../services/complianceDocumentParser.js";
+import { stampActiveLlmModel, getActiveLlmModelMeta } from "../../utils/activeLlmModelMeta.js";
+import {
+  assertFeatureTokenQuota,
+  isTokenQuotaExceededError,
+  isTokenQuotaExceededMessage,
+  sendIfTokenQuotaExceeded,
+  TOKEN_QUOTA_EXCEEDED_CODE,
+} from "../../services/admin/featureTokenQuota.service.js";
+import { persistVendorOnboardingBusinessFields } from "../../utils/normalizeVendorOnboardingBusinessFields.js";
+import { normalizeFedrampAuthorization } from "../../utils/normalizeFedrampAuthorization.js";
+import {
+  attestationExtendedColumnSelect,
+  mapExtendedFieldsToApi,
+  parseAttestationExtendedFields,
+} from "../../utils/attestationExtendedFields.js";
+import { ensureVendorAttestationAssessment } from "../../services/ensureVendorAttestationAssessment.js";
+import { assessments } from "../../schema/assessments/assessments.js";
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "public", "uploads_vendor_attestations");
 
@@ -129,9 +146,105 @@ function deleteRemovedDocumentFiles(attestationId: string, removedNames: Set<str
 
 type ReportPayload = { trustScore: unknown; sections: unknown[] };
 
+function isQuotaFailure(error: unknown): boolean {
+  if (isTokenQuotaExceededError(error)) return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return isTokenQuotaExceededMessage(message);
+}
+
+/** Keep a submit that failed mid-generation as DRAFT so it can be retried. */
+async function keepAttestationAsDraft(attestationId: string): Promise<void> {
+  const [row] = await db
+    .select({ assessment_id: vendorSelfAttestations.assessment_id })
+    .from(vendorSelfAttestations)
+    .where(eq(vendorSelfAttestations.id, attestationId))
+    .limit(1);
+  await db
+    .update(vendorSelfAttestations)
+    .set({
+      status: "DRAFT",
+      submitted_at: null,
+      updated_at: sql`now()`,
+    })
+    .where(eq(vendorSelfAttestations.id, attestationId));
+  const linked = row?.assessment_id ? String(row.assessment_id) : "";
+  if (linked) {
+    await db
+      .update(assessments)
+      .set({ status: "draft", updated_at: new Date() })
+      .where(eq(assessments.id, linked));
+  }
+}
+
+async function markAttestationCompleted(attestationId: string): Promise<void> {
+  const [row] = await db
+    .select({ assessment_id: vendorSelfAttestations.assessment_id })
+    .from(vendorSelfAttestations)
+    .where(eq(vendorSelfAttestations.id, attestationId))
+    .limit(1);
+  await db
+    .update(vendorSelfAttestations)
+    .set({
+      status: "COMPLETED",
+      submitted_at: sql`now()`,
+      updated_at: sql`now()`,
+    })
+    .where(eq(vendorSelfAttestations.id, attestationId));
+  const linked = row?.assessment_id ? String(row.assessment_id) : "";
+  if (linked) {
+    await db
+      .update(assessments)
+      .set({ status: "submitted", updated_at: new Date() })
+      .where(eq(assessments.id, linked));
+  }
+}
+
+function sendQuotaExceededKeepingDraft(
+  res: Response,
+  error: unknown,
+  attestationId: string | null,
+): boolean {
+  if (!isQuotaFailure(error)) return false;
+  const rawMessage = isTokenQuotaExceededError(error)
+    ? error.message
+    : error instanceof Error
+      ? error.message
+      : "";
+  const message =
+    rawMessage.trim() ||
+    "Your token allocation for this feature is exhausted. Ask your platform admin to allocate more tokens.";
+  const draftNote = attestationId
+    ? " The attestation was saved as a draft and was not marked completed."
+    : "";
+  res.status(403).json({
+    success: false,
+    code: TOKEN_QUOTA_EXCEEDED_CODE,
+    message: /attestation was saved as a draft/i.test(message) ? message : `${message.replace(/\.*$/, ".")}${draftNote}`,
+    status: "DRAFT",
+    ...(attestationId ? { attestation: { id: attestationId, status: "DRAFT" } } : {}),
+  });
+  return true;
+}
+
+function sendIncompleteProfileKeptAsDraft(
+  res: Response,
+  httpStatus: number,
+  attestation: Record<string, unknown> | null,
+): void {
+  res.status(httpStatus).json({
+    success: false,
+    message:
+      "Product profile could not be generated. The attestation was saved as a draft and was not marked completed.",
+    status: "DRAFT",
+    attestation,
+  });
+}
+
 /**
  * Generate product profile report from vendor data and insert into generated_profile_reports.
+ * VTS comes from Python scoring service; this only persists trust_score + report.
  * Returns the report payload for the response, or null on error.
+ * Token-quota failures are rethrown so the attestation stays DRAFT.
  */
 async function generateAndStoreProfileReport(
   vendorData: string,
@@ -142,38 +255,110 @@ async function generateAndStoreProfileReport(
 ): Promise<ReportPayload | null> {
   try {
     const report = await generateVendorAttestationReport(vendorData, formulaPayload);
-    const { reportPayload, trustScoreNum, summaryToStore } = buildReportPayloadAndSummary(report);
+    const built = buildReportPayloadAndSummary(report);
+    const reportPayload = stampActiveLlmModel(
+      built.reportPayload as unknown as Record<string, unknown>,
+    );
+    const llmMeta = getActiveLlmModelMeta();
+    const { trustScoreNum, summaryToStore } = built;
+    const scoring = report.scoringResult;
 
     const summaryForDb = summaryToStore && summaryToStore.length > 0 ? summaryToStore : null;
-    // console.log("[Summary] Step: submitVendorSelfAttestation (generateAndStoreProfileReport) — before DB insert | attestation_id:", attestationId, "| summaryToStore:", summaryToStore == null ? "undefined" : "length " + summaryToStore.length, "| summary column value:", summaryForDb == null ? "null" : "length " + summaryForDb.length);
-    // if (summaryForDb) console.log("[Summary] Step: submitVendorSelfAttestation — complete summary being stored:", summaryForDb);
-
     const trustScoreForDb = Number.isFinite(trustScoreNum) ? Math.round(trustScoreNum) : 0;
-    await db.insert(generatedProfileReports).values({
-      user_id: userId,
-      organization_id: organizationIdStr ?? undefined,
-      attestation_id: attestationId,
-      trust_score: trustScoreForDb,
-      summary: summaryForDb,
-      report: reportPayload,
-    });
+    const gradeForDb = scoring?.grade?.trim() || String(report.trustScore?.grade ?? "").trim() || null;
+    const scoreRationaleForDb =
+      typeof reportPayload.scoreRationale === "string" && reportPayload.scoreRationale.trim()
+        ? reportPayload.scoreRationale.trim()
+        : typeof scoring?.rationale === "string" && scoring.rationale.trim()
+          ? scoring.rationale.trim()
+          : null;
 
-    // console.log("[Summary] Step: submitVendorSelfAttestation (generateAndStoreProfileReport) — inserted into generated_profile_reports | attestation_id:", attestationId, "| summary stored:", summaryForDb != null);
+    const [inserted] = await db
+      .insert(generatedProfileReports)
+      .values({
+        user_id: userId,
+        organization_id: organizationIdStr ?? undefined,
+        attestation_id: attestationId,
+        trust_score: trustScoreForDb,
+        summary: summaryForDb,
+        report: reportPayload,
+        product_risk: scoring?.product_risk,
+        governance_risk: scoring?.governance_risk,
+        operational_risk: scoring?.operational_risk,
+        weighted_risk: scoring?.weighted_risk,
+        grade: gradeForDb ?? undefined,
+        classification: scoring?.classification || undefined,
+        formula_detail: scoring?.detail ?? undefined,
+        scoring_version: scoring?.scoring_version || undefined,
+        score_rationale: scoreRationaleForDb ?? undefined,
+        score_rationale_type: scoreRationaleForDb ? "VTS" : undefined,
+        llm_model_id: llmMeta.modelId,
+        llm_model_label: llmMeta.modelLabel,
+      })
+      .returning({ id: generatedProfileReports.id });
 
-    return reportPayload;
+    await db
+      .update(vendorSelfAttestations)
+      .set({
+        generated_profile_report: reportPayload,
+        latest_trust_score: trustScoreForDb,
+        latest_trust_grade: gradeForDb ?? undefined,
+        latest_profile_report_id: inserted?.id,
+        llm_model_id: llmMeta.modelId,
+        llm_model_label: llmMeta.modelLabel,
+        updated_at: new Date(),
+      })
+      .where(eq(vendorSelfAttestations.id, attestationId));
+
+    return reportPayload as unknown as ReportPayload;
   } catch (err) {
+    if (isQuotaFailure(err)) throw err;
     console.error("generateVendorAttestationReport after submit:", err);
     return null;
   }
 }
 
 /**
+ * After form data is persisted as DRAFT: generate the product profile, then mark COMPLETED.
+ * If tokens run out mid-generation, leave the row as DRAFT and rethrow.
+ */
+async function generateProfileAndCompleteIfSuccessful(
+  vendorData: string,
+  formulaPayload: Record<string, unknown>,
+  userId: number,
+  organizationIdStr: string | null,
+  attestationId: string,
+  documentUploads: Record<string, unknown> | null,
+): Promise<ReportPayload | null> {
+  await assertFeatureTokenQuota("attestation");
+  const reportPayload = await generateAndStoreProfileReport(
+    vendorData,
+    formulaPayload,
+    userId,
+    organizationIdStr,
+    attestationId,
+  );
+  if (!reportPayload) {
+    // No product profile was produced (including truncated/failed LLM work). Stay DRAFT.
+    return null;
+  }
+  if (documentUploads) {
+    void parseAndStoreComplianceDocumentExpiries(attestationId, documentUploads).catch((err) =>
+      console.error("Compliance document expiry parse:", err),
+    );
+  }
+  await markAttestationCompleted(attestationId);
+  return reportPayload;
+}
+
+/**
  * POST vendor self attestation: create new or update existing by id.
- * - newAttestation: true OR no attestationId → always INSERT a new row (status DRAFT or COMPLETED). Never reuse or modify existing.
+ * - newAttestation: true OR no attestationId → always INSERT a new row (status DRAFT until profile generation succeeds).
  * - attestationId provided (and not newAttestation) → UPDATE that row only if status is not COMPLETED (completed are immutable).
- * - New records: status "DRAFT" when is_draft true, "COMPLETED" when submit. Editing only by explicit attestationId.
+ * - Submit (`is_draft` false) stays DRAFT if tokens are exhausted mid-generation; COMPLETED only after a product profile is produced.
  */
 const submitVendorSelfAttestation = async (req: Request, res: Response): Promise<void> => {
+  let persistedAttestationId: string | null = null;
   try {
     // --- 1. Resolve user id from JWT (id/userId) or by email ---
     const payload = req.user as {
@@ -238,6 +423,14 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
     const security_compliance_certificates = asJson(get("security_certifications"));
     const assessment_feedback = get("assessment_completion_level") != null ? String(get("assessment_completion_level")).slice(0, 100) : null;
     const audit_frequency = get("audit_frequency") != null ? String(get("audit_frequency")).slice(0, 100) : null;
+    const hipaaRaw = get("hipaa_baa");
+    const hipaa_baa =
+      hipaaRaw == null
+        ? null
+        : Array.isArray(hipaaRaw)
+          ? hipaaRaw.map((x) => String(x).trim()).filter(Boolean).join(",").slice(0, 100) || null
+          : String(hipaaRaw).slice(0, 100);
+    const fedramp_authorization = normalizeFedrampAuthorization(get("fedramp_authorization"));
     const pii_information = get("pii_handling") != null ? String(get("pii_handling")).slice(0, 100) : null;
     const data_residency_options = asJson(get("data_residency_options"));
     const data_retention_policy = get("data_retention_policy") != null ? String(get("data_retention_policy")) : null;
@@ -281,22 +474,46 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       year_founded: (() => { const v = cpGet("yearFounded"); if (v == null || String(v).trim() === "") return null; const n = parseInt(String(v), 10); return Number.isInteger(n) ? n : null; })(),
       headquarter_location: cpGet("headquartersLocation") != null ? String(cpGet("headquartersLocation")).slice(0, 255) : null,
       operate_regions,
+      funding_status: cpGet("fundingStatus") != null ? String(cpGet("fundingStatus")).slice(0, 50) : null,
+      financial_position: cpGet("financialPosition") != null ? String(cpGet("financialPosition")).slice(0, 50) : null,
+      enterprise_customers: (() => {
+        const v = cpGet("enterpriseCustomers");
+        if (v == null || String(v).trim() === "") return null;
+        const n = parseInt(String(v), 10);
+        return Number.isInteger(n) && n >= 0 ? n : null;
+      })(),
+      customer_retention_rate: (() => {
+        const v = cpGet("customerRetentionRate");
+        if (v == null || String(v).trim() === "") return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 && n <= 100 ? n.toFixed(2) : null;
+      })(),
     };
 
-    // Saving a draft does NOT mark as completed. Only final Submit sets COMPLETED.
+    const trust_centre_url = get("trust_centre_url") != null ? String(get("trust_centre_url")).slice(0, 500) : null;
+    const has_public_security_incident =
+      get("has_public_security_incident") != null
+        ? String(get("has_public_security_incident")).slice(0, 10)
+        : null;
+    const security_incidents_raw = get("security_incidents");
+    const security_incidents = Array.isArray(security_incidents_raw) ? security_incidents_raw : [];
+    const extendedFields = parseAttestationExtendedFields(get);
+
+    // Saving a draft does NOT mark as completed. Final Submit stays DRAFT until the
+    // product profile is generated; token exhaustion mid-generation must not complete it.
     const rawDraft = get("is_draft");
     const isDraft =
       rawDraft === true ||
       rawDraft === "true" ||
       String(rawDraft).toLowerCase() === "true" ||
       rawDraft === 1;
-    const status = isDraft ? "DRAFT" : "COMPLETED";
+    const wantsComplete = !isDraft;
+    const status = "DRAFT";
 
     const values = {
       user_id: userId,
       organization_id: organizationIdStr,
       status,
-      ...(status === "COMPLETED" ? { submitted_at: new Date() } : {}),
       ...companyProfileValues,
       product_name,
       purchase_decisions_by,
@@ -312,6 +529,12 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       security_compliance_certificates,
       assessment_feedback,
       audit_frequency,
+      hipaa_baa,
+      fedramp_authorization,
+      trust_centre_url,
+      has_public_security_incident,
+      security_incidents,
+      ...extendedFields,
       pii_information,
       data_residency_options,
       data_retention_policy,
@@ -332,6 +555,18 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       test_results,
       document_uploads,
     };
+
+    if (organizationIdStr) {
+      try {
+        await persistVendorOnboardingBusinessFields(organizationIdStr, {
+          ...(cp as Record<string, unknown>),
+          trustCentreUrl: trust_centre_url,
+          securityIncidents: security_incidents,
+        });
+      } catch (err) {
+        console.error("Failed to sync vendor onboarding business fields:", err);
+      }
+    }
 
     const rawNew = get("newAttestation");
     const newAttestation =
@@ -362,6 +597,12 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       security_certifications: row.security_compliance_certificates ?? undefined,
       assessment_completion_level: row.assessment_feedback ?? undefined,
       audit_frequency: row.audit_frequency ?? undefined,
+      hipaa_baa: row.hipaa_baa ?? undefined,
+      fedramp_authorization: row.fedramp_authorization ?? undefined,
+      ...mapExtendedFieldsToApi(row),
+      trust_centre_url: row.trust_centre_url ?? undefined,
+      has_public_security_incident: row.has_public_security_incident ?? undefined,
+      security_incidents: Array.isArray(row.security_incidents) ? row.security_incidents : [],
       pii_handling: row.pii_information ?? undefined,
       data_residency_options: row.data_residency_options ?? undefined,
       data_retention_policy: row.data_retention_policy ?? undefined,
@@ -386,9 +627,17 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
 
     // --- New Attestation: always INSERT (never reuse or overwrite existing). No attestationId = create new. ---
     if (newAttestation || !attestationId) {
+      const linkedAssessmentId = await ensureVendorAttestationAssessment({
+        organizationId: organizationIdStr,
+        status: "draft",
+      });
+      const insertValues = {
+        ...values,
+        ...(linkedAssessmentId ? { assessment_id: linkedAssessmentId } : {}),
+      };
       const [inserted] = await db
         .insert(vendorSelfAttestations)
-        .values(values)
+        .values(insertValues)
         .returning({
           id: vendorSelfAttestations.id,
           status: vendorSelfAttestations.status,
@@ -408,6 +657,12 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
           security_compliance_certificates: vendorSelfAttestations.security_compliance_certificates,
           assessment_feedback: vendorSelfAttestations.assessment_feedback,
           audit_frequency: vendorSelfAttestations.audit_frequency,
+          hipaa_baa: vendorSelfAttestations.hipaa_baa,
+          fedramp_authorization: vendorSelfAttestations.fedramp_authorization,
+          ...attestationExtendedColumnSelect,
+          trust_centre_url: vendorSelfAttestations.trust_centre_url,
+          has_public_security_incident: vendorSelfAttestations.has_public_security_incident,
+          security_incidents: vendorSelfAttestations.security_incidents,
           pii_information: vendorSelfAttestations.pii_information,
           data_residency_options: vendorSelfAttestations.data_residency_options,
           data_retention_policy: vendorSelfAttestations.data_retention_policy,
@@ -430,22 +685,24 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
           generated_profile_report: vendorSelfAttestations.generated_profile_report,
         });
       const insertedId = inserted?.id as string | undefined;
+      if (insertedId) persistedAttestationId = insertedId;
       let reportPayload: ReportPayload | null = null;
-      if (status === "COMPLETED" && insertedId) {
+      let finalStatus: "DRAFT" | "COMPLETED" = "DRAFT";
+      if (wantsComplete && insertedId) {
         const vendorData = buildVendorDataFromPayload(b);
-        reportPayload = await generateAndStoreProfileReport(
+        const scoringPayload = {
+          ...(b as Record<string, unknown>),
+          ...(linkedAssessmentId ? { assessment_id: linkedAssessmentId, assessmentId: linkedAssessmentId } : {}),
+        };
+        reportPayload = await generateProfileAndCompleteIfSuccessful(
           vendorData,
-          b as Record<string, unknown>,
+          scoringPayload,
           userId,
           organizationIdStr ?? null,
           insertedId,
+          document_uploads as Record<string, unknown> | null,
         );
-        if (document_uploads) {
-          void parseAndStoreComplianceDocumentExpiries(
-            insertedId,
-            document_uploads as Record<string, unknown>,
-          ).catch((err) => console.error("Compliance document expiry parse:", err));
-        }
+        if (reportPayload) finalStatus = "COMPLETED";
       }
       const [rowAfter] = insertedId
         ? await db
@@ -468,6 +725,12 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
               security_compliance_certificates: vendorSelfAttestations.security_compliance_certificates,
               assessment_feedback: vendorSelfAttestations.assessment_feedback,
               audit_frequency: vendorSelfAttestations.audit_frequency,
+          hipaa_baa: vendorSelfAttestations.hipaa_baa,
+          fedramp_authorization: vendorSelfAttestations.fedramp_authorization,
+          ...attestationExtendedColumnSelect,
+          trust_centre_url: vendorSelfAttestations.trust_centre_url,
+          has_public_security_incident: vendorSelfAttestations.has_public_security_incident,
+          security_incidents: vendorSelfAttestations.security_incidents,
               pii_information: vendorSelfAttestations.pii_information,
               data_residency_options: vendorSelfAttestations.data_residency_options,
               data_retention_policy: vendorSelfAttestations.data_retention_policy,
@@ -495,10 +758,21 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
         : [inserted];
       const att = rowAfter ? buildAttestationResponse(rowAfter as Record<string, unknown>) : (inserted ? buildAttestationResponse(inserted as Record<string, unknown>) : null);
       if (att && reportPayload) (att as Record<string, unknown>).generated_profile_report = reportPayload;
+      if (att) (att as Record<string, unknown>).status = finalStatus;
+      if (wantsComplete && finalStatus !== "COMPLETED") {
+        sendIncompleteProfileKeptAsDraft(
+          res,
+          500,
+          att as Record<string, unknown> | null,
+        );
+        return;
+      }
       res.status(201).json({
         success: true,
-        message: isDraft ? "Draft saved successfully" : "Vendor self attestation submitted successfully",
-        status,
+        message: isDraft || finalStatus !== "COMPLETED"
+          ? "Draft saved successfully"
+          : "Vendor self attestation submitted successfully",
+        status: finalStatus,
         attestation: att,
       });
       return;
@@ -524,6 +798,7 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
           id: vendorSelfAttestations.id,
           status: vendorSelfAttestations.status,
           document_uploads: vendorSelfAttestations.document_uploads,
+          assessment_id: vendorSelfAttestations.assessment_id,
         })
         .from(vendorSelfAttestations)
         .where(updateWhere)
@@ -547,30 +822,40 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       for (const n of oldNames) if (!newNames.has(n)) removed.add(n);
       deleteRemovedDocumentFiles(attestationId, removed);
 
+      persistedAttestationId = attestationId;
+      const linkedAssessmentId = await ensureVendorAttestationAssessment({
+        organizationId: organizationIdStr,
+        existingAssessmentId:
+          (existingById as { assessment_id?: string | null }).assessment_id != null
+            ? String((existingById as { assessment_id?: string | null }).assessment_id)
+            : null,
+        status: "draft",
+      });
       await db
         .update(vendorSelfAttestations)
         .set({
           ...values,
+          ...(linkedAssessmentId ? { assessment_id: linkedAssessmentId } : {}),
           updated_at: sql`now()`,
-          ...(status === "COMPLETED" ? { submitted_at: sql`now()` } : {}),
         })
         .where(updateWhere);
       let reportPayload: ReportPayload | null = null;
-      if (status === "COMPLETED") {
+      let finalStatus: "DRAFT" | "COMPLETED" = "DRAFT";
+      if (wantsComplete) {
         const vendorData = buildVendorDataFromPayload(b);
-        reportPayload = await generateAndStoreProfileReport(
+        const scoringPayload = {
+          ...(b as Record<string, unknown>),
+          ...(linkedAssessmentId ? { assessment_id: linkedAssessmentId, assessmentId: linkedAssessmentId } : {}),
+        };
+        reportPayload = await generateProfileAndCompleteIfSuccessful(
           vendorData,
-          b as Record<string, unknown>,
+          scoringPayload,
           userId,
           organizationIdStr ?? null,
           attestationId,
+          document_uploads as Record<string, unknown> | null,
         );
-        if (document_uploads) {
-          void parseAndStoreComplianceDocumentExpiries(
-            attestationId,
-            document_uploads as Record<string, unknown>,
-          ).catch((err) => console.error("Compliance document expiry parse:", err));
-        }
+        if (reportPayload) finalStatus = "COMPLETED";
       }
       const [savedRow] = await db
         .select({
@@ -592,6 +877,12 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
           security_compliance_certificates: vendorSelfAttestations.security_compliance_certificates,
           assessment_feedback: vendorSelfAttestations.assessment_feedback,
           audit_frequency: vendorSelfAttestations.audit_frequency,
+          hipaa_baa: vendorSelfAttestations.hipaa_baa,
+          fedramp_authorization: vendorSelfAttestations.fedramp_authorization,
+          ...attestationExtendedColumnSelect,
+          trust_centre_url: vendorSelfAttestations.trust_centre_url,
+          has_public_security_incident: vendorSelfAttestations.has_public_security_incident,
+          security_incidents: vendorSelfAttestations.security_incidents,
           pii_information: vendorSelfAttestations.pii_information,
           data_residency_options: vendorSelfAttestations.data_residency_options,
           data_retention_policy: vendorSelfAttestations.data_retention_policy,
@@ -618,10 +909,21 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
         .limit(1);
       const att = savedRow ? buildAttestationResponse(savedRow as Record<string, unknown>) : null;
       if (att && reportPayload) (att as Record<string, unknown>).generated_profile_report = reportPayload;
+      if (att) (att as Record<string, unknown>).status = finalStatus;
+      if (wantsComplete && finalStatus !== "COMPLETED") {
+        sendIncompleteProfileKeptAsDraft(
+          res,
+          500,
+          att as Record<string, unknown> | null,
+        );
+        return;
+      }
       res.status(200).json({
         success: true,
-        message: isDraft ? "Draft saved successfully" : "Vendor self attestation submitted successfully",
-        status,
+        message: isDraft || finalStatus !== "COMPLETED"
+          ? "Draft saved successfully"
+          : "Vendor self attestation submitted successfully",
+        status: finalStatus,
         attestation: att,
       });
       return;
@@ -633,10 +935,31 @@ const submitVendorSelfAttestation = async (req: Request, res: Response): Promise
       message: "Either newAttestation or attestationId must be provided.",
     });
   } catch (error) {
+    if (isQuotaFailure(error) && persistedAttestationId) {
+      try {
+        await keepAttestationAsDraft(persistedAttestationId);
+      } catch (revertErr) {
+        console.error("Failed to keep attestation as draft after token quota:", revertErr);
+      }
+    }
+    if (sendQuotaExceededKeepingDraft(res, error, persistedAttestationId)) return;
+    if (sendIfTokenQuotaExceeded(res, error)) return;
     console.error("submitVendorSelfAttestation error:", error);
+    const detail = error instanceof Error ? error.message : String(error);
+    try {
+      const logPath = path.resolve(process.cwd(), "submit-attestation-error.log");
+      fs.appendFileSync(
+        logPath,
+        `${new Date().toISOString()} ${detail}\n${error instanceof Error && error.stack ? error.stack : ""}\n\n`,
+      );
+    } catch {
+      // ignore log write failures
+    }
     res.status(500).json({
       success: false,
       message: "Database or server error",
+      // Helps diagnose schema drift / constraint failures without digging through server logs.
+      detail,
     });
   }
 };

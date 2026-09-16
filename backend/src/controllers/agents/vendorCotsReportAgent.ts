@@ -1,21 +1,19 @@
 import "dotenv/config";
-import {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} from "@aws-sdk/client-bedrock-runtime";
-
-const REGION = process.env.AWS_DEFAULT_REGION || "us-east-1";
-// const MODEL_ID ="us.anthropic.claude-haiku-4-5-20251001-v1:0";
-const MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0";
-
-const client = new BedrockRuntimeClient({ region: REGION });
+import { invokeBedrockAnthropicText } from "../../utils/invokeBedrockWithUsage.js";
 
 import {
   getTop5RisksWithMitigations,
   formatTop5RisksForPrompt,
+  applyRiEnrichmentToPayload,
   type Top5RisksWithMitigations,
 } from "../../services/getTop5RisksFromAssessmentContext.js";
 import type { FrameworkMappingTableRow } from "../../services/frameworkMappingFromCompliance.js";
+import { invokePythonLlmWithVector } from "../../services/pythonAssessmentLlmClient.js";
+import { isTokenQuotaExceededError } from "../../services/admin/featureTokenQuota.service.js";
+import {
+  scoreCotsVendorWithPython,
+  type PythonCotsVendorScoreResult,
+} from "../../services/pythonScoringClient.js";
 
 export interface RecommendationWithPriority {
   priority: "High" | "Medium" | "Low";
@@ -128,6 +126,9 @@ export interface GeneratedVendorCotsReport {
   recommendations: string[];
   recommendationsWithPriority?: RecommendationWithPriority[];
   fullReport?: FullReportJson;
+  /** Python-generated SALES RISK SCORE (Type 2) - EXPLAINED block. */
+  scoreRationale?: string;
+  scoreRationaleType?: "SCS" | "SRS" | "IRS";
   /** Model-generated concise bullets for each DB top-5 risk (keyed by risk_id). */
   matchedRiskSummaries?: MatchedRiskSummary[];
   /** Model-generated concise bullets per listed catalog mitigation (risk_id + exact action name). */
@@ -165,9 +166,10 @@ After the sections above, output a single JSON object in a fenced code block sta
 - frameworkMapping: object with rows: array of { framework, coverage, controls, notes }. Copy exactly the rows from the "Product attestation: compliance framework mappings" JSON block in the assessment context (same order, same text). If that block is a single placeholder with coverage and controls "Not provided", use that as the only row. Do NOT add frameworks from regulatory_requirements, customer sector, or other assessment fields. Do NOT omit attestation rows.
 - implementationPlan: object with phases: array of { title, timeline, status: "Complete"|"In Progress"|"Planned", activities (string array), deliverables (string array) }
 - competitivePositioning: string (2-4 sentences)
-- appendix: object with methodology (string), preparedBy (string), reviewedBy (string), confidentiality (string), dataSources (string array)
+- appendix: object with methodology (string — framework/process name only; NEVER include scoring formulas, equations, weight percentages, or VTS/IRS/SRS algebra), preparedBy (string), reviewedBy (string), confidentiality (string), dataSources (string array)
 
 Use only the data provided; if a field is empty or "Not specified", say so or use empty value. Be concise.
+Do NOT discuss, quote, or display scoring formulas, weight percentages, or equations (e.g. VTS =, IRS =, SRS =, × 0.35) anywhere in the report narrative or appendix.
 `;
 
 function buildAssessmentContext(
@@ -202,6 +204,32 @@ function buildAssessmentContext(
     `Key advantages: ${toStr(payload.key_advantages ?? payload.keyAdvantages)}`,
     `Customer-specific risks: ${toStr(payload.customer_specific_risks ?? payload.customerSpecificRisks)}`,
     `Customer-specific risks (other): ${toStr(payload.customer_specific_risks_other ?? payload.customerSpecificRisksOther)}`,
+    `Customer employee count: ${toStr(payload.customer_employee_count ?? payload.customerEmployeeCount)}`,
+    `Customer engineering headcount: ${toStr(payload.customer_eng_headcount ?? payload.customerEngHeadcount)}`,
+    `Customer annual revenue: ${toStr(payload.customer_annual_revenue ?? payload.customerAnnualRevenue)}`,
+    `Customer ownership: ${toStr(payload.customer_ownership ?? payload.customerOwnership)}`,
+    `Customer HQ country: ${toStr(payload.customer_hq_country ?? payload.customerHqCountry)}`,
+    `Customer operating regions: ${toStr(payload.customer_operating_regions ?? payload.customerOperatingRegions)}`,
+    `Customer certifications: ${toStr(payload.customer_certifications ?? payload.customerCertifications)}`,
+    `Customer regulators: ${toStr(payload.customer_regulators ?? payload.customerRegulators)}`,
+    `Customer public incident: ${toStr(payload.customer_public_incident ?? payload.customerPublicIncident)}`,
+    `Customer cloud provider: ${toStr(payload.customer_cloud_provider ?? payload.customerCloudProvider)}`,
+    `Customer identity provider: ${toStr(payload.customer_identity_provider ?? payload.customerIdentityProvider)}`,
+    `Customer source-control platform: ${toStr(payload.customer_scm_platform ?? payload.customerScmPlatform)}`,
+    `Incumbent AI tooling: ${toStr(payload.customer_incumbent_ai_tooling ?? payload.customerIncumbentAiTooling)}`,
+    `Likely integration systems: ${toStr(payload.likely_integration_systems ?? payload.likelyIntegrationSystems)}`,
+    `Customer AI maturity evidence: ${toStr(payload.customer_ai_maturity_evidence ?? payload.customerAiMaturityEvidence)}`,
+    `Customer AI leadership: ${toStr(payload.customer_ai_leadership ?? payload.customerAiLeadership)}`,
+    `Customer public AI policy: ${toStr(payload.customer_public_ai_policy ?? payload.customerPublicAiPolicy)}`,
+    `Opportunity type: ${toStr(payload.opportunity_type ?? payload.opportunityType)}`,
+    `Target user function: ${toStr(payload.target_user_function ?? payload.targetUserFunction)}`,
+    `Estimated users in scope: ${toStr(payload.estimated_users_in_scope ?? payload.estimatedUsersInScope)}`,
+    `Competitors: ${toStr(payload.competitors)}`,
+    `Build vs buy signal: ${toStr(payload.build_vs_buy_signal ?? payload.buildVsBuySignal)}`,
+    `Key advantages (rows): ${toStr(payload.key_advantages_rows ?? payload.keyAdvantagesRows)}`,
+    `Information basis: ${toStr(payload.information_basis ?? payload.informationBasis)}`,
+    `Answer confidence: ${toStr(payload.answer_confidence ?? payload.answerConfidence)}`,
+    `Research date: ${toStr(payload.research_date ?? payload.researchDate)}`,
     `Identified risks: ${toStr(payload.identified_risks ?? payload.identifiedRisks)}`,
     `Risk domain scores: ${toStr(payload.risk_domain_scores ?? payload.riskDomainScores)}`,
     `Contextual multipliers: ${toStr(payload.contextual_multipliers ?? payload.contextualMultipliers)}`,
@@ -1264,6 +1292,11 @@ function interpretSalesRiskScore(dealProbability: number) {
   };
 }
 
+/**
+ * LEGACY — Sales Risk Score formula now runs in Python
+ * (`python/services/sales_risk_formula.py` via POST /assessment/cots-vendor/score).
+ * Kept for reference; runtime uses scoreCotsVendorWithPython.
+ */
 function calculateSalesRiskScore(userInput: any) {
   // ── Customer Friction Risk ────────────────────────────────────────────────
   const CFR = calculateCustomerFrictionRisk(userInput);
@@ -1303,7 +1336,7 @@ function calculateSalesRiskScore(userInput: any) {
       implementation_risk: IR,
       competitive_risk: CR,
       final_formula: {
-        expression: "SRS = 100 - ((CFR × 0.35) + (IR × 0.35) + (CR × 0.30))",
+        expression: "SRS = min(100, ((CFR × 0.35) + (IR × 0.35) + (CR × 0.30)) × Intent)",
         customer_friction_contribution: parseFloat(
           (CFR.value * 0.35).toFixed(4),
         ),
@@ -1322,8 +1355,8 @@ function calculateSalesRiskScore(userInput: any) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export {
-  // Main entry point
-  calculateSalesRiskScore,
+  // Main entry point — disabled; SRS computed in Python scoring service
+  // calculateSalesRiskScore,
 
   // Customer Friction Risk sub-calculators
   calcRegulatoryComplexity,
@@ -1608,6 +1641,153 @@ function customerTypeForFormula(
   return "SMB";
 }
 
+function parseJsonish(v: unknown): unknown {
+  if (v == null) return null;
+  if (Array.isArray(v) || (typeof v === "object" && v !== null)) return v;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s.startsWith("[") || s.startsWith("{")) {
+      try {
+        return JSON.parse(s);
+      } catch {
+        return v;
+      }
+    }
+  }
+  return v;
+}
+
+function firstPresent(payload: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    const v = payload[key];
+    if (v == null || v === "") continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    return v;
+  }
+  return undefined;
+}
+
+function competitorRowsFromPayload(payload: Record<string, unknown>): Record<string, unknown>[] {
+  const parsed = parseJsonish(firstPresent(payload, "competitors"));
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((item) => {
+    if (item && typeof item === "object" && "name" in item) {
+      return String((item as { name?: unknown }).name ?? "").trim() !== "";
+    }
+    return String(item ?? "").trim() !== "";
+  }) as Record<string, unknown>[];
+}
+
+function competitorLabelFromCount(n: number): string {
+  if (n <= 0) return "0 (sole source)";
+  if (n === 1) return "1 competitor";
+  if (n <= 3) return "2-3 competitors";
+  return "4+ competitors";
+}
+
+function headcountMidpoint(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0 && typeof raw !== "string") return Math.trunc(n);
+  const compact = String(raw)
+    .replace(/[,\s]/g, "")
+    .replace(/[–—]/g, "-")
+    .toLowerCase();
+  if (!compact || compact.startsWith("not")) return null;
+  const table: [string, number][] = [
+    ["50000+", 75000],
+    ["10001-50000", 30000],
+    ["5001-10000", 7500],
+    ["1001-5000", 3000],
+    ["501-1000", 750],
+    ["201-500", 350],
+    ["51-200", 125],
+    ["1-50", 25],
+  ];
+  for (const [key, mid] of table) {
+    if (compact.includes(key)) return mid;
+  }
+  return null;
+}
+
+function customerTypeFromHeadcount(mid: number): "Enterprise" | "Mid_market" | "SMB" {
+  if (mid >= 5001) return "Enterprise";
+  if (mid >= 501) return "Mid_market";
+  return "SMB";
+}
+
+function yearsFromOpportunityType(raw: string): number | null {
+  const s = raw.toLowerCase();
+  if (!s.trim()) return null;
+  if (s.includes("renewal")) return 5;
+  if (s.includes("expansion")) return 3;
+  if (s.includes("new logo") || s.includes("speculative") || s.includes("displacement"))
+    return 0;
+  return null;
+}
+
+function buildVsBuyFromSignal(raw: string): { build: boolean; cap: string } | null {
+  const s = raw.toLowerCase().trim();
+  if (!s) return null;
+  if (s.startsWith("yes")) return { build: true, cap: "Strong (can build)" };
+  if (s.startsWith("possible")) return { build: true, cap: "Moderate (difficult build)" };
+  if (s.startsWith("no signal") || s.includes("not known"))
+    return { build: false, cap: "Weak (unlikely to build)" };
+  return null;
+}
+
+function capabilityFromEngHeadcount(raw: string): string | null {
+  const s = raw.toLowerCase();
+  if (!s.trim() || s.includes("not known")) return null;
+  if (s.includes("under 50")) return "Weak (unlikely to build)";
+  if (s.startsWith("50-") || s.includes("50-250")) return "Moderate (difficult build)";
+  return "Strong (can build)";
+}
+
+function approvalFromOwnership(raw: string): string | null {
+  const s = raw.toLowerCase();
+  if (!s.trim() || s.includes("not known")) return null;
+  if (s.includes("government") || s.includes("publicly")) return "Board_approval";
+  if (s.includes("pe owned") || s.includes("pe-owned")) return "C_suite_multiple";
+  if (s.includes("founder") || s.includes("family")) return "VP_and_below";
+  if (s.includes("vc") || s.includes("non-profit") || s.includes("ngo")) return "C_suite_single";
+  return null;
+}
+
+function integrationBandFromSystems(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  const systems = toStringList(raw);
+  const n = systems.length;
+  if (n === 0) return "Standalone - No Integrations Required";
+  if (n === 1) return "Simple - Single System Integration (e.g., SSO only)";
+  if (n <= 3) return "Moderate - 2-3 System Integrations";
+  if (n <= 6) return "Complex - 4-6 System Integrations";
+  return "Very Complex - 7+ System Integrations or Legacy Systems";
+}
+
+function advantageRowsFromPayload(payload: Record<string, unknown>): Record<string, unknown>[] {
+  const parsed = parseJsonish(firstPresent(payload, "key_advantages_rows", "keyAdvantagesRows"));
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const text = String(
+      (item as { advantage?: unknown; text?: unknown }).advantage ??
+        (item as { text?: unknown }).text ??
+        "",
+    ).trim();
+    return text !== "";
+  }) as Record<string, unknown>[];
+}
+
+const ADVANTAGE_CATEGORY_MAP: Record<string, string> = {
+  product: "Superior_feature_set",
+  security: "Technology_leadership",
+  compliance: "Regulatory_certification",
+  price: "Lower_TCO",
+  support: "Faster_deployment",
+  ecosystem: "Proven_customer_in_sector",
+};
+
 function riskLevelFromFormulaScore(score: number): "Low" | "Moderate" | "High" {
   if (score <= 33) return "Low";
   if (score <= 66) return "Moderate";
@@ -1630,13 +1810,95 @@ function buildFormulaInputFromPayload(payload: Record<string, unknown>) {
   const budgetMidpoint = budgetForFormula(
     toStringValue(payload.customer_budget_range ?? payload.customerBudgetRange),
   );
-  const customerType = customerTypeForFormula(budgetMidpoint);
+  const customerEmp = headcountMidpoint(
+    firstPresent(payload, "customer_employee_count", "customerEmployeeCount"),
+  );
+  const customerType =
+    customerEmp != null
+      ? customerTypeFromHeadcount(customerEmp)
+      : customerTypeForFormula(budgetMidpoint);
+  const customerEmployeeCount =
+    customerEmp ??
+    (customerType === "Enterprise" ? 2000 : customerType === "Mid_market" ? 500 : 100);
+
+  const competitorRows = competitorRowsFromPayload(payload);
   const alternatives = toStringValue(
     payload.alternatives_considered ?? payload.alternativesConsidered,
   );
-  const keyAdvantages = toStringList(
-    payload.key_advantages ?? payload.keyAdvantages,
+  let competitorCount = alternatives ? "2-3 competitors" : "1 competitor";
+  let consideringBuild = alternatives.toLowerCase().includes("build");
+  if (competitorRows.length > 0) {
+    competitorCount = competitorLabelFromCount(competitorRows.length);
+    consideringBuild = false;
+  }
+
+  const buildSignal = buildVsBuyFromSignal(
+    toStringValue(firstPresent(payload, "build_vs_buy_signal", "buildVsBuySignal") ?? ""),
   );
+  const engCap = capabilityFromEngHeadcount(
+    toStringValue(firstPresent(payload, "customer_eng_headcount", "customerEngHeadcount") ?? ""),
+  );
+  if (buildSignal) {
+    consideringBuild = buildSignal.build;
+  }
+  const customerTechnicalCapability =
+    engCap ?? buildSignal?.cap ?? "Moderate (difficult build)";
+
+  const advRows = advantageRowsFromPayload(payload);
+  const keyAdvantages = toStringList(payload.key_advantages ?? payload.keyAdvantages);
+  const uniqueDifferentiators = advRows.length
+    ? advRows.slice(0, 3).map((row) => ({
+        advantageType:
+          ADVANTAGE_CATEGORY_MAP[
+            String(row.category ?? "")
+              .trim()
+              .toLowerCase()
+          ] ?? "Domain_expertise",
+      }))
+    : keyAdvantages.length
+      ? keyAdvantages.slice(0, 3).map(() => ({ advantageType: "Domain_expertise" }))
+      : [];
+
+  const oppYears = yearsFromOpportunityType(
+    toStringValue(firstPresent(payload, "opportunity_type", "opportunityType") ?? ""),
+  );
+  const yearsInCustomerSector =
+    oppYears ??
+    (() => {
+      const explicit = Number(payload.yearsInCustomerSector ?? payload.years_in_customer_sector);
+      if (Number.isFinite(explicit) && explicit >= 0) return explicit;
+      const founded = Number(payload.yearFounded ?? payload.year_founded);
+      if (founded >= 1900 && founded <= new Date().getFullYear()) {
+        return Math.max(0, new Date().getFullYear() - founded);
+      }
+      return 0;
+    })();
+
+  const vendorEmployeeCount = (() => {
+    const n = Number(payload.vendorEmployeeCount ?? payload.employeeCount ?? payload.no_of_employees);
+    return Number.isFinite(n) && n > 0 ? n : 50;
+  })();
+
+  const integrationBand =
+    integrationBandFromSystems(
+      firstPresent(payload, "likely_integration_systems", "likelyIntegrationSystems"),
+    ) ??
+    toStringValue(payload.integration_complexity ?? payload.integrationComplexity);
+
+  const evidence = toStringList(
+    firstPresent(payload, "customer_ai_maturity_evidence", "customerAiMaturityEvidence"),
+  );
+  let vendorStage = (() => {
+    const raw = toStringValue(
+      payload.vendorStage ?? payload.vendorMaturity ?? payload.vendor_maturity ?? payload.company_stage,
+    ).toLowerCase();
+    if (/startup|early/.test(raw)) return "startup";
+    if (/mature|publicly|profitable/.test(raw)) return "mature";
+    if (/established|late/.test(raw)) return "established";
+    if (/growth|scaling/.test(raw)) return "growth";
+    return "established";
+  })();
+  if (evidence.length >= 3) vendorStage = "mature";
 
   return {
     customerRegulatoryRequirements: regulatory,
@@ -1651,21 +1913,11 @@ function buildFormulaInputFromPayload(payload: Record<string, unknown>) {
     ),
     customerSpecificRiskCount: customerSpecificRisks.length,
     customerType,
-    customerHasUniqueRequirements: Boolean(
-      toStringValue(
-        payload.customer_specific_risks_other ??
-          payload.customerSpecificRisksOther,
-      ),
-    ),
+    customerHasUniqueRequirements: false,
     uniqueRequirementsList: toStringList(
-      payload.customer_specific_risks_other ??
-        payload.customerSpecificRisksOther,
+      payload.customer_specific_risks_other ?? payload.customerSpecificRisksOther,
     ),
-    integrationPoints: buildIntegrationPointsForFormula(
-      toStringValue(
-        payload.integration_complexity ?? payload.integrationComplexity,
-      ),
-    ),
+    integrationPoints: buildIntegrationPointsForFormula(integrationBand),
     customizationLevel: normalizeCustomizationForFormula(
       toStringValue(payload.customization_level ?? payload.customizationLevel),
     ),
@@ -1681,51 +1933,62 @@ function buildFormulaInputFromPayload(payload: Record<string, unknown>) {
     ),
     regulatoryDeadlineExists: false,
     monthsUntilDeadline: undefined,
-    productFeatureMatchPct: 80,
+    productFeatureMatchPct: Number(payload.productFeatureMatchPct ?? payload.product_feature_match_pct) ||
+      Math.min(100, 40 + 8 * Math.min(keyAdvantages.length || toStringList(payload.product_features ?? payload.productFeatures).length, 7)),
     missingCriticalFeatures: [],
     proposedMitigationsCount: riskMitigations.length,
-    avgMitigationsPerRisk: 4,
-    competitorCount: alternatives ? "2-3 competitors" : "1 competitor",
-    customerConsideringBuildVsBuy: alternatives.toLowerCase().includes("build"),
-    customerTechnicalCapability: "Moderate (difficult build)",
+    avgMitigationsPerRisk: riskMitigations.length ? 4 : 0,
+    competitorCount,
+    customerConsideringBuildVsBuy: consideringBuild,
+    customerTechnicalCapability,
     budgetMidpoint,
-    approvalLevels: "C_suite_single",
-    uniqueDifferentiators: keyAdvantages.length
-      ? keyAdvantages
-          .slice(0, 3)
-          .map(() => ({ advantageType: "Domain_expertise" }))
-      : [{ advantageType: "Faster_deployment" }],
-    yearsInCustomerSector: 5,
-    vendorStage: "growth",
-    customerExpectsLargerVendorFeatures: customerType === "Enterprise",
-    customerEmployeeCount:
-      customerType === "Enterprise"
-        ? 2000
-        : customerType === "Mid_market"
-          ? 500
-          : 100,
-    vendorEmployeeCount: 250,
+    approvalLevels:
+      approvalFromOwnership(
+        toStringValue(firstPresent(payload, "customer_ownership", "customerOwnership") ?? ""),
+      ) ?? "C_suite_single",
+    uniqueDifferentiators,
+    yearsInCustomerSector,
+    vendorStage,
+    customerExpectsLargerVendorFeatures: customerEmployeeCount > vendorEmployeeCount * 2,
+    customerEmployeeCount,
+    vendorEmployeeCount,
   };
 }
 
-async function invokeModel(userInput: string): Promise<string> {
-  const body = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 8192,
+async function invokeModelLocal(userInput: string): Promise<string> {
+  return invokeBedrockAnthropicText({
+    prompt: userInput,
+    maxTokens: 8192,
     temperature: 0.3,
-    messages: [{ role: "user", content: [{ type: "text", text: userInput }] }],
+    feature: "assessment",
   });
+}
 
-  const command = new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: "application/json",
-    accept: "application/json",
-    body,
-  });
-
-  const response = await client.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content?.[0]?.text ?? "";
+/** Type 2 (cots_vendor): prefer Python LLM + pgvector formulas; fall back to local Bedrock. */
+async function invokeModel(userInput: string): Promise<string> {
+  try {
+    const result = await invokePythonLlmWithVector({
+      assessmentType: "cots_vendor",
+      userPrompt: userInput,
+      maxTokens: 8192,
+      temperature: 0.3,
+      includeFormulaContext: false,
+    });
+    console.log(
+      "[cots_vendor] LLM+vector source=",
+      result.scoring_source,
+      "chunks=",
+      result.vector?.chunks?.length ?? 0,
+    );
+    return result.text;
+  } catch (err) {
+    if (isTokenQuotaExceededError(err)) throw err;
+    console.error(
+      "[cots_vendor] Python LLM+vector failed; falling back to local Bedrock:",
+      err instanceof Error ? err.message : err,
+    );
+    return invokeModelLocal(userInput);
+  }
 }
 
 /**
@@ -1744,29 +2007,146 @@ export async function generateVendorCotsReport(
     let top5: Top5RisksWithMitigations | null =
       top5RisksWithMitigations ?? null;
     if (top5 == null) {
-      top5 = await getTop5RisksWithMitigations(payload);
+      try {
+        top5 = await getTop5RisksWithMitigations(payload);
+      } catch (top5Err) {
+        console.error(
+          "getTop5RisksWithMitigations failed during vendor report; scoring without RI intent:",
+          top5Err,
+        );
+        top5 = null;
+      }
     }
+    const scoringPayload = applyRiEnrichmentToPayload(payload, top5);
     const context = buildAssessmentContext(
-      payload,
+      scoringPayload,
       top5,
       attestationFrameworkRows,
     );
     const userInput = VENDOR_COTS_REPORT_PROMPT + "\n\n" + context;
+
+    // Formula score does not depend on LLM text — overlap it with Bedrock.
+    const scorePromise = (async (): Promise<PythonCotsVendorScoreResult | null> => {
+      try {
+        const formulaResult = await scoreCotsVendorWithPython(scoringPayload);
+        console.log("srs", formulaResult.sales_risk_score);
+        if (formulaResult.formula_console?.trim()) {
+          console.log(formulaResult.formula_console);
+        }
+        if (formulaResult.rationale?.trim()) {
+          console.log(formulaResult.rationale);
+        } else {
+          console.log(
+            "[cots_vendor] SRS",
+            formulaResult.sales_risk_score,
+            "| deal ~",
+            Math.round(formulaResult.deal_probability_pct),
+            "% |",
+            formulaResult.grade,
+            formulaResult.classification,
+          );
+        }
+        return formulaResult;
+      } catch (scoreErr) {
+        console.error(
+          "Python sales-risk formula failed; using local Node SRS fallback:",
+          scoreErr,
+        );
+        try {
+          const formulaInput = buildFormulaInputFromPayload(scoringPayload);
+          const local = calculateSalesRiskScore(formulaInput);
+          const intentRaw = Number(
+            scoringPayload.intent_multiplier_value ??
+              scoringPayload.intentMultiplierValue ??
+              1,
+          );
+          const intent =
+            Number.isFinite(intentRaw) && intentRaw > 0
+              ? Math.min(1.5, Math.max(0.5, intentRaw))
+              : 1;
+          const srs = Math.min(
+            100,
+            Math.max(0, Number((local.sales_risk_score * intent).toFixed(2))),
+          );
+          const deal = Math.max(0, Number((100 - srs).toFixed(2)));
+          const interpretation = interpretSalesRiskScore(
+            Math.max(0, Math.min(100, Math.round(deal))),
+          );
+          const formulaResult: PythonCotsVendorScoreResult = {
+            sales_risk_score: srs,
+            deal_probability_pct: deal,
+            customer_friction_risk: local.customer_friction_risk,
+            implementation_risk: local.implementation_risk,
+            competitive_risk: local.competitive_risk,
+            grade: interpretation.grade,
+            classification: interpretation.classification,
+            deal_characteristics: interpretation.deal_characteristics,
+            recommended_actions: interpretation.recommended_actions,
+            detail: {
+              ...(local.detail ?? {}),
+              intent_multiplier: {
+                value: intent,
+                profile: String(
+                  scoringPayload.intent_profile ??
+                    scoringPayload.intentProfile ??
+                    "Mixed",
+                ),
+              },
+              final_formula: {
+                ...((local.detail as { final_formula?: Record<string, unknown> })
+                  ?.final_formula ?? {}),
+                intent_multiplier: intent,
+                weighted_sum: srs,
+              },
+            },
+            scoring_source: "node-fallback",
+            scoring_version: "srs-node-1.0",
+          };
+          console.log("srs", formulaResult.sales_risk_score, "(node fallback)");
+          console.log(
+            "SRS FORMULA CALCULATION (console)  [Vendor COTS / Type 2] (node fallback)",
+          );
+          console.log(
+            JSON.stringify(
+              {
+                hardcoded: {
+                  expression:
+                    "SRS = min(100, max(0, ((CFR x 0.35) + (IR x 0.35) + (CR x 0.30)) x Intent))",
+                  CFR_WEIGHT: 0.35,
+                  IR_WEIGHT: 0.35,
+                  CR_WEIGHT: 0.3,
+                  SCORE_CAP: 100,
+                  SCORE_FLOOR: 0,
+                  intent,
+                },
+                formula_input: formulaInput,
+                result: {
+                  sales_risk_score: srs,
+                  deal_probability_pct: deal,
+                  customer_friction_risk: local.customer_friction_risk,
+                  implementation_risk: local.implementation_risk,
+                  competitive_risk: local.competitive_risk,
+                  grade: interpretation.grade,
+                  classification: interpretation.classification,
+                },
+                detail: formulaResult.detail,
+              },
+              null,
+              2,
+            ),
+          );
+          return formulaResult;
+        } catch (localErr) {
+          console.error("Local Node SRS fallback also failed:", localErr);
+          return null;
+        }
+      }
+    })();
+
     const rawReply = await invokeModel(userInput);
     if (!rawReply.trim()) return null;
     const parsed = parseReportSections(rawReply);
-
-    let formulaResult: SalesRiskFormulaResult | null = null;
-    try {
-      formulaResult = calculateSalesRiskScore(
-        buildFormulaInputFromPayload(payload),
-      ) as SalesRiskFormulaResult;
-    } catch (scoreErr) {
-      console.error(
-        "calculateSalesRiskScore failed; falling back to model score:",
-        scoreErr,
-      );
-    }
+    const formulaResult = await scorePromise;
 
     if (!formulaResult) return { ...parsed, raw: rawReply };
 
@@ -1780,29 +2160,41 @@ export async function generateVendorCotsReport(
       typeof parsed.fullReport.appendix === "object"
         ? (parsed.fullReport.appendix as Record<string, unknown>)
         : {};
+    const finalFormula =
+      formulaResult.detail?.final_formula &&
+      typeof formulaResult.detail.final_formula === "object"
+        ? (formulaResult.detail.final_formula as Record<string, unknown>)
+        : undefined;
 
     return {
       ...parsed,
       overallRiskScore: score,
       riskLevel,
+      scoreRationale: formulaResult.rationale?.trim() || undefined,
+      scoreRationaleType: "SCS" as const,
       fullReport: {
         ...(parsed.fullReport ?? {}),
         appendix: {
           ...appendix,
-          salesRiskFormula: formulaResult.detail?.final_formula ?? undefined,
+          salesRiskFormula: finalFormula,
           salesRiskBreakdown: {
+            sales_risk_score: formulaResult.sales_risk_score,
             customer_friction_risk: formulaResult.customer_friction_risk,
             implementation_risk: formulaResult.implementation_risk,
             competitive_risk: formulaResult.competitive_risk,
             deal_probability_pct: formulaResult.deal_probability_pct,
             grade: formulaResult.grade,
             classification: formulaResult.classification,
+            deal_characteristics: formulaResult.deal_characteristics,
+            recommended_actions: formulaResult.recommended_actions,
+            detail: formulaResult.detail ?? undefined,
           },
         },
       },
       raw: rawReply,
     };
   } catch (err) {
+    if (isTokenQuotaExceededError(err)) throw err;
     console.error("generateVendorCotsReport error:", err);
     return null;
   }

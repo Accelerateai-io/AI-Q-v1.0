@@ -65,4 +65,11 @@ export const vendorOnboardingSchema = z.object({
     z.array(z.string()).min(1, "At least one operating region is required"),
     z.string().min(1, "At least one operating region is required"),
   ]),
+  fundingStatus: z.string().min(1, "Single selection required"),
+  financialPosition: z.string().min(1, "Single selection required"),
+  enterpriseCustomers: z.union([z.string(), z.number(), z.null()]).optional(),
+  customerRetentionRate: z.union([z.string(), z.number(), z.null()]).optional(),
+  trustCentreUrl: z.string().optional(),
+  hasPublicSecurityIncident: z.string().optional(),
+  securityIncidents: z.array(z.unknown()).optional(),
 })

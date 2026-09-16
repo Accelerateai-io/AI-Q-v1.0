@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 
-/** Only `true` is cached so adding migration 0056 without restarting the server is detected. */
+/** Only `true` is cached so adding the archive column without restarting the server is detected. */
 let cachedHasArchivedColumn: boolean | null = null;
 /** Avoid repeating the probe on every request when the column is still missing (migration not applied). */
 let lastNegativeProbeMs = 0;
@@ -11,7 +11,8 @@ function pgCode(e: unknown): string {
 }
 
 /**
- * True if the archive column exists on the same relation the archive UPDATE uses (migration 0056).
+ * True if the archive column exists on the same relation the archive UPDATE uses
+ * (`20260903_cots_buyer_archived_vendor_risk_report.sql`).
  * Uses a probe SELECT so we never rely on information_schema alone (avoids false positives vs. real errors).
  */
 export async function hasCotsBuyerArchivedReportColumn(pool: Pool): Promise<boolean> {

@@ -5,6 +5,8 @@ import { expireSubmittedAssessmentsAndArchiveBuyerReports } from "../../services
 import { usersTable } from "../../schema/schema.js";
 import { assessments } from "../../schema/assessments/assessments.js";
 import { cotsBuyerAssessments } from "../../schema/assessments/cotsBuyerAssessments.js";
+import { mergeScoreRationaleIntoReport } from "../../utils/mergeScoreRationale.js";
+import { mergeLlmModelIntoReport } from "../../utils/activeLlmModelMeta.js";
 
 /**
  * GET /buyerVendorRiskReports
@@ -32,15 +34,20 @@ const listBuyerVendorRiskReports = async (req: Request, res: Response): Promise<
 
     let orgId = user?.organization_id != null ? String(user.organization_id).trim() : "";
     const platformRole = (user?.user_platform_role ?? "").toString().trim().toLowerCase().replace(/_/g, " ");
+    const isSystemAdmin = platformRole === "system admin";
     const isSystemManagerOrViewer =
       platformRole === "system manager" || platformRole === "system viewer";
-    if (!orgId && isSystemManagerOrViewer) {
+    const isSystemUser = isSystemAdmin || isSystemManagerOrViewer;
+    const assessmentIdFromQuery =
+      typeof req.query?.assessmentId === "string" ? req.query.assessmentId.trim() || null : null;
+
+    if (!orgId && isSystemUser) {
       const fromQuery =
         typeof req.query?.organizationId === "string" ? req.query.organizationId.trim() || "" : "";
       if (fromQuery) orgId = fromQuery;
     }
 
-    if (!orgId) {
+    if (!orgId && !assessmentIdFromQuery) {
       res.status(200).json({ success: true, data: { reports: [] } });
       return;
     }
@@ -56,12 +63,19 @@ const listBuyerVendorRiskReports = async (req: Request, res: Response): Promise<
         expiryAt: assessments.expiry_at,
         userArchivedAt: assessments.user_archived_at,
         vendorRiskReport: cotsBuyerAssessments.vendor_risk_assessment_report,
+        scoreRationale: cotsBuyerAssessments.score_rationale,
+        scoreRationaleType: cotsBuyerAssessments.score_rationale_type,
+        llmModelId: cotsBuyerAssessments.llm_model_id,
+        llmModelLabel: cotsBuyerAssessments.llm_model_label,
       })
       .from(cotsBuyerAssessments)
       .innerJoin(assessments, eq(cotsBuyerAssessments.assessment_id, assessments.id))
       .where(
         and(
-          eq(assessments.organization_id, orgId),
+          ...(orgId ? [eq(assessments.organization_id, orgId)] : []),
+          ...(assessmentIdFromQuery
+            ? [eq(cotsBuyerAssessments.assessment_id, assessmentIdFromQuery)]
+            : []),
           eq(assessments.type, "cots_buyer"),
           eq(assessments.status, "submitted"),
           isNotNull(cotsBuyerAssessments.vendor_risk_assessment_report),
@@ -75,15 +89,29 @@ const listBuyerVendorRiskReports = async (req: Request, res: Response): Promise<
       const product = (r.productName ?? "").trim() || "Product";
       const title = `${vendor} – ${product}`;
       const rep = r.vendorRiskReport;
-      const repObj = rep != null && typeof rep === "object" ? (rep as Record<string, unknown>) : null;
-      const irsRaw = repObj != null ? Number(repObj.implementationRiskScore) : NaN;
+      const repObj = mergeLlmModelIntoReport(
+        mergeScoreRationaleIntoReport(
+          rep != null && typeof rep === "object" ? rep : null,
+          r.scoreRationale,
+          r.scoreRationaleType,
+        ),
+        r.llmModelId,
+        r.llmModelLabel,
+      );
+      const repRecord =
+        repObj != null && typeof repObj === "object" && !Array.isArray(repObj)
+          ? (repObj as Record<string, unknown>)
+          : null;
+      const irsRaw = repRecord != null ? Number(repRecord.implementationRiskScore) : NaN;
       const implementationRiskScore = Number.isFinite(irsRaw) ? Number(irsRaw.toFixed(2)) : null;
       const clsRaw =
-        repObj != null
-          ? (repObj.implementationRiskClassification ?? repObj.implementation_risk_classification)
+        repRecord != null
+          ? (repRecord.implementationRiskClassification ?? repRecord.implementation_risk_classification)
           : undefined;
       const decRaw =
-        repObj != null ? (repObj.implementationRiskDecision ?? repObj.implementation_risk_decision) : undefined;
+        repRecord != null
+          ? (repRecord.implementationRiskDecision ?? repRecord.implementation_risk_decision)
+          : undefined;
       const implementationRiskClassification =
         clsRaw != null && String(clsRaw).trim() !== "" ? String(clsRaw).trim().slice(0, 200) : null;
       const implementationRiskDecision =
@@ -93,6 +121,9 @@ const listBuyerVendorRiskReports = async (req: Request, res: Response): Promise<
         source: "buyer_vendor_risk" as const,
         assessmentId: r.assessmentId,
         title,
+        report: repRecord ?? undefined,
+        llmModelId: r.llmModelId ?? null,
+        llmModelLabel: r.llmModelLabel ?? null,
         createdAt:
           r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt ?? ""),
         expiryAt:

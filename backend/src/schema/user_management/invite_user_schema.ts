@@ -7,7 +7,7 @@ import {
   organizationStatusEnum,
   signup,
 } from "../EnumValues/enumValues.js";
-import { createOrganization } from "../schema.js";
+import { createOrganization } from "../organizations/createOrganization.js";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(), // auto-incrementing primary key

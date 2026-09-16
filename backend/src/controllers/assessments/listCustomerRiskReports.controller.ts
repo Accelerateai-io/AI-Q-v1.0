@@ -8,6 +8,8 @@ import { cotsVendorAssessments } from "../../schema/assessments/cotsVendorAssess
 import { vendorSelfAttestations } from "../../schema/assessments/vendorSelfAttestations.js";
 import { riskTop5Mitigations } from "../../schema/risks/riskTop5Mitigations.js";
 import { vendorCotsFrameworkMappingRowsForListView } from "../../services/frameworkMappingFromCompliance.js";
+import { mergeScoreRationaleIntoReport, extractOverallRiskScoreFromReport } from "../../utils/mergeScoreRationale.js";
+import { mergeLlmModelIntoReport } from "../../utils/activeLlmModelMeta.js";
 
 /**
  * GET /customerRiskReports
@@ -38,9 +40,11 @@ const listCustomerRiskReports = async (req: Request, res: Response): Promise<voi
       .limit(1);
     let orgId = user?.organization_id != null ? String(user.organization_id).trim() : "";
     const platformRole = (user?.user_platform_role ?? "").toString().trim().toLowerCase().replace(/_/g, " ");
+    const isSystemAdmin = platformRole === "system admin";
     const isSystemManagerOrViewer =
       platformRole === "system manager" || platformRole === "system viewer";
-    if (!orgId && isSystemManagerOrViewer) {
+    const isSystemUser = isSystemAdmin || isSystemManagerOrViewer;
+    if (!orgId && isSystemUser) {
       const fromQuery =
         typeof req.query?.organizationId === "string" ? req.query.organizationId.trim() || "" : "";
       if (fromQuery) orgId = fromQuery;
@@ -65,6 +69,10 @@ const listCustomerRiskReports = async (req: Request, res: Response): Promise<voi
         assessmentId: customerRiskAssessmentReports.assessment_id,
         title: customerRiskAssessmentReports.title,
         report: customerRiskAssessmentReports.report,
+        scoreRationale: customerRiskAssessmentReports.score_rationale,
+        scoreRationaleType: customerRiskAssessmentReports.score_rationale_type,
+        llmModelId: customerRiskAssessmentReports.llm_model_id,
+        llmModelLabel: customerRiskAssessmentReports.llm_model_label,
         createdAt: customerRiskAssessmentReports.created_at,
         expiryAt: assessments.expiry_at,
         attestationExpiryAt: vendorSelfAttestations.expiry_at,
@@ -195,11 +203,28 @@ const listCustomerRiskReports = async (req: Request, res: Response): Promise<voi
         } as Record<string, unknown>,
         reportObj,
       );
+      const reportWithRationale = mergeScoreRationaleIntoReport(
+        reportObj,
+        r.scoreRationale,
+        r.scoreRationaleType,
+      );
+      const reportWithModel = mergeLlmModelIntoReport(
+        reportWithRationale,
+        r.llmModelId,
+        r.llmModelLabel,
+      );
+      const overallRiskScore = extractOverallRiskScoreFromReport(reportWithModel);
       return {
         id: r.id,
         assessmentId: r.assessmentId,
         title: r.title,
-        report: reportObj,
+        report: reportWithModel,
+        llmModelId: r.llmModelId ?? null,
+        llmModelLabel: r.llmModelLabel ?? null,
+        overallRiskScore:
+          overallRiskScore != null && Number.isFinite(overallRiskScore)
+            ? Math.round(overallRiskScore * 100) / 100
+            : null,
         createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
         expiryAt: r.expiryAt instanceof Date ? r.expiryAt.toISOString() : (r.expiryAt != null ? String(r.expiryAt) : null),
         attestationExpiryAt:

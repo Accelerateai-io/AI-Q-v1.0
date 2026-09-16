@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
-  margin: 0.5em 0 0 0;
+  margin: 0.5rem 0 0 0;
 }
 
 .chip-multi-select label {
@@ -27,15 +27,14 @@
 
 .chip-multi-select-chip {
   appearance: none;
+  font-family: "Sora", sans-serif;
   padding: 0.5rem 0.875rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  /* color: var(--chip-text, #1f2937); */
-  color: var(--light-gray-color);
-  background-color: var(--chip-bg, #ffffff);
-  /* border: 1px solid var(--chip-border, #d1d5db); */
-  border: 1px solid var(--light-gray-color);
-  border-radius: 8px;
+  color: var(--text-secondary, var(--light-gray-color, #64748b));
+  background-color: var(--surface-muted, #f5f7fa);
+  border: 1px solid var(--border-strong, var(--light-gray-color, #d1d5db));
+  border-radius: var(--ui-border-radius, 0);
   cursor: pointer;
   transition:
     background-color 0.15s,
@@ -45,19 +44,21 @@
 }
 
 .chip-multi-select-chip:hover {
-  border-color: var(--chip-border-hover, #9ca3af);
-  background-color: var(--chip-bg-hover, #f9fafb);
+  border-color: var(--nav-active, #9ca3af);
+  background-color: var(--surface-hover, #f9fafb);
+  color: var(--text-primary, #1f2937);
 }
 
 .chip-multi-select-chip--selected {
-  color: #2c7ef1;
-  background-color: #e0e8f9;
-  border-color: #2c7ef1;
+  color: var(--nav-active, #2c7ef1);
+  background-color: var(--icon-chip-bg, #e0e8f9);
+  border-color: var(--nav-active, #2c7ef1);
 }
 
 .chip-multi-select-chip--selected:hover {
-  background-color: #c9d6f5;
-  border-color: #1d6ad4;
+  background-color: var(--icon-chip-bg, #c9d6f5);
+  border-color: var(--nav-active, #1d6ad4);
+  filter: brightness(0.97);
 }
 
 .chip-multi-select-chip:focus {

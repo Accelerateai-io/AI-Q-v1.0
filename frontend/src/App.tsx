@@ -1,4 +1,6 @@
 import "./App.css";
+import "./styles/search.css";
+import "./styles/dark-theme.css";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./Components/Authentication/Login/Login";
 import ForgotPassword from "./Components/Authentication/ForgotPassword/ForgotPassword";
@@ -9,10 +11,11 @@ import Dashboard from "./Components/pages/Dashboard/Dashboard";
 import Assessments from "./Components/pages/Assessments/Assessments";
 import VendorDirectory from "./Components/pages/VendorDirectory/VendorDirectory";
 import VendorDirectoryIntelligence from "./Components/pages/VendorDirectory/VendorDirectoryIntelligence";
-import Compilance from "./Components/pages/SecurityCenter/Compilance";
-import Goverance from "./Components/pages/Goverance/Goverance";
+// Phase-1 stubs (header-only pages)
+// import Compilance from "./Components/pages/SecurityCenter/Compilance";
+// import Goverance from "./Components/pages/Goverance/Goverance";
 import { SalesEnablement } from "./Components/pages/SalesEnablement/SalesEnablement";
-import EvidenceLibrary from "./Components/pages/EvidenceLibrary/EvidenceLibrary";
+// import EvidenceLibrary from "./Components/pages/EvidenceLibrary/EvidenceLibrary";
 import UserManagement from "./Components/pages/UserManagement/UserManagement";
 import MyAccount from "./Components/pages/MyAccount/MyAccount";
 import { DirectoryListing } from "./Components/pages/DirectoryListing/DirectoryListing";
@@ -22,6 +25,9 @@ import GeneralReportDetail from "./Components/pages/Reports/GeneralReportDetail"
 import MyVendors from "./Components/pages/MyVendors/MyVendors";
 import Organizations from "./Components/pages/Organizations/Organizations";
 import OrganizationAssessmentView from "./Components/pages/Organizations/OrganizationAssessmentView";
+import Controls from "./Components/pages/Controls/Controls";
+import Observability from "./Components/pages/Observability/Observability";
+import ObservabilityModelDetail from "./Components/pages/Observability/ObservabilityModelDetail";
 import Toaster from "./Components/Toaster/Toaster";
 import LayoutWithoutNav from "./Components/layout/LayoutWithoutNav";
 import VendorMainForm from "./Components/pages/VendorOnboarding/VendorMainForm";
@@ -31,7 +37,6 @@ import SignUp from "./Components/Authentication/SignUp/SignUp";
 import PageNotFound from "./Components/PageNotFound/PageNotFound";
 import AccessDenied from "./Components/AccessDenied/AccessDenied";
 import { AuthGuard, RBACGuard } from "./guards";
-import OnboardingAccess from "./utils/OnboardingVerify";
 import VendorAttestationsMainForm from "./Components/pages/VendorAttestations/VendorAttestationsMainForm";
 import VendorCOTSMain from "./Components/pages/Assessments/VendorCOTS/VendorCOTSMain";
 import VendorAttestationDetails from "./Components/pages/VendorAttestationDetails/VendorAttestationDetails";
@@ -62,6 +67,12 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/organizations" element={<Organizations />} />
                 <Route path="/organizations/assessment/:assessmentId" element={<OrganizationAssessmentView />} />
+                <Route path="/controls" element={<Controls />} />
+                <Route path="/observability" element={<Observability />} />
+                <Route
+                  path="/observability/model/:usageId"
+                  element={<ObservabilityModelDetail />}
+                />
                 <Route path="/assessments" element={<Assessments />} />
                 <Route path="/vendorcots/:assessmentId" element={<VendorCOTSMain />} />
                 <Route path="/vendorcots" element={<VendorCOTSMain />} />
@@ -77,10 +88,12 @@ function App() {
                   element={<VendorDirectoryIntelligence />}
                 />
                 <Route path="/riskMappings/*" element={<MyVendors />} />
+                {/* Phase-1 stubs
                 <Route path="/security_center" element={<Compilance />} />
                 <Route path="/governance" element={<Goverance />} />
-                <Route path="/salesEnablement" element={<SalesEnablement />} />
                 <Route path="/evidence-library" element={<EvidenceLibrary />} />
+                */}
+                <Route path="/salesEnablement" element={<SalesEnablement />} />
                 <Route
                   path="/product_profile"
                   element={<DirectoryListing />}
@@ -111,13 +124,13 @@ function App() {
               path="/onBoarding/buyerOnboarding/:token"
               element={<BuyerMainForm type="buyer" />}
             />
-            <Route path="/vendorcots" element={<VendorCOTSMain />} />
             <Route element={<AuthGuard />}>
               <Route element={<RBACGuard />}>
+                <Route path="/vendorcots" element={<VendorCOTSMain />} />
                 <Route path="/buyerAssessment" element={<BuyerAssessment />} />
+                <Route path="/buyerAssessment/:id" element={<BuyerAssessment />} />
               </Route>
             </Route>
-            <Route path="/buyerAssessment" element={<BuyerAssessment />} />
           </Route>
           {/* </Route> */}
           <Route path="*" element={<Navigate to="/pageNotFound" replace />} />

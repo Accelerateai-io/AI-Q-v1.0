@@ -2,7 +2,7 @@ import HeaderForVendor from "./HeaderForVendor";
 import Select from "../../UI/Select";
 import ChipMultiSelect from "../../UI/ChipMultiSelect";
 import Input from "../../UI/Input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   HEADQUARTERS_LOCATION,
   OPERATING_REGIONS,
@@ -22,6 +22,26 @@ const StepGeography = ({
   const [isVisibleInput, setIsVisibleInput] = useState(false);
   const [customHeadquarter, setCustomHeadquarter] = useState("");
   const [selectedHeadquarter, setSelectedHeadquarter] = useState("");
+
+  useEffect(() => {
+    const hq = (formVendorData.headquartersLocation ?? "").trim();
+    if (!hq) {
+      setSelectedHeadquarter("");
+      setIsVisibleInput(false);
+      setCustomHeadquarter("");
+      return;
+    }
+    const known = HEADQUARTERS_LOCATION.some((o) => o.value === hq);
+    if (known && hq !== "Other (Specify)") {
+      setSelectedHeadquarter(hq);
+      setIsVisibleInput(false);
+      setCustomHeadquarter(hq);
+      return;
+    }
+    setSelectedHeadquarter("Other (Specify)");
+    setIsVisibleInput(true);
+    setCustomHeadquarter(hq);
+  }, [formVendorData.headquartersLocation]);
 
   const handleHeadquartersChange = (val: string) => {
     setSelectedHeadquarter(val);

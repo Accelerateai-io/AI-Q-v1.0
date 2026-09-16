@@ -7,7 +7,9 @@ import emailConfig from "../../functions/emailconfig.js";
 import {
   EMAIL_BRAND_PRIMARY,
   EMAIL_PAGE_BG,
-  emailSignatureCheckmarkHtml,
+  emailClosingSignatureHtml,
+  emailCopyrightYear,
+  getAccelerateAiLogoAttachment,
 } from "../../email/emailBrand.js";
 
 const SIGNUP_CONFIRM_PLATFORM_NAME = "AI-Q Platform";
@@ -39,9 +41,8 @@ function signupConfirmationEmailHtml(
                 </td>
               </tr>
             </table>
-            <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#333333;">Thanks,<br>The ${SIGNUP_CONFIRM_PLATFORM_NAME} Team</p>
-            ${emailSignatureCheckmarkHtml()}
-            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; 2026 ${SIGNUP_CONFIRM_PLATFORM_NAME}. All rights reserved.</p>
+            ${emailClosingSignatureHtml(SIGNUP_CONFIRM_PLATFORM_NAME, "Thanks")}
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#888888;text-align:center;">&copy; ${emailCopyrightYear()} ${SIGNUP_CONFIRM_PLATFORM_NAME}. All rights reserved.</p>
           </td>
         </tr>
       </table>
@@ -155,6 +156,7 @@ const updatesUsers = async (req: Request, res: Response) => {
               data.role ?? "",
               confirmationLink,
             ),
+            attachments: [getAccelerateAiLogoAttachment()],
           });
         } catch (emailErr) {
           console.error("Reactivation confirmation email failed:", emailErr);

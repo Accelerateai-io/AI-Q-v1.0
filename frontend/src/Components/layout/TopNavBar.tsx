@@ -1,8 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../styles/layout/topNav.css";
-import { Bell } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import UserProfile from "../pages/UserProfile/UserProfile";
+import AccountSettingsModal from "../pages/MyAccount/AccountSettingsModal";
 import NotificationsPopover from "../UI/NotificationsPopover";
+import {
+  fetchAdminNotifications,
+  isPlatformAdminSession,
+  markAdminNotificationRead,
+  markAllAdminNotificationsRead,
+  type AdminNotification,
+  type AdminNotificationsPayload,
+} from "../../utils/adminNotificationsApi";
 
 interface MeUser {
   email?: string | null;
@@ -41,9 +51,16 @@ function formatRoleForDisplay(role: string | null | undefined): string {
 }
 
 const TopNavBar = () => {
+  const navigate = useNavigate();
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isNotificationsVisible, setIsNotificationsVisible] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [user, setUser] = useState<MeUser | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState<AdminNotificationsPayload>({
+    items: [],
+    unreadCount: 0,
+  });
 
   const userRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -96,6 +113,24 @@ const TopNavBar = () => {
     return () => window.removeEventListener("userProfileUpdated", onProfileUpdated);
   }, [setUserFromSessionStorage]);
 
+  const loadNotifications = useCallback(async () => {
+    const data = await fetchAdminNotifications();
+    setNotifications(data);
+  }, []);
+
+  useEffect(() => {
+    void loadNotifications();
+    if (!isPlatformAdminSession()) return undefined;
+    const timer = window.setInterval(() => {
+      void loadNotifications();
+    }, 45_000);
+    return () => window.clearInterval(timer);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (isNotificationsVisible) void loadNotifications();
+  }, [isNotificationsVisible, loadNotifications]);
+
   const initials = user
     ? getInitials(
         user.user_first_name ?? "",
@@ -147,6 +182,11 @@ const TopNavBar = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      const el = event.target as Element | null;
+      /* Modals portaled to body — don't tear down the profile menu while they are open */
+      if (el?.closest?.(".profile_modal_overlay")) {
+        return;
+      }
       if (
         popupRef.current &&
         !popupRef.current.contains(target) &&
@@ -175,25 +215,79 @@ const TopNavBar = () => {
   return (
     <>
       <div className="top_nav_content">
+        <div className="nav_left_spacer" aria-hidden />
+
+        <form
+          className="nav_search"
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <Search size={18} className="nav_search_icon" aria-hidden />
+          <input
+            type="search"
+            className="nav_search_input"
+            placeholder="Search…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search"
+            autoComplete="off"
+          />
+        </form>
+
         <div className="nav_right_content">
-          <div className="notifications_icon_sec" ref={notifRef}>
-            <Bell
-              size={24}
-              className="notification_icon"
-              onClick={handleNotificationsToggle}
-              role="button"
-              aria-label="Notifications"
-              aria-expanded={isNotificationsVisible}
-            />
-            {isNotificationsVisible && (
-              <div
-                className="notifications_popover_anchor"
-                ref={notifPopoverRef}
+          {isPlatformAdminSession() ? (
+            <div className="notifications_icon_sec" ref={notifRef}>
+              <button
+                type="button"
+                className="notification_icon_btn"
+                onClick={handleNotificationsToggle}
+                aria-label={
+                  notifications.unreadCount > 0
+                    ? `Notifications, ${notifications.unreadCount} unread`
+                    : "Notifications"
+                }
+                aria-expanded={isNotificationsVisible}
               >
-                <NotificationsPopover emptyMessage="No notifications" />
-              </div>
-            )}
-          </div>
+                <Bell size={24} className="notification_icon" aria-hidden />
+                {notifications.unreadCount > 0 ? (
+                  <span className="notification_badge">
+                    {notifications.unreadCount > 9
+                      ? "9+"
+                      : notifications.unreadCount}
+                  </span>
+                ) : null}
+              </button>
+              {isNotificationsVisible && (
+                <div
+                  className="notifications_popover_anchor"
+                  ref={notifPopoverRef}
+                >
+                  <NotificationsPopover
+                    items={notifications.items}
+                    unreadCount={notifications.unreadCount}
+                    onSelect={(item: AdminNotification) => {
+                      if (item.readAt == null) {
+                        void markAdminNotificationRead(item.id).then(() => {
+                          void loadNotifications();
+                        });
+                      }
+                      setIsNotificationsVisible(false);
+                      if (item.type.startsWith("token_quota_exhausted")) {
+                        navigate("/controls");
+                      }
+                    }}
+                    onMarkAllRead={() => {
+                      void markAllAdminNotificationsRead().then(() => {
+                        void loadNotifications();
+                      });
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* USER SECTION */}
           <div
@@ -218,8 +312,18 @@ const TopNavBar = () => {
       {/* POPUP */}
       {isPopupVisible && (
         <div ref={popupRef}>
-          <UserProfile onClose={() => setIsPopupVisible(false)} />
+          <UserProfile
+            onClose={() => setIsPopupVisible(false)}
+            onOpenSettings={() => {
+              setIsPopupVisible(false);
+              setIsSettingsOpen(true);
+            }}
+          />
         </div>
+      )}
+
+      {isSettingsOpen && (
+        <AccountSettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
     </>
   );

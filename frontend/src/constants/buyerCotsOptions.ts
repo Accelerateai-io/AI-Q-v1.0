@@ -1,57 +1,21 @@
-/** Options for dropdown and multiselect fields in Buyer COTS Assessment (aligned with typical Excel/spec) */
+/** Options for dropdown and multiselect fields in Buyer COTS Assessment.
+ * Industry + operating regions match buyer onboarding so auto-fill selects correctly.
+ */
+import {
+  BUYER_INDUSTRY_SECTORS,
+  BUYER_OPERATING_REGIONS,
+} from "./buyerOnboardingData";
 
 export type OptionItem = { label: string; value: string };
 
-export const INDUSTRY_SECTOR_OPTIONS: OptionItem[] = [
-  { label: "Federal Government (US)", value: "Federal Government (US)" },
-  { label: "State Government (US)", value: "State Government (US)" },
-  { label: "Local Government (US)", value: "Local Government (US)" },
-  { label: "Education - K-12", value: "Education - K-12" },
-  {
-    label: "Education - Higher Education",
-    value: "Education - Higher Education",
-  },
-  { label: "Energy & Utilities", value: "Energy & Utilities" },
-  {
-    label: "Financial Services - Banking",
-    value: "Financial Services - Banking",
-  },
-  {
-    label: "Financial Services - Investment Management",
-    value: "Financial Services - Investment Management",
-  },
-  {
-    label: "Financial Services - Insurance",
-    value: "Financial Services - Insurance",
-  },
-  {
-    label: "Healthcare - Hospitals & Health Systems",
-    value: "Healthcare - Hospitals & Health Systems",
-  },
-  {
-    label: "Healthcare - Payers (Insurance)",
-    value: "Healthcare - Payers (Insurance)",
-  },
-  {
-    label: "Healthcare - Pharmaceuticals",
-    value: "Healthcare - Pharmaceuticals",
-  },
-  {
-    label: "Healthcare - Medical Devices",
-    value: "Healthcare - Medical Devices",
-  },
-  { label: "Manufacturing - Industrial", value: "Manufacturing - Industrial" },
-  {
-    label: "Manufacturing - Consumer Goods",
-    value: "Manufacturing - Consumer Goods",
-  },
-  { label: "Professional Services", value: "Professional Services" },
-  { label: "Retail & E-commerce", value: "Retail & E-commerce" },
-  { label: "Technology & Software", value: "Technology & Software" },
-  { label: "Transportation & Logistics", value: "Transportation & Logistics" },
-  // { label: "Education", value: "Education" },
-  { label: "Other", value: "Other" },
-];
+/** Flattened from buyer onboarding sector picker (same values users selected at onboarding). */
+export const INDUSTRY_SECTOR_OPTIONS: OptionItem[] = BUYER_INDUSTRY_SECTORS.flatMap(
+  (group) =>
+    group.options.map((opt) => ({
+      label: opt.label,
+      value: opt.value,
+    })),
+);
 
 export const EMPLOYEE_COUNT_OPTIONS: OptionItem[] = [
   { label: "1-50", value: "1-50" },
@@ -64,17 +28,10 @@ export const EMPLOYEE_COUNT_OPTIONS: OptionItem[] = [
   { label: "50,000+", value: "50,000+" },
 ];
 
-export const OPERATING_REGIONS_OPTIONS: OptionItem[] = [
-  { label: "United States", value: "United States" },
-  { label: "Canada", value: "Canada" },
-  { label: "European Union", value: "European Union" },
-  { label: "United Kingdom", value: "United Kingdom" },
-  { label: "Asia-Pacific", value: "Asia-Pacific" },
-  { label: "Latin America", value: "Latin America" },
-  { label: "Middle East", value: "Middle East" },
-  { label: "Africa", value: "Africa" },
-  { label: "Global (All Regions)", value: "Global (All Regions)" },
-];
+/** Same list as buyer onboarding geography step. */
+export const OPERATING_REGIONS_OPTIONS: OptionItem[] = BUYER_OPERATING_REGIONS.map(
+  (opt) => ({ label: opt.label, value: opt.value }),
+);
 
 export const OWNING_DEPARTMENT_OPTIONS: OptionItem[] = [
   { label: "Customer Service", value: "Customer Service" },
@@ -108,7 +65,7 @@ export const BUDGET_RANGE_OPTIONS: OptionItem[] = [
   { label: "$1M - $5M", value: "$1M - $5M" },
   { label: "$5M - $10M", value: "$5M - $10M" },
   { label: "Over $10M", value: "Over $10M" },
-  { label: "Not Yet Determined", value: "Not Yet Determined" },
+  { label: "Not known - estimate only", value: "Not known - estimate only" },
 ];
 
 export const TARGET_TIMELINE_OPTIONS: OptionItem[] = [
@@ -118,7 +75,7 @@ export const TARGET_TIMELINE_OPTIONS: OptionItem[] = [
   { label: "6-12 months", value: "6-12 months" },
   { label: "12-18 months", value: "12-18 months" },
   { label: "18+ months", value: "18+ months" },
-  { label: "Exploratory/No Specific Timeline", value: "Exploratory/No Specific Timeline" },
+  { label: "Not yet determined", value: "Not yet determined" },
 ];
 
 export const CRITICALITY_OPTIONS: OptionItem[] = [
@@ -193,6 +150,11 @@ export const YES_NO_OPTIONS: OptionItem[] = [
   { label: "Not Sure", value: "Not Sure" },
 ];
 
+export const BINARY_YES_NO_OPTIONS: OptionItem[] = [
+  { label: "Yes", value: "Yes" },
+  { label: "No", value: "No" },
+];
+
 export const IMPLEMENTATION_TEAM_OPTIONS: OptionItem[] = [
   { label: "Executive Sponsor", value: "Executive Sponsor" },
   { label: "Project Manager", value: "Project Manager" },
@@ -231,6 +193,9 @@ export const REGULATORY_OPTIONS: OptionItem[] = [
   { label: "ISO 27001 (Information Security)", value: "ISO 27001 (Information Security)" },
   { label: "SOC 2 (Service Organization Controls)", value: "SOC 2 (Service Organization Controls)" },
   { label: "NIST AI RMF (AI Risk Management)", value: "NIST AI RMF (AI Risk Management)" },
+  { label: "EU AI Act", value: "EU AI Act" },
+  { label: "Colorado AI Act", value: "Colorado AI Act" },
+  { label: "NYC Local Law 144", value: "NYC Local Law 144" },
   { label: "None/Not Applicable", value: "None/Not Applicable" },
   { label: "Other (Specify in Notes)", value: "Other (Specify in Notes)" },
 ];
@@ -340,3 +305,293 @@ export const VENDOR_TESTING_RESULTS: OptionItem[] = [
   { label: "No - No testing results provided", value: "No - No testing results provided" },
   { label: "Unknown - Not yet requested", value: "Unknown - Not yet requested" },
 ];
+
+export const USE_CASE_TYPE_OPTIONS: OptionItem[] = [
+  { label: "Draft or generate content", value: "Draft or generate content" },
+  { label: "Summarise documents", value: "Summarise documents" },
+  { label: "Answer questions from internal knowledge", value: "Answer questions from internal knowledge" },
+  { label: "Write or review code", value: "Write or review code" },
+  { label: "Classify or route items", value: "Classify or route items" },
+  { label: "Extract data from documents", value: "Extract data from documents" },
+  { label: "Recommend an action to a person", value: "Recommend an action to a person" },
+  { label: "Take an action automatically", value: "Take an action automatically" },
+  { label: "Translate", value: "Translate" },
+  { label: "Transcribe", value: "Transcribe" },
+];
+
+export const USERS_IN_SCOPE_OPTIONS: OptionItem[] = [
+  { label: "1-10 (pilot)", value: "1-10 (pilot)" },
+  { label: "11-50", value: "11-50" },
+  { label: "51-250", value: "51-250" },
+  { label: "251-1,000", value: "251-1,000" },
+  { label: "1,001-5,000", value: "1,001-5,000" },
+  { label: "5,000+", value: "5,000+" },
+];
+
+export const CURRENT_USAGE_STATE_OPTIONS: OptionItem[] = [
+  { label: "Not in use - manual process today", value: "Not in use - manual process today" },
+  { label: "Not in use - a different tool is in place", value: "Not in use - a different tool is in place" },
+  { label: "Trial or POC in progress", value: "Trial or POC in progress" },
+  { label: "In unsanctioned use by some teams", value: "In unsanctioned use by some teams" },
+  { label: "Officially in use, expanding", value: "Officially in use, expanding" },
+];
+
+export const PILOT_STATUS_OPTIONS: OptionItem[] = [
+  { label: "Not planned", value: "Not planned" },
+  { label: "Planned, not started", value: "Planned, not started" },
+  { label: "In progress", value: "In progress" },
+  { label: "Completed - met criteria", value: "Completed - met criteria" },
+  { label: "Completed - mixed", value: "Completed - mixed" },
+  { label: "Completed - did not meet criteria", value: "Completed - did not meet criteria" },
+];
+
+export const ACCOUNTABLE_OWNER_ROLE_OPTIONS: OptionItem[] = [
+  { label: "Business owner", value: "Business owner" },
+  { label: "Product owner", value: "Product owner" },
+  { label: "IT / engineering owner", value: "IT / engineering owner" },
+  { label: "Risk / compliance owner", value: "Risk / compliance owner" },
+  { label: "Executive sponsor", value: "Executive sponsor" },
+  { label: "Other", value: "Other" },
+];
+
+export const DATA_CLASS_OPTIONS: OptionItem[] = [
+  { label: "Public content", value: "Public content" },
+  { label: "Internal business documents", value: "Internal business documents" },
+  { label: "Source code", value: "Source code" },
+  { label: "Customer PII", value: "Customer PII" },
+  { label: "Financial account data", value: "Financial account data" },
+  { label: "Payment card data", value: "Payment card data" },
+  { label: "Health information", value: "Health information" },
+  { label: "Employee HR records", value: "Employee HR records" },
+  { label: "Government identifiers", value: "Government identifiers" },
+  { label: "Children's data", value: "Children's data" },
+  { label: "Biometric data", value: "Biometric data" },
+  { label: "None of the above", value: "None of the above" },
+];
+
+export const DATA_SUBJECT_JURISDICTION_OPTIONS: OptionItem[] = [
+  { label: "US", value: "US" },
+  { label: "EU/EEA", value: "EU/EEA" },
+  { label: "UK", value: "UK" },
+  { label: "Canada", value: "Canada" },
+  { label: "Japan", value: "Japan" },
+  { label: "China", value: "China" },
+  { label: "Australia", value: "Australia" },
+  { label: "Brazil", value: "Brazil" },
+  { label: "India", value: "India" },
+  { label: "Other", value: "Other" },
+  { label: "No personal data", value: "No personal data" },
+];
+
+export const DECISION_DOMAIN_OPTIONS: OptionItem[] = [
+  { label: "Hiring or promotion", value: "Hiring or promotion" },
+  { label: "Credit or lending", value: "Credit or lending" },
+  { label: "Insurance pricing or claims", value: "Insurance pricing or claims" },
+  { label: "Medical or clinical", value: "Medical or clinical" },
+  { label: "Education or admissions", value: "Education or admissions" },
+  { label: "Benefits or eligibility", value: "Benefits or eligibility" },
+  { label: "Performance management", value: "Performance management" },
+  { label: "Law enforcement or immigration", value: "Law enforcement or immigration" },
+  { label: "Affects vulnerable populations", value: "Affects vulnerable populations" },
+  { label: "None of these", value: "None of these" },
+];
+
+export const OUTPUT_EXPOSURE_OPTIONS: OptionItem[] = [
+  { label: "Internal only", value: "Internal only" },
+  { label: "Internal, may be quoted externally", value: "Internal, may be quoted externally" },
+  { label: "Customer-facing with human review", value: "Customer-facing with human review" },
+  { label: "Customer-facing published directly", value: "Customer-facing published directly" },
+];
+
+export const RETENTION_REQUIREMENT_OPTIONS: OptionItem[] = [
+  { label: "30 days", value: "30 days" },
+  { label: "90 days", value: "90 days" },
+  { label: "1 year", value: "1 year" },
+  { label: "3 years", value: "3 years" },
+  { label: "7 years or longer", value: "7 years or longer" },
+  { label: "Not yet determined", value: "Not yet determined" },
+];
+
+export const TRAINING_USE_OF_DATA_OPTIONS: OptionItem[] = [
+  { label: "No - contractually excluded", value: "No - contractually excluded" },
+  { label: "No - default setting only", value: "No - default setting only" },
+  { label: "Yes - with our consent", value: "Yes - with our consent" },
+  { label: "Not yet established", value: "Not yet established" },
+];
+
+export const HUMAN_REVIEW_LEVEL_OPTIONS: OptionItem[] = [
+  { label: "Always - reviewed by domain experts", value: "Always - reviewed by domain experts" },
+  { label: "Always - reviewed by trained users", value: "Always - reviewed by trained users" },
+  { label: "Sampled - a defined percentage", value: "Sampled - a defined percentage" },
+  { label: "Exception-based - only flagged items", value: "Exception-based - only flagged items" },
+  { label: "No review - used directly", value: "No review - used directly" },
+];
+
+export const AI_DISCLOSURE_OPTIONS: OptionItem[] = [
+  { label: "Always disclosed", value: "Always disclosed" },
+  { label: "Disclosed when asked", value: "Disclosed when asked" },
+  { label: "Not disclosed", value: "Not disclosed" },
+  { label: "Not yet decided", value: "Not yet decided" },
+];
+
+export const DEPLOYMENT_MODEL_OPTIONS: OptionItem[] = [
+  { label: "Vendor-hosted SaaS is acceptable", value: "Vendor-hosted SaaS is acceptable" },
+  { label: "Single-tenant hosted required", value: "Single-tenant hosted required" },
+  { label: "Private cloud / VPC required", value: "Private cloud / VPC required" },
+  { label: "On-premise required", value: "On-premise required" },
+  { label: "Not yet determined", value: "Not yet determined" },
+];
+
+export const CLOUD_PROVIDER_OPTIONS: OptionItem[] = [
+  { label: "AWS", value: "AWS" },
+  { label: "Azure", value: "Azure" },
+  { label: "Google Cloud", value: "Google Cloud" },
+  { label: "Other", value: "Other" },
+  { label: "Predominantly on-premise", value: "Predominantly on-premise" },
+  { label: "Not known", value: "Not known" },
+];
+
+export const INTEGRATION_ACCESS_LEVEL_OPTIONS: OptionItem[] = [
+  { label: "Read-only", value: "Read-only" },
+  { label: "Read + write", value: "Read + write" },
+  { label: "Read + write + delete", value: "Read + write + delete" },
+  { label: "Admin", value: "Admin" },
+];
+
+export const IMPLEMENTATION_CAPACITY_OPTIONS: OptionItem[] = [
+  { label: "Dedicated team assigned", value: "Dedicated team assigned" },
+  { label: "Named owner, part-time", value: "Named owner, part-time" },
+  { label: "Shared with existing workload, no owner", value: "Shared with existing workload, no owner" },
+  { label: "No one assigned yet", value: "No one assigned yet" },
+];
+
+export const TRAINING_EFFORT_OPTIONS: OptionItem[] = [
+  { label: "None - self-service", value: "None - self-service" },
+  { label: "Under 1 hour per user", value: "Under 1 hour per user" },
+  { label: "1-4 hours", value: "1-4 hours" },
+  { label: "Formal multi-day programme", value: "Formal multi-day programme" },
+];
+
+export const VENDOR_EVIDENCE_OPTIONS: OptionItem[] = [
+  { label: "SOC 2 Type 1", value: "SOC 2 Type 1" },
+  { label: "SOC 2 Type 2", value: "SOC 2 Type 2" },
+  { label: "ISO 27001", value: "ISO 27001" },
+  { label: "ISO 42001 (AI Management)", value: "ISO 42001 (AI Management)" },
+  { label: "HITRUST", value: "HITRUST" },
+  { label: "FedRAMP", value: "FedRAMP" },
+  { label: "PCI DSS", value: "PCI DSS" },
+  { label: "Nothing yet", value: "Nothing yet" },
+];
+
+export const DATA_EXPORT_CAPABILITY_OPTIONS: OptionItem[] = [
+  { label: "Yes - full export in standard formats", value: "Yes - full export in standard formats" },
+  { label: "Yes - limited or vendor-specific formats", value: "Yes - limited or vendor-specific formats" },
+  { label: "No - data cannot be exported", value: "No - data cannot be exported" },
+  { label: "Not yet established", value: "Not yet established" },
+];
+
+export const UNAVAILABILITY_IMPACT_OPTIONS: OptionItem[] = [
+  { label: "Work stops - no manual alternative", value: "Work stops - no manual alternative" },
+  { label: "Work degrades - a slow manual workaround exists", value: "Work degrades - a slow manual workaround exists" },
+  { label: "Work continues - the manual process is still in place", value: "Work continues - the manual process is still in place" },
+  { label: "Additive only - nothing depends on it yet", value: "Additive only - nothing depends on it yet" },
+];
+
+export const CONTRACTS_IN_PLACE_OPTIONS: OptionItem[] = [
+  { label: "MSA", value: "MSA" },
+  { label: "DPA", value: "DPA" },
+  { label: "BAA", value: "BAA" },
+  { label: "NDA only", value: "NDA only" },
+  { label: "Nothing signed yet", value: "Nothing signed yet" },
+];
+
+export const CONTRACT_NOTICE_PERIOD_OPTIONS: OptionItem[] = [
+  { label: "Monthly", value: "Monthly" },
+  { label: "30 days", value: "30 days" },
+  { label: "90 days", value: "90 days" },
+  { label: "Annual commitment", value: "Annual commitment" },
+  { label: "Multi-year commitment", value: "Multi-year commitment" },
+  { label: "Not yet negotiated", value: "Not yet negotiated" },
+];
+
+export const ASSESSOR_ROLE_OPTIONS: OptionItem[] = [
+  { label: "Business owner", value: "Business owner" },
+  { label: "Security reviewer", value: "Security reviewer" },
+  { label: "Risk / compliance", value: "Risk / compliance" },
+  { label: "IT / engineering", value: "IT / engineering" },
+  { label: "Procurement", value: "Procurement" },
+  { label: "Other", value: "Other" },
+];
+
+export const ANSWER_CONFIDENCE_OPTIONS: OptionItem[] = [
+  { label: "High - verified from source systems and documents", value: "High - verified from source systems and documents" },
+  { label: "Medium - partly verified", value: "Medium - partly verified" },
+  { label: "Low - best estimate", value: "Low - best estimate" },
+];
+
+export const CONFIRM_DISPUTE_OPTIONS: OptionItem[] = [
+  { label: "Confirm", value: "Confirm" },
+  { label: "Dispute", value: "Dispute" },
+];
+
+const OPTION_MAP: Record<string, OptionItem[]> = {
+  industrySector: INDUSTRY_SECTOR_OPTIONS,
+  employeeCount: EMPLOYEE_COUNT_OPTIONS,
+  operatingRegions: OPERATING_REGIONS_OPTIONS,
+  owningDepartment: OWNING_DEPARTMENT_OPTIONS,
+  budgetRange: BUDGET_RANGE_OPTIONS,
+  targetTimeline: TARGET_TIMELINE_OPTIONS,
+  integrationSystems: INTEGRATION_SYSTEMS_OPTIONS,
+  riskAppetite: RISK_APPETITE_OPTIONS,
+  decisionStakes: DECISION_STAKES_OPTIONS,
+  dataSensitivity: DATA_SENSITIVITY_OPTIONS,
+  regulatoryRequirements: REGULATORY_OPTIONS,
+  monitoringDataAvailable: MONITORING_AVAILABILITY_OPTIONS,
+  auditLogsAvailable: AUDIT_LOGS_AVAILABLE,
+  useCaseTypes: USE_CASE_TYPE_OPTIONS,
+  usersInScope: USERS_IN_SCOPE_OPTIONS,
+  currentUsageState: CURRENT_USAGE_STATE_OPTIONS,
+  pilotStatus: PILOT_STATUS_OPTIONS,
+  accountableOwnerRole: ACCOUNTABLE_OWNER_ROLE_OPTIONS,
+  dataClasses: DATA_CLASS_OPTIONS,
+  dataSubjectJurisdictions: DATA_SUBJECT_JURISDICTION_OPTIONS,
+  decisionDomains: DECISION_DOMAIN_OPTIONS,
+  outputExposure: OUTPUT_EXPOSURE_OPTIONS,
+  retentionRequirement: RETENTION_REQUIREMENT_OPTIONS,
+  trainingUseOfData: TRAINING_USE_OF_DATA_OPTIONS,
+  humanReviewLevel: HUMAN_REVIEW_LEVEL_OPTIONS,
+  aiDisclosure: AI_DISCLOSURE_OPTIONS,
+  deploymentModel: DEPLOYMENT_MODEL_OPTIONS,
+  cloudProvider: CLOUD_PROVIDER_OPTIONS,
+  integrationAccessLevel: INTEGRATION_ACCESS_LEVEL_OPTIONS,
+  implementationCapacity: IMPLEMENTATION_CAPACITY_OPTIONS,
+  trainingEffort: TRAINING_EFFORT_OPTIONS,
+  vendorEvidenceReceived: VENDOR_EVIDENCE_OPTIONS,
+  dataExportCapability: DATA_EXPORT_CAPABILITY_OPTIONS,
+  unavailabilityImpact: UNAVAILABILITY_IMPACT_OPTIONS,
+  contractsInPlace: CONTRACTS_IN_PLACE_OPTIONS,
+  contractNoticePeriod: CONTRACT_NOTICE_PERIOD_OPTIONS,
+  assessorRole: ASSESSOR_ROLE_OPTIONS,
+  answerConfidence: ANSWER_CONFIDENCE_OPTIONS,
+};
+
+export const BUYER_COTS_EXCLUSIVE_VALUES: Record<string, string> = {
+  operatingRegions: "Global",
+  dataClasses: "None of the above",
+  dataSubjectJurisdictions: "No personal data",
+  decisionDomains: "None of these",
+  cloudProvider: "Not known",
+  vendorEvidenceReceived: "Nothing yet",
+  contractsInPlace: "Nothing signed yet",
+  regulatoryRequirements: "None/Not Applicable",
+};
+
+export function getBuyerCotsFieldOptions(optionsKey?: string): OptionItem[] {
+  if (!optionsKey) return [];
+  return OPTION_MAP[optionsKey] ?? [];
+}
+
+export function getBuyerCotsExclusiveValue(optionsKey?: string): string | undefined {
+  if (!optionsKey) return undefined;
+  return BUYER_COTS_EXCLUSIVE_VALUES[optionsKey];
+}

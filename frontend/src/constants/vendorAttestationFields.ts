@@ -28,22 +28,33 @@ export const ATTESTATION_SECTION_FIELDS: Record<string, (AttestationFieldMapping
     { key: "model_transparency", type: "string" },
     { key: "decision_autonomy", type: "string" },
     { key: "documented_ai_governance_policy", type: "string" },
+    { key: "ai_ethics_governance_maturity", type: "string" },
   ],
   compliance_certifications: [
     null, // security_certifications — section commented out
     { key: "assessment_completion_level", type: "string" },
     { key: "audit_frequency", type: "string" },
+    { key: "hipaa_baa", type: "array" },
+    null, // trust_centre_url — commented out
+    { key: "dpa_available", type: "string" },
   ],
   data_handling_privacy: [
     { key: "pii_handling", type: "string" },
     { key: "data_residency_options", type: "array" },
     { key: "data_retention_policy", type: "string" },
+    { key: "privacy_programme_scope", type: "string" },
+    { key: "typical_data_volume", type: "string" },
+    { key: "tls_in_transit", type: "string" },
   ],
   ai_safety_testing: [
     { key: "bias_testing_approach", type: "array" },
     { key: "adversarial_security_testing", type: "string" },
     { key: "human_oversight", type: "array" },
     { key: "training_data_documentation", type: "string" },
+    { key: "independent_pen_test_frequency", type: "string" },
+  ],
+  vendor_management: [
+    null, // sub_processors — custom repeater
   ],
   operations_reliability: [
     { key: "uptime_sla", type: "string" },
@@ -51,11 +62,20 @@ export const ATTESTATION_SECTION_FIELDS: Record<string, (AttestationFieldMapping
     { key: "change_management", type: "string" },
     { key: "incident_response_plan", type: "string" },
     { key: "rollback_capability", type: "string" },
+    { key: "production_model_monitoring", type: "string" },
+    { key: "critical_incident_response_target", type: "string" },
+    { key: "critical_incident_resolution_target", type: "string" },
+    { key: "ir_plan_test_frequency", type: "string" },
+    { key: "incident_customer_communication", type: "string" },
+    { key: "support_coverage", type: "string" },
+    { key: "account_management", type: "string" },
   ],
   deployment_architecture: [
     { key: "hosting_deployment", type: "array" },
     { key: "deployment_scale", type: "string" },
     { key: "product_stage", type: "string" },
+    { key: "deployment_customization", type: "string" },
+    { key: "integration_complexity", type: "string" },
   ],
   evidence_supporting_documentation: [
     null, // index 0 = document upload (no text field)

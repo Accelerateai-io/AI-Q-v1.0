@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import ProductProfileView from "../ProductProfile/ProductProfileView";
 import LoadingMessage from "../../UI/LoadingMessage";
 import { buildFormStateFromApi } from "../../../utils/vendorAttestationState";
 import { buildVendorDataFromFormState } from "../../../utils/buildVendorDataFromFormState";
 import type { VendorSelfAttestationFormState } from "../../../types/vendorSelfAttestation";
 import type { GeneratedProductProfileReport } from "../../../types/generatedProductProfile";
+import { apiErrorMessage } from "../../../utils/tokenQuotaError";
 import "../ProductProfile/product_profile.css";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
@@ -39,6 +40,8 @@ export interface ProductProfileProduct {
   userArchivedAt?: string | null;
   /** Generated product profile report (trust score + sections) after attestation submit. */
   generated_profile_report?: { trustScore: unknown; sections: unknown[] };
+  /** Denormalized VTS from attestation (fallback when report JSON is incomplete). */
+  latest_trust_score?: number | null;
   /** Product target sectors (public_sector, private_sector, non_profit_sector) for display. */
   sector?: string | Record<string, unknown> | null;
 }
@@ -65,9 +68,10 @@ export const DirectoryListing = () => {
   const [formState, setFormState] = useState<VendorSelfAttestationFormState | null>(null);
   const [products, setProducts] = useState<ProductProfileProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [publicListing, setPublicListing] = useState(false);
-  const [publicListingUpdating, setPublicListingUpdating] = useState(false);
-  const [publicListingError, setPublicListingError] = useState<string | null>(null);
+  // Public Directory Listing disabled — visibility is per-product via "Visible to buyers"
+  // const [publicListing, setPublicListing] = useState(false);
+  // const [publicListingUpdating, setPublicListingUpdating] = useState(false);
+  // const [publicListingError, setPublicListingError] = useState<string | null>(null);
   const [generatedReport, setGeneratedReport] = useState<GeneratedProductProfileReport | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -81,28 +85,29 @@ export const DirectoryListing = () => {
   /** Product list tab: current (non-expired attestation) vs archived (expired attestation) */
   const [productTab, setProductTab] = useState<"current" | "archived">("current");
 
-  const fetchVendorPublicListing = useCallback(async () => {
-    const token = sessionStorage.getItem("bearerToken");
-    if (!token) return;
-    try {
-      const res = await fetch(`${BASE_URL}/vendorOnboarding`, {
-        method: "GET",
-        credentials: "include",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const text = await res.text();
-      let data: { data?: { publicDirectoryListing?: boolean }; success?: boolean } = {};
-      try {
-        if (text) data = JSON.parse(text);
-      } catch {
-        setPublicListing(false);
-        return;
-      }
-      setPublicListing(Boolean(res.ok && data?.data?.publicDirectoryListing === true));
-    } catch {
-      setPublicListing(false);
-    }
-  }, []);
+  // Public Directory Listing disabled — visibility is per-product via "Visible to buyers"
+  // const fetchVendorPublicListing = useCallback(async () => {
+  //   const token = sessionStorage.getItem("bearerToken");
+  //   if (!token) return;
+  //   try {
+  //     const res = await fetch(`${BASE_URL}/vendorOnboarding`, {
+  //       method: "GET",
+  //       credentials: "include",
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     const text = await res.text();
+  //     let data: { data?: { publicDirectoryListing?: boolean }; success?: boolean } = {};
+  //     try {
+  //       if (text) data = JSON.parse(text);
+  //     } catch {
+  //       setPublicListing(false);
+  //       return;
+  //     }
+  //     setPublicListing(Boolean(res.ok && data?.data?.publicDirectoryListing === true));
+  //   } catch {
+  //     setPublicListing(false);
+  //   }
+  // }, []);
 
   const fetchGeneratedReports = useCallback(async () => {
     const token = sessionStorage.getItem("bearerToken");
@@ -154,8 +159,8 @@ export const DirectoryListing = () => {
       const text = await response.text();
       let result: {
         success?: boolean;
-        attestation?: { id?: string; status?: string; product_name?: string; created_at?: string; updated_at?: string; visible_to_buyer?: boolean; expiry_at?: string | null; generated_profile_report?: unknown; sector?: unknown };
-        attestations?: { id?: string; status?: string; product_name?: string; created_at?: string; updated_at?: string; visible_to_buyer?: boolean; expiry_at?: string | null; generated_profile_report?: unknown; sector?: unknown; userArchivedAt?: string | null }[];
+        attestation?: { id?: string; status?: string; product_name?: string; created_at?: string; updated_at?: string; visible_to_buyer?: boolean; expiry_at?: string | null; generated_profile_report?: unknown; latest_trust_score?: number | null; sector?: unknown };
+        attestations?: { id?: string; status?: string; product_name?: string; created_at?: string; updated_at?: string; visible_to_buyer?: boolean; expiry_at?: string | null; generated_profile_report?: unknown; latest_trust_score?: number | null; sector?: unknown; userArchivedAt?: string | null }[];
         companyProfile?: Record<string, unknown>;
         message?: string;
       } = {};
@@ -185,6 +190,7 @@ export const DirectoryListing = () => {
       const productList: ProductProfileProduct[] = sorted
         .filter((a): a is typeof a & { id: string } => !!a?.id)
         .map((a) => {
+          const rec = a as Record<string, unknown>;
           const apiStatus = (a.status ?? "").toUpperCase();
           const status: ProductProfileProduct["status"] =
             apiStatus === "COMPLETED" || apiStatus === "EXPIRED"
@@ -193,6 +199,29 @@ export const DirectoryListing = () => {
                 ? "Rejected"
                 : "Draft";
           const productName = (a.product_name ?? "").trim() || "Draft";
+          let report = a.generated_profile_report as unknown;
+          if (typeof report === "string") {
+            try {
+              report = JSON.parse(report);
+            } catch {
+              report = undefined;
+            }
+          }
+          let latestTrust =
+            a.latest_trust_score != null && Number.isFinite(Number(a.latest_trust_score))
+              ? Number(a.latest_trust_score)
+              : null;
+          if ((latestTrust == null || latestTrust <= 0) && report != null && typeof report === "object") {
+            const ts = (report as Record<string, unknown>).trustScore ??
+              (report as Record<string, unknown>).trust_score;
+            if (ts != null && typeof ts === "object") {
+              const overall =
+                (ts as Record<string, unknown>).overallScore ??
+                (ts as Record<string, unknown>).overall_score;
+              const n = Number(overall);
+              if (Number.isFinite(n) && n > 0) latestTrust = Math.round(n);
+            }
+          }
           return {
             id: a.id,
             productName,
@@ -201,12 +230,15 @@ export const DirectoryListing = () => {
             visibleToBuyer: a.visible_to_buyer === true,
             attestationExpiryAt: a.expiry_at ?? null,
             userArchivedAt:
-              a.userArchivedAt != null && String(a.userArchivedAt).trim() !== ""
-                ? String(a.userArchivedAt)
-                : null,
-            generated_profile_report: a.generated_profile_report,
+              rec.userArchivedAt != null && String(rec.userArchivedAt).trim() !== ""
+                ? String(rec.userArchivedAt)
+                : rec.user_archived_at != null && String(rec.user_archived_at).trim() !== ""
+                  ? String(rec.user_archived_at)
+                  : null,
+            generated_profile_report: report as ProductProfileProduct["generated_profile_report"],
+            latest_trust_score: latestTrust,
             sector: a.sector ?? undefined,
-          };
+          } as ProductProfileProduct;
         })
         .filter((p) => p.status !== "Draft");
       setProducts(productList);
@@ -268,51 +300,52 @@ export const DirectoryListing = () => {
     }
   }, []);
 
-  const handlePublicListingToggle = useCallback(async () => {
-    const token = sessionStorage.getItem("bearerToken");
-    if (!token) {
-      setPublicListingError("Please log in to change this setting.");
-      return;
-    }
-    const next = !publicListing;
-    setPublicListingError(null);
-    setPublicListingUpdating(true);
-    try {
-      const res = await fetch(`${BASE_URL}/vendorOnboarding/public-directory-listing`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ enabled: next }),
-      });
-      const text = await res.text();
-      let data: { success?: boolean; message?: string } = {};
-      try {
-        if (text) data = JSON.parse(text);
-      } catch {
-        setPublicListingError(res.ok ? "Invalid response from server." : "Could not update. Try again.");
-        setPublicListingUpdating(false);
-        return;
-      }
-      if (res.ok && data?.success) {
-        setPublicListing(next);
-      } else {
-        const message =
-          res.status === 404
-            ? "Complete vendor onboarding first to enable Public Directory Listing."
-            : res.status === 401
-              ? "Session expired. Please log in again."
-              : (data?.message as string) || "Could not update. Try again.";
-        setPublicListingError(message);
-      }
-    } catch {
-      setPublicListingError("Network error. Check that the server is running and try again.");
-    } finally {
-      setPublicListingUpdating(false);
-    }
-  }, [publicListing]);
+  // Public Directory Listing disabled — visibility is per-product via "Visible to buyers"
+  // const handlePublicListingToggle = useCallback(async () => {
+  //   const token = sessionStorage.getItem("bearerToken");
+  //   if (!token) {
+  //     setPublicListingError("Please log in to change this setting.");
+  //     return;
+  //   }
+  //   const next = !publicListing;
+  //   setPublicListingError(null);
+  //   setPublicListingUpdating(true);
+  //   try {
+  //     const res = await fetch(`${BASE_URL}/vendorOnboarding/public-directory-listing`, {
+  //       method: "PATCH",
+  //       credentials: "include",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify({ enabled: next }),
+  //     });
+  //     const text = await res.text();
+  //     let data: { success?: boolean; message?: string } = {};
+  //     try {
+  //       if (text) data = JSON.parse(text);
+  //     } catch {
+  //       setPublicListingError(res.ok ? "Invalid response from server." : "Could not update. Try again.");
+  //       setPublicListingUpdating(false);
+  //       return;
+  //     }
+  //     if (res.ok && data?.success) {
+  //       setPublicListing(next);
+  //     } else {
+  //       const message =
+  //         res.status === 404
+  //           ? "Complete vendor onboarding first to enable Public Directory Listing."
+  //           : res.status === 401
+  //             ? "Session expired. Please log in again."
+  //             : (data?.message as string) || "Could not update. Try again.";
+  //       setPublicListingError(message);
+  //     }
+  //   } catch {
+  //     setPublicListingError("Network error. Check that the server is running and try again.");
+  //   } finally {
+  //     setPublicListingUpdating(false);
+  //   }
+  // }, [publicListing]);
 
   const handleUseAttestationData = useCallback(() => {
     setGenerateError(null);
@@ -351,7 +384,7 @@ export const DirectoryListing = () => {
         setSelectedStoredReportId(null);
         fetchGeneratedReports();
       } else {
-        setGenerateError((data?.message as string) || "Failed to generate profile.");
+        setGenerateError(apiErrorMessage(data, "Failed to generate profile."));
       }
     } catch {
       setGenerateError("Network error. Try again.");
@@ -420,9 +453,9 @@ export const DirectoryListing = () => {
 
   useEffect(() => {
     fetchProductProfileData();
-    fetchVendorPublicListing();
+    // fetchVendorPublicListing(); // Public Directory Listing disabled
     fetchGeneratedReports();
-  }, [fetchProductProfileData, fetchVendorPublicListing, fetchGeneratedReports]);
+  }, [fetchProductProfileData, fetchGeneratedReports]);
 
   /** Refetch products after a short delay so that when user lands from attestation submit,
    *  we pick up the newly generated profile and the average trust score updates without refresh. */
@@ -454,13 +487,65 @@ export const DirectoryListing = () => {
     };
   }, []);
 
+  /** Fill missing card scores from generated-reports list (by attestation id). */
+  const productsWithScores = useMemo(() => {
+    if (!storedReports.length) return products;
+    return products.map((p) => {
+      if (p.latest_trust_score != null && Number.isFinite(p.latest_trust_score) && p.latest_trust_score > 0) {
+        return p;
+      }
+      const fromReport =
+        p.generated_profile_report != null &&
+        typeof p.generated_profile_report === "object"
+          ? (() => {
+              const ts =
+                (p.generated_profile_report as Record<string, unknown>).trustScore ??
+                (p.generated_profile_report as Record<string, unknown>).trust_score;
+              if (ts != null && typeof ts === "object") {
+                const n = Number(
+                  (ts as Record<string, unknown>).overallScore ??
+                    (ts as Record<string, unknown>).overall_score,
+                );
+                return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+              }
+              return null;
+            })()
+          : null;
+      if (fromReport != null) {
+        return { ...p, latest_trust_score: fromReport };
+      }
+      const stored = storedReports.find(
+        (r) => r.attestationId != null && String(r.attestationId) === String(p.id),
+      );
+      if (!stored) return p;
+      const storedScore = Number(stored.trustScore);
+      if (Number.isFinite(storedScore) && storedScore > 0) {
+        return {
+          ...p,
+          latest_trust_score: Math.round(storedScore),
+          generated_profile_report:
+            p.generated_profile_report ??
+            (stored.report as ProductProfileProduct["generated_profile_report"]),
+        };
+      }
+      return p;
+    });
+  }, [products, storedReports]);
+
+  const reportToShow = generatedReport ?? selectedStoredReport;
+
   if (loading) {
-    return <LoadingMessage message="Loading product profile…" />;
+    return (
+      <LoadingMessage
+        message="Loading product profile…"
+        className="loading_message_wrapper--page product_profile_page_loader"
+      />
+    );
   }
 
   if (sessionExpired) {
     return (
-      <div className="sec_user_page attestation_page org_settings_page product_profile_page" style={{ padding: "2rem" }}>
+      <div className="sec_user_page attestation_page org_settings_page product_profile_page" style={{ padding: "1.5rem 1rem 0 0" }}>
         <div
           className="product_profile_detail_card"
           style={{ maxWidth: "28rem", margin: "2rem auto", textAlign: "center" }}
@@ -483,19 +568,14 @@ export const DirectoryListing = () => {
     );
   }
 
-  const reportToShow = generatedReport ?? selectedStoredReport;
-
   return (
     <ProductProfileView
       formState={formState}
-      products={products}
+      products={productsWithScores}
       productTab={productTab}
       onProductTabChange={setProductTab}
       fetchProductDetail={fetchProductDetail}
-      publicListing={publicListing}
-      onPublicListingToggle={viewOnly ? undefined : handlePublicListingToggle}
-      publicListingUpdating={publicListingUpdating}
-      publicListingError={publicListingError}
+      // Public Directory Listing disabled — visibility is per-product via "Visible to buyers"
       onProductVisibilityToggle={viewOnly ? undefined : handleProductVisibilityToggle}
       onSectionVisibilityChange={viewOnly ? undefined : handleSectionVisibilityChange}
       generatedReport={reportToShow}

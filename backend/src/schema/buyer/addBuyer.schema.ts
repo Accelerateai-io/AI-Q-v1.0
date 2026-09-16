@@ -5,6 +5,7 @@ import {
   timestamp,
   integer,
   jsonb,
+  text,
 } from "drizzle-orm/pg-core";
 
 // Table: buyer_onboarding (SQL). camelCase keys for .values(), first arg = DB column.
@@ -15,10 +16,10 @@ export const buyerOnboarding = pgTable("buyer_onboarding", {
   organizationId: varchar("organization_id", { length: 255 }).notNull().unique(),
   organizationName: varchar("organization_name", { length: 200 }).notNull(),
   organizationType: varchar("organization_type", { length: 100 }),
-  sector: varchar("sector", { length: 500 }),
+  sector: text("sector"),
   organizationWebsite: varchar("organization_website", { length: 500 }),
   organizationDescription: varchar("organization_description", { length: 500 }),
-  primaryContactName: varchar("primary_contact_name", { length: 100 }).notNull(),
+  primaryContactName: varchar("primary_contact_name", { length: 200 }).notNull(),
   primaryContactEmail: varchar("primary_contact_email", { length: 255 }).notNull(),
   primaryContactRole: varchar("primary_contact_role", { length: 100 }),
   departmentOwner: varchar("department_owner", { length: 100 }),

@@ -2,9 +2,10 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Select from "../../UI/Select";
-import { CircleX, Loader2 } from "lucide-react";
+import { CircleX } from "lucide-react";
 import Modal from "../../UI/Modal";
 import LoadingMessage from "../../UI/LoadingMessage";
+import SubmitProgressOverlay from "../../UI/SubmitProgressOverlay";
 import './general_reports.css'
 import GeneralReportsTypesPopup, {
   REPORT_TYPE_ERROR,
@@ -12,7 +13,7 @@ import GeneralReportsTypesPopup, {
 import Button from "../../UI/Button";
 import GeneralReportsCards from "./GeneralReportsCards";
 import { ReportsPagination } from "./ReportsPagination";
-import "../VendorAttestations/vendor_attestation_preview.css";
+import { apiErrorMessage } from "../../../utils/tokenQuotaError";
 
 const BASE_URL =
   import.meta.env.VITE_BASE_URL ?? "http://localhost:5003/api/v1";
@@ -79,6 +80,8 @@ export interface GeneratedReportItem {
   generatedAt: string;
   /** Markdown for most types; JSON string or object for Vendor Comparison Matrix. */
   briefContent?: string | Record<string, unknown>;
+  /** Bedrock / Controls model id used when this report was generated. */
+  llmModelId?: string | null;
   /** When in the past, report is archived (assessment expired). */
   expiryAt?: string | null;
   /** When in the past, report is archived (linked attestation expired). */
@@ -306,6 +309,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
               reportType: string;
               generatedAt: string;
               briefContent?: string;
+              llmModelId?: string | null;
               expiryAt?: string | null;
               attestationExpiryAt?: string | null;
               assessmentUserArchivedAt?: string | null;
@@ -316,6 +320,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
               reportType: r.reportType,
               generatedAt: r.generatedAt,
               briefContent: r.briefContent,
+              llmModelId: r.llmModelId ?? null,
               expiryAt: r.expiryAt ?? null,
               attestationExpiryAt: r.attestationExpiryAt ?? null,
               assessmentUserArchivedAt: r.assessmentUserArchivedAt ?? null,
@@ -534,10 +539,11 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
-          setBriefError(data?.message ?? "Failed to generate Executive Stakeholder Brief.");
+          setBriefError(apiErrorMessage(data, "Failed to generate Executive Stakeholder Brief."));
         }
       } catch {
         setBriefError("Failed to generate Executive Stakeholder Brief. Please try again.");
@@ -589,6 +595,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
@@ -600,7 +607,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             setAlreadyGeneratedError(ALREADY_GENERATED_MSG);
             setIsTypeReportPopupOpen(true);
           } else {
-            setBriefError(msg || "Failed to generate Sales Qualification Report.");
+            setBriefError(apiErrorMessage(data, "Failed to generate Sales Qualification Report."));
           }
         }
       } catch {
@@ -651,10 +658,11 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
-          setBriefError(data?.message ?? "Failed to generate Customer Risk Mitigation Plan.");
+          setBriefError(apiErrorMessage(data, "Failed to generate Customer Risk Mitigation Plan."));
         }
       } catch {
         setBriefError("Failed to generate Customer Risk Mitigation Plan. Please try again.");
@@ -704,10 +712,11 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
-          setBriefError(data?.message ?? "Failed to generate Implementation Roadmap Proposal.");
+          setBriefError(apiErrorMessage(data, "Failed to generate Implementation Roadmap Proposal."));
         }
       } catch {
         setBriefError("Failed to generate Implementation Roadmap Proposal. Please try again.");
@@ -758,12 +767,15 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
           setBriefError(
-            data?.message ??
+            apiErrorMessage(
+              data,
               "Failed to generate Vendor Comparison Matrix. Ensure the complete report exists in Complete Reports.",
+            ),
           );
         }
       } catch {
@@ -815,12 +827,15 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
           setBriefError(
-            data?.message ??
+            apiErrorMessage(
+              data,
               "Failed to generate Compliance & Risk Summary. Ensure the complete report exists in Complete Reports.",
+            ),
           );
         }
       } catch {
@@ -872,12 +887,15 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
           setBriefError(
-            data?.message ??
+            apiErrorMessage(
+              data,
               "Failed to generate Implementation Risk Assessment. Ensure the complete report exists in Complete Reports.",
+            ),
           );
         }
       } catch {
@@ -929,12 +947,15 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
             reportType: report.reportType,
             generatedAt: report.generatedAt,
             briefContent: report.briefContent,
+            llmModelId: report.llmModelId ?? null,
           };
           setGeneratedReports((prev) => [...prev, newReport]);
         } else {
           setBriefError(
-            data?.message ??
+            apiErrorMessage(
+              data,
               "Failed to generate Mitigation Action Plan. Ensure the complete report exists in Complete Reports.",
+            ),
           );
         }
       } catch {
@@ -973,7 +994,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
     navigate(`/reports/general/${encodeURIComponent(report.id)}`);
   };
 
-  const handleDownloadReport = (report: GeneratedReportItem) => {
+  const handleDownloadReport = async (report: GeneratedReportItem) => {
     const formatDate = (iso: string) => {
       try {
         const d = new Date(iso);
@@ -986,12 +1007,37 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
     const sanitize = (s: string) =>
       s.replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, "-").slice(0, 80);
     const dateStr = formatDate(report.generatedAt);
-    const bodyContent =
+
+    let bodyContent =
       typeof report.briefContent === "string"
         ? report.briefContent
         : report.briefContent != null
           ? JSON.stringify(report.briefContent, null, 2)
-          : "This report was generated from the Reports Library. Full report content can be viewed in the application.";
+          : "";
+
+    // List payload may omit body — fetch full report so download is not empty
+    if (!bodyContent.trim()) {
+      try {
+        const token = sessionStorage.getItem("bearerToken");
+        if (token) {
+          const res = await fetch(`${BASE_URL}/generalReports/${encodeURIComponent(report.id)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          const full = data?.data?.report ?? data?.data ?? data?.report;
+          const content = full?.briefContent ?? full?.content;
+          if (typeof content === "string" && content.trim()) bodyContent = content;
+          else if (content != null) bodyContent = JSON.stringify(content, null, 2);
+        }
+      } catch {
+        // fall through to placeholder
+      }
+    }
+    if (!bodyContent.trim()) {
+      bodyContent =
+        "This report was generated from the Reports Library. Full report content can be viewed in the application.";
+    }
+
     const content = [
       "General Report",
       "—",
@@ -1013,7 +1059,12 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
   };
 
   if (showArchivedOnly !== true && loading) {
-    return <LoadingMessage message="Loading reports…" />;
+    return (
+      <LoadingMessage
+        message="Loading reports…"
+        className="loading_message_wrapper--page"
+      />
+    );
   }
 
   return (
@@ -1097,18 +1148,13 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
         </p>
       )}
       {briefGenerating && (
-        <div
-          className="vendor_attestation_submit_overlay"
-          role="status"
-          aria-live="polite"
-          aria-label="Generating report"
-        >
-          <div className="vendor_attestation_submit_overlay_content">
-            <Loader2 size={32} className="vendor_attestation_submit_overlay_loader" aria-hidden />
-            <p>Generating report…</p>
-            <p className="vendor_attestation_submit_overlay_hint">Please wait. Do not close or refresh.</p>
-          </div>
-        </div>
+        <SubmitProgressOverlay
+          variant="assessment"
+          tagline="Generating report"
+          headline="Building a brief that can explain itself"
+          description="Gathering assessment context, synthesizing findings, and composing your report for review."
+          ariaLabel="Generating report"
+        />
       )}
       <section>
         {showArchivedOnly && renderArchivedListOnly ? null : (() => {
@@ -1137,13 +1183,27 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
           const isEmpty = filteredList.length === 0;
           return (
             <>
-              {isEmpty && !showArchivedOnly ? (
+              {isEmpty ? (
                 <div className="report_detail_empty" role="status">
-                  <h2 className="report_detail_empty_title">No reports</h2>
-                  {canGenerateReports && (
+                  <h2 className="report_detail_empty_title">
+                    {showArchivedOnly
+                      ? searchQuery.trim()
+                        ? "No reports match your search"
+                        : "No archived assessment analysis reports"
+                      : "No reports"}
+                  </h2>
+                  {showArchivedOnly ? (
                     <p className="report_detail_empty_text">
-                      Choose an assessment above to generate a report.
+                      {searchQuery.trim()
+                        ? "Try a different search (org name, product name)."
+                        : "Archived assessment analysis reports will appear here when assessments expire or are archived."}
                     </p>
+                  ) : (
+                    canGenerateReports && (
+                      <p className="report_detail_empty_text">
+                        Choose an assessment above to generate a report.
+                      </p>
+                    )
                   )}
                 </div>
               ) : (
@@ -1152,6 +1212,7 @@ const GeneralReports = ({ searchQuery = "", showArchivedOnly, hideDropdown, arch
                     reports={paginatedList}
                     onViewReport={handleViewReport}
                     onDownload={showArchivedOnly ? undefined : handleDownloadReport}
+                    viewEnabledWhenArchived={showArchivedOnly === true}
                   />
                   <ReportsPagination
                     totalItems={filteredList.length}

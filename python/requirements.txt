@@ -1,0 +1,40 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+langchain==0.3.27
+langchain-core==0.3.74
+langchain-community==0.3.27
+langchain-aws==0.2.31
+langchain-text-splitters==0.3.9
+langgraph==0.3.34
+
+boto3==1.40.17
+botocore==1.40.17
+
+sqlalchemy==2.0.43
+psycopg2-binary==2.9.10
+pgvector==0.4.2
+
+pydantic==2.11.7
+pydantic-settings==2.10.1
+
+python-dotenv==1.1.1
+
+pdfplumber==0.11.7
+pymupdf==1.26.4
+python-docx==1.2.0
+
+tiktoken==0.11.0
+rapidfuzz>=3.0.0
+
+# Pin to Python 3.10–compatible versions
+pandas>=2.2.0,<2.3
+numpy>=1.26.0,<2.3
+
+python-multipart==0.0.20
+httpx==0.28.1
+orjson==3.11.2
+loguru==0.7.3
+
+# Optional / heavy (needs Python 3.11+ or extra system deps):
+# unstructured==0.18.14

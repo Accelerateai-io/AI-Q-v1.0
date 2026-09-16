@@ -11,30 +11,31 @@
 }
 
 .multi_step_tabs_step_label {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--light-gray-color);
+  color: var(--text-muted, var(--light-gray-color, #64748b));
+  letter-spacing: 0.01em;
 }
 
 .multi_step_tabs_percent {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color:var(--light-gray-color);
+  color: var(--nav-active, var(--main-auth-button-color, #225bff));
 }
 
 /* Progress bar */
 .multi_step_tabs_progress_bar {
-  height: 6px;
-  background-color: #e2e8f0;
-  border-radius: 999px;
+  height: 5px;
+  background-color: color-mix(in srgb, var(--app-border-color, #e2dcd6) 85%, transparent);
+  border-radius: 0;
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.35rem;
 }
 
 .multi_step_tabs_progress_fill {
   height: 100%;
-  background-color: var(--main-auth-button-color);
-  border-radius: 999px;
+  background-color: var(--main-auth-button-color, var(--nav-active, #225bff));
+  border-radius: 0;
   transition: width 0.3s ease;
 }
 
@@ -43,26 +44,28 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.35rem;
 }
 
 .multi_step_tabs_nav_btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  border: none;
+  padding: 0.2rem;
+  border: 1px solid transparent;
   background: none;
   cursor: pointer;
-  color: var(--main-auth-button-color, #2463eb);
+  color: var(--main-auth-button-color, var(--nav-active, #225bff));
   flex-shrink: 0;
-  border-radius: 50%;
-  transition: color 0.2s, opacity 0.2s;
+  border-radius: 0;
+  transition: color 0.2s, opacity 0.2s, background 0.2s, border-color 0.2s;
 }
 
 .multi_step_tabs_nav_btn:hover:not(:disabled) {
-  color: #1d4ed8;
-  opacity: 0.9;
+  color: var(--nav-active, #225bff);
+  background: var(--icon-chip-bg, #e6edf7);
+  border-color: color-mix(in srgb, var(--nav-active, #225bff) 22%, var(--app-border-color, #e2dcd6));
+  opacity: 1;
 }
 
 .multi_step_tabs_nav_btn:disabled {
@@ -74,10 +77,10 @@
 .multi_step_tabs_list {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.5rem;
+  gap: 0.45rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -93,51 +96,51 @@
 .multi_step_tabs_tab {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  gap: 0.45rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: #64748b;
-  background: var(--bg-main, var(--bg-colour-main, #f6f8fb));
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
+  color: var(--text-muted, #64748b);
+  background: color-mix(in srgb, var(--app-bg-color, #f8f4ed) 70%, var(--surface-color, #f5f7fa));
+  border: 1px solid var(--app-border-color, var(--border-subtle, #e2dcd6));
+  border-radius: 0;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-/* .multi_step_tabs_tab:hover:not(.multi_step_tabs_tab--disabled) {
-  background: #e2e8f0;
-  color: #475569;
-} */
-
 .multi_step_tabs_tab--active {
-  background: var(--main-auth-button-color);
+  background: var(--main-auth-button-color, var(--nav-active, #225bff));
   color: #fff;
-  border-color: var(--main-auth-button-color);
+  border-color: var(--main-auth-button-color, var(--nav-active, #225bff));
+  box-shadow: 0 1px 2px rgba(34, 91, 255, 0.16);
 }
 
 .multi_step_tabs_tab--disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
   pointer-events: none;
 }
 
 .multi_step_tabs_tab--completed:not(.multi_step_tabs_tab--active) {
-  color: #0f766e;
-  border-color: #99f6e4;
-  background: #f0fdfa;
+  color: var(--nav-active, #225bff);
+  border-color: color-mix(in srgb, var(--nav-active, #225bff) 28%, var(--app-border-color, #e2dcd6));
+  background: var(--icon-chip-bg, #e6edf7);
 }
 
 .multi_step_tabs_tab_icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--main-auth-button-color, #2463eb);
+  color: var(--main-auth-button-color, var(--nav-active, #225bff));
 }
 
 .multi_step_tabs_tab--active .multi_step_tabs_tab_icon {
   color: #fff;
+}
+
+.multi_step_tabs_tab--completed:not(.multi_step_tabs_tab--active) .multi_step_tabs_tab_icon {
+  color: var(--nav-active, #225bff);
 }
 
 /* Tab panel (step content) */

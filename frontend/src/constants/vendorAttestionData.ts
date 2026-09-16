@@ -1,3 +1,5 @@
+import { required } from "zod/mini";
+
 export const VENDOR_SELF_ATTESTATION = {
   company_profile: {
     0: {
@@ -46,6 +48,26 @@ export const VENDOR_SELF_ATTESTATION = {
       label: "Geographic Regions Where You Operate",
       placeholder: "Select all regions where you have customers or operations",
       required: true,
+    },
+    9: {
+      label: "What is your funding status?",
+      placeholder: "Select funding status",
+      required: true,
+    },
+    10: {
+      label: "How would you describe your financial position?",
+      placeholder: "Select financial position",
+      required: true,
+    },
+    11: {
+      label: "How many enterprise customers do you have?",
+      placeholder: "Enter a whole number",
+      required: false,
+    },
+    12: {
+      label: "What is your annual customer retention / logo retention rate?",
+      placeholder: "Enter a percentage (0–100)",
+      required: false,
     },
   },
 
@@ -133,6 +155,11 @@ export const VENDOR_SELF_ATTESTATION = {
       placeholder: "Select Yes or No. If Yes, upload your policy document below.",
       required: true,
     },
+    5: {
+      label: "What is the maturity of your AI ethics/governance policy?",
+      placeholder: "Select the maturity of your AI ethics or governance policy",
+      required: true,
+    },
   },
   compliance_certifications: {
     // 0: {
@@ -151,6 +178,23 @@ export const VENDOR_SELF_ATTESTATION = {
       placeholder: "Select your independent audit cadence",
       required: true,
     },
+    3: {
+      label: "Which privacy or regulatory frameworks do you comply with?",
+      placeholder: "Select HIPAA BAA, GDPR Compliant, and/or CCPA Compliant",
+      required: true,
+    },
+    5: {
+      label: "Is a DPA available?",
+      placeholder: "Select whether a Data Processing Agreement is available",
+      required: true,
+    },
+    // 4: {
+    //   label: "Do you publish a trust centre? URL",
+    //   placeholder: "https://trust.yourcompany.com",
+    //   required: false,
+    // },
+    // FedRAMP authorization is a custom jsonb field on TabComplianceCertifications:
+    // { status, level, boundary, marketplace_id, authorized_at }
   },
   data_handling_privacy: {
     0: {
@@ -169,6 +213,21 @@ export const VENDOR_SELF_ATTESTATION = {
       // label: "What is your data retention policy?",
       label: "What is your default customer data retention period? (upload the written policy)",
       placeholder: "Select Yes or No",
+      required: true,
+    },
+    3: {
+      label: "What is the scope of your privacy programme?",
+      placeholder: "Select the scope of your privacy programme",
+      required: true,
+    },
+    4: {
+      label: "What data volume does a typical deployment process?",
+      placeholder: "Select the typical data volume processed",
+      required: true,
+    },
+    5: {
+      label: "What TLS version do you enforce in transit?",
+      placeholder: "Select the TLS version enforced in transit",
       required: true,
     },
   },
@@ -194,6 +253,18 @@ export const VENDOR_SELF_ATTESTATION = {
       label: "Can you document your training data sources?",
       placeholder: "Select your level of training data documentation",
       required: true,
+    },
+    4: {
+      label: "How often do you commission independent penetration tests?",
+      placeholder: "Select independent penetration-test frequency",
+      required: true,
+    },
+  },
+  vendor_management: {
+    0: {
+      label: "List your sub-processors",
+      placeholder: "Add each sub-processor name, purpose, region, and source URL",
+      required: false,
     },
   },
 
@@ -225,6 +296,41 @@ export const VENDOR_SELF_ATTESTATION = {
       placeholder: "Select your deployment rollback capability",
       required: true,
     },
+    5: {
+      label: "How do you monitor models in production?",
+      placeholder: "Select how you monitor models in production",
+      required: true,
+    },
+    6: {
+      label: "Response target for a critical incident?",
+      placeholder: "Select the critical-incident response target",
+      required: true,
+    },
+    7: {
+      label: "Resolution target for a critical incident?",
+      placeholder: "Select the critical-incident resolution target",
+      required: true,
+    },
+    8: {
+      label: "How often do you test the IR plan?",
+      placeholder: "Select how often you test the incident response plan",
+      required: true,
+    },
+    9: {
+      label: "How do you communicate incidents to customers?",
+      placeholder: "Select how you communicate incidents to customers",
+      required: true,
+    },
+    10: {
+      label: "What support coverage do you provide?",
+      placeholder: "Select your support coverage",
+      required: true,
+    },
+    11: {
+      label: "What account management do you provide?",
+      placeholder: "Select your account management model",
+      required: true,
+    },
   },
 
   deployment_architecture: {
@@ -242,6 +348,16 @@ export const VENDOR_SELF_ATTESTATION = {
       // label: "What stage is your product currently in?",
       label: "What maturity stage is *this product* at?",
       placeholder: "Select your current product maturity stage",
+      required: true,
+    },
+    3: {
+      label: "How much customization does a typical deployment need?",
+      placeholder: "Select typical deployment customization",
+      required: true,
+    },
+    4: {
+      label: "What is the typical integration complexity?",
+      placeholder: "Select typical integration complexity",
       required: true,
     },
   },
