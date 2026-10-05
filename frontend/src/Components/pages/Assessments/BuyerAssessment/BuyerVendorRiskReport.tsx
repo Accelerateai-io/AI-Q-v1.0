@@ -25,10 +25,12 @@ import {
 } from "../../../../utils/frameworkMappingControlsDisplay";
 import {
   completeReportRiskMeterColor,
+  implementationRiskDecisionFromIrs,
   type CompleteReportRiskMeterGrading,
 } from "../../../../utils/completeReportGrade";
 import { sanitizeFrameworkMappingNotesForDisplay } from "../../../../utils/frameworkMappingNotesDisplay";
 import { formatFrameworkMappingFrameworkForDisplay } from "../../../../utils/frameworkMappingFrameworkDisplay";
+import { formatScore2, formatScore2OutOf100 } from "../../../../utils/scoreFormat";
 import "../../Reports/reports.css";
 import "./buyer_vendor_risk_report.css";
 import { buildReportPdfFilename, downloadElementAsPdf } from "../../../../utils/reportPdfExport";
@@ -336,10 +338,8 @@ export default function BuyerVendorRiskReport() {
   const storedScore = hasImplementationScore
     ? implementationRiskScore
     : report?.overallRiskScore ?? 0;
-  // Stored IRS is readiness (higher = better). Show residual implementation risk for buyers.
-  const score = hasImplementationScore
-    ? Math.round(Math.max(0, Math.min(100, 100 - implementationRiskScore)))
-    : storedScore;
+  // Stored IRS is implementation readiness (higher = better). Show that number, not 100 − IRS.
+  const score = storedScore;
 
   if (loading && !report && !error) {
     return (
@@ -381,11 +381,11 @@ export default function BuyerVendorRiskReport() {
 
   if (!report) return null;
 
-  /** Circle color: IRS lower is better; vendor trust score higher is better. */
+  /** Circle color: IRS / overall score higher is better (readiness). */
   const scoreClass = hasImplementationScore
-    ? implementationRiskScore < 50
+    ? implementationRiskScore >= 76
       ? "bvr_score_high"
-      : implementationRiskScore < 75
+      : implementationRiskScore >= 51
         ? "bvr_score_mid"
         : "bvr_score_low"
     : score >= 80
@@ -406,7 +406,9 @@ export default function BuyerVendorRiskReport() {
   const irsClassification = String(
     report.implementationRiskClassification ?? "",
   ).trim();
-  const irsDecision = String(report.implementationRiskDecision ?? "").trim();
+  const irsDecision = hasImplementationScore
+    ? implementationRiskDecisionFromIrs(implementationRiskScore)
+    : String(report.implementationRiskDecision ?? "").trim();
   const recommendationHeading = hasImplementationScore
     ? irsClassification || irsDecision || "Implementation readiness"
     : report.recommendationLabel;
@@ -430,7 +432,7 @@ export default function BuyerVendorRiskReport() {
     : "default";
   const recommendationAccentColor = completeReportRiskMeterColor(
     { source: hasImplementationScore ? "buyer_vendor_risk" : "customer" },
-    Math.round(hasImplementationScore ? implementationRiskScore : storedScore),
+    hasImplementationScore ? implementationRiskScore : storedScore,
     recommendationGrading,
   );
   const recommendationAccentStyle = {
@@ -493,8 +495,8 @@ export default function BuyerVendorRiskReport() {
             className={`bvr_card bvr_recommendation ${scoreClass}`}
             style={recommendationAccentStyle}
           >
-            <div className="bvr_score_circle" aria-label={`Score ${Math.round(score)} out of 100`}>
-              {Math.round(score)}
+            <div className="bvr_score_circle" aria-label={`Score ${formatScore2(score)} out of 100`}>
+              {formatScore2(score)}
             </div>
             <div className="bvr_recommendation_body">
               <h2 className="bvr_recommendation_title">{recommendationHeading}</h2>
@@ -503,8 +505,8 @@ export default function BuyerVendorRiskReport() {
               ) : null}
               <p className="bvr_recommendation_sub">
                 {hasImplementationScore
-                  ? `Implementation risk score: ${Math.round(score)}/100`
-                  : `Overall risk score: ${Math.round(score)}/100 (higher indicates stronger alignment / lower residual risk)`}
+                  ? `Implementation readiness score: ${formatScore2OutOf100(score)}`
+                  : `Overall risk score: ${formatScore2OutOf100(score)} (higher indicates stronger alignment / lower residual risk)`}
               </p>
             </div>
           </section>
@@ -570,7 +572,7 @@ export default function BuyerVendorRiskReport() {
                         <div key={`${scope}-${i}-${r.domain}`} className="bvr_risk_block">
                           <div className="bvr_risk_head">
                             <h4 className="bvr_risk_domain_title">{r.domain}</h4>
-                            <span className="bvr_risk_badge">Risk: {r.riskScore}/10</span>
+                            <span className="bvr_risk_badge">Risk: {formatScore2(r.riskScore)}/10</span>
                           </div>
                           <p className="bvr_risk_summary">{r.summary}</p>
                         </div>
@@ -594,7 +596,7 @@ export default function BuyerVendorRiskReport() {
                       <div key={`${scope}-${i}-${r.domain}`} className="bvr_risk_block">
                         <div className="bvr_risk_head">
                           <h4 className="bvr_risk_domain_title">{r.domain}</h4>
-                          <span className="bvr_risk_badge">Risk: {r.riskScore}/10</span>
+                          <span className="bvr_risk_badge">Risk: {formatScore2(r.riskScore)}/10</span>
                         </div>
                         <p className="bvr_risk_summary">{r.summary}</p>
                       </div>

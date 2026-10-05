@@ -19,7 +19,7 @@ function extractImplementationReadinessFromVendorReport(report: unknown): {
   const rawScore = r.implementationRiskScore;
   const n = typeof rawScore === "number" ? rawScore : Number(rawScore);
   const implementationRiskScore = Number.isFinite(n)
-    ? Math.min(100, Math.max(0, Math.round(n)))
+    ? Math.min(100, Math.max(0, Math.round((n + Number.EPSILON) * 100) / 100))
     : null;
   const rawLetter = r.implementationReadinessGrade;
   let implementationReadinessGrade: string | null =
@@ -190,14 +190,7 @@ const getBuyerCotsById = async (req: Request, res: Response) => {
       }
       return {};
     })();
-    const operatingRegionsVal = r.geographic_regions;
-    const operatingRegions = Array.isArray(operatingRegionsVal)
-      ? operatingRegionsVal
-      : operatingRegionsVal != null && typeof operatingRegionsVal === "object"
-        ? (operatingRegionsVal as string[])
-        : typeof operatingRegionsVal === "string"
-          ? operatingRegionsVal
-          : "";
+    const operatingRegions = toStringList(r.geographic_regions);
     const data: Record<string, unknown> = {
       assessmentId: r.assessmentId,
       type: "cots_buyer",

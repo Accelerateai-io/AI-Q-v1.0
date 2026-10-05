@@ -28,6 +28,7 @@ import Modal from "../../UI/Modal";
 import LoadingMessage from "../../UI/LoadingMessage";
 import ClickTooltip from "../../UI/ClickTooltip";
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js";
+import { clampScore2, formatScore2 } from "../../../utils/scoreFormat";
 import "../../../styles/page_tabs.css";
 import "../../../styles/popovers.css";
 import "../Organizations/organization.css";
@@ -273,7 +274,7 @@ function getReportRiskScoreFromRow(row) {
   if (raw == null || raw === "") return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).trim());
   if (!Number.isFinite(n)) return null;
-  return Math.min(100, Math.max(0, Math.round(n)));
+  return clampScore2(n);
 }
 
 /** Map API assessment row to ledger row view model */
@@ -308,14 +309,18 @@ function mapRowToLedgerVM(
   }
   const leadName = getCompletedByDisplay(row) || "—";
   const storedScore = getReportRiskScoreFromRow(row);
-  // Type 2 stores sales risk → show readiness (100 − SRS).
-  // Type 3 stores IRS readiness → show implementation risk (100 − IRS).
+  // Type 2 stores sales risk → show sales confidence / readiness (100 − SRS).
+  // Type 3 stores IRS as implementation readiness (higher = better) — show as stored.
   const reportScore =
-    storedScore == null ? null : Math.round(Math.max(0, Math.min(100, 100 - storedScore)));
+    storedScore == null
+      ? null
+      : isBuyerRow
+        ? storedScore
+        : Math.max(0, Math.min(100, 100 - storedScore));
   const hasReport = storedScore != null;
   const riskDisplay =
     reportScore != null
-      ? `${reportScore} /100`
+      ? `${formatScore2(reportScore)} /100`
       : isDraft
         ? "Pending"
         : statusKind === "expired"
@@ -1407,7 +1412,7 @@ const Assessments = () => {
                 showNewAssessment={!isAssessmentViewOnly}
                 onNewAssessment={handleNewAssessment}
                 newAssessmentLabel="Assessment"
-                scoreColumnLabel="Implementation risk"
+                scoreColumnLabel="Implementation readiness"
               />
             );
           })()}

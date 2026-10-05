@@ -11,6 +11,7 @@ import {
 } from "../../services/certIndustrySegmentRelevance.js";
 import {
   collectComplianceUploadFileNames,
+  collectComplianceUploadCategories,
   certificationFormTextFromGetter,
 } from "../../services/complianceCertBlobs.js";
 import {
@@ -666,7 +667,7 @@ export async function generateVendorAttestationReport(
     );
   }
 
-  // Likelihood / impact / severity come from AI Risk Intellect when the Controls API key is set.
+  // Domains and likelihood / impact / severity come from AIRI when the Controls API key is set.
   // Best-effort: scoring still runs with formula defaults if RI is unconfigured or unreachable.
   let scoringPayload: Record<string, unknown> = {
     ...formulaPayload,
@@ -694,11 +695,13 @@ export async function generateVendorAttestationReport(
       likelihood_score_value: scoringPayload.likelihood_score_value,
       impact_score_value: scoringPayload.impact_score_value,
       severity_score_value: scoringPayload.severity_score_value,
+      applicable_domains_source: scoringPayload.applicable_domains_source ?? "local fallback",
+      applicableDomains: scoringPayload.applicableDomains,
       riLabel: top5.liSeverityScore?.label ?? null,
     });
   } catch (err) {
     console.error(
-      "getTop5RisksWithMitigations failed during VTS; scoring with formula default L/I:",
+      "getTop5RisksWithMitigations failed during VTS; scoring with local domain and default L/I fallbacks:",
       err,
     );
   }
@@ -743,7 +746,8 @@ export async function generateVendorAttestationReport(
     Number.isFinite(Number(formula.formula_vendor_trust_score))
       ? Number(formula.formula_vendor_trust_score)
       : Number(formula.vendor_trust_score ?? 0);
-  const overallRounded = Math.round(Math.max(0, Math.min(100, formulaVts)));
+  const overallClamped = Math.max(0, Math.min(100, formulaVts));
+  const overallRounded = Math.round((overallClamped + Number.EPSILON) * 100) / 100;
 
   const scoreByCategory = {
     Product: Number(
@@ -760,20 +764,12 @@ export async function generateVendorAttestationReport(
   let factorExplanations: FactorExplanation[] | undefined;
   try {
     const formulaInput = buildFormulaInputFromPayload(scoringPayload);
-    const detail = formula.detail ?? {};
     const vtsForFactors: VtsFormulaResult = {
       vendor_trust_score: formulaVts,
       product_risk: Number(formula.product_risk || 0),
       governance_risk: Number(formula.governance_risk || 0),
       operational_risk: Number(formula.operational_risk || 0),
-      detail: {
-        governance_risk: (detail.governance_risk ?? {}) as VtsFormulaResult["detail"]["governance_risk"],
-        operational_risk: (detail.operational_risk ?? {}) as VtsFormulaResult["detail"]["operational_risk"],
-        product_risk: (detail.product_risk ?? {
-          confidence_factor: { value: 0 },
-          mitigation_effectiveness: { value: 0 },
-        }) as VtsFormulaResult["detail"]["product_risk"],
-      },
+      detail: (formula.detail ?? {}) as VtsFormulaResult["detail"],
     };
     factorExplanations = buildFactorExplanations(vtsForFactors, formulaInput);
   } catch (err) {
@@ -979,7 +975,11 @@ function buildFormulaInputFromPayload(payload: Record<string, unknown>): LooseIn
   const complianceUploadNames = collectComplianceUploadFileNames(payload);
   const complianceUploadBlob = complianceUploadNames.join(" ").toLowerCase();
   const certFormBlob = certificationFormTextFromGetter(get).toLowerCase();
-  const certificationsSearchBlob = `${certFormBlob} ${complianceUploadBlob}`.trim();
+  const certCategoriesBlob = collectComplianceUploadCategories(payload).join(" ").toLowerCase();
+  const certificationsSearchBlob = [certFormBlob, certCategoriesBlob, complianceUploadBlob]
+    .filter((part) => part.trim())
+    .join(" ")
+    .trim();
   const buyerIndustrySegment = normalizeCertIndustrySegmentInput(
     asStr(
       get("buyerIndustrySegment") ??
@@ -1027,11 +1027,14 @@ function buildFormulaInputFromPayload(payload: Record<string, unknown>): LooseIn
       payload.unintentionalRiskCount ?? get("unintentionalRiskCount"),
       2,
     ),
-    applicableDomains: [
-      { domain: "Privacy & Security", riskCount: 1 },
-      { domain: "AI System Safety", riskCount: 1 },
-      { domain: "Accountability & Governance", riskCount: 1 },
-    ],
+    applicableDomains:
+      Array.isArray(payload.applicableDomains) && payload.applicableDomains.length > 0
+        ? payload.applicableDomains
+        : [
+            { domain: "Privacy & Security", riskCount: 1 },
+            { domain: "AI System Safety", riskCount: 1 },
+            { domain: "Accountability & Governance", riskCount: 1 },
+          ],
     sector: vtsSector,
     aiCapabilityType: "administrative",
     piiHandling: answers.lookup(answers.PII_HANDLING, piiAnswer, "moderate"),
@@ -1227,29 +1230,70 @@ function applyEvidenceTrustFromAttestation(
   return next;
 }
 
+function parseJsonIfSerialized(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || (trimmed[0] !== "[" && trimmed[0] !== "{")) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function scalarText(value: unknown): string {
+  const parsed = parseJsonIfSerialized(value);
+  if (parsed == null || parsed === "") return "";
+  if (Array.isArray(parsed)) {
+    return parsed.map((item) => scalarText(item)).filter(Boolean).join(", ");
+  }
+  if (typeof parsed === "object") {
+    const row = parsed as Record<string, unknown>;
+    if ("summary" in row || "date" in row || "severity" in row) {
+      return formatIncidentRow(row);
+    }
+    return Object.entries(row)
+      .map(([key, item]) => {
+        const text = scalarText(item);
+        return text ? `${key}: ${text}` : "";
+      })
+      .filter(Boolean)
+      .join("; ");
+  }
+  const text = String(parsed).trim();
+  return text === "[object Object]" ? "" : text;
+}
+
+function formatIncidentRow(row: Record<string, unknown>): string {
+  const date = scalarText(row.date) || "Date not provided";
+  const severity = scalarText(row.severity) || "unspecified severity";
+  const resolved = row.resolved;
+  const status =
+    resolved === true ||
+    String(resolved ?? "").toLowerCase() === "true" ||
+    String(resolved ?? "").toLowerCase() === "resolved"
+      ? "resolved"
+      : "open";
+  const summary = scalarText(row.summary) || "No summary";
+  const source = scalarText(row.sourceUrl ?? row.source_url);
+  return `${date} — ${severity} — ${status}: ${summary}${source ? ` (${source})` : ""}`;
+}
+
 /** Overlay attested privacy/security facts so LLM sections stay aligned with form answers. */
 /** Attestation-only: the vendor's own incident disclosure, never inferred by the LLM. */
 function securityIncidentsText(answer: unknown, incidents: unknown): string {
-  const rows = Array.isArray(incidents)
-    ? (incidents as Record<string, unknown>[]).filter(
-        (item) => String(item?.summary ?? "").trim() || String(item?.date ?? "").trim(),
-      )
+  const parsed = parseJsonIfSerialized(incidents);
+  const rows = Array.isArray(parsed)
+    ? parsed
+        .map((item) => parseJsonIfSerialized(item))
+        .filter((item): item is Record<string, unknown> => item != null && typeof item === "object" && !Array.isArray(item))
+        .filter((item) => scalarText(item.summary) || scalarText(item.date))
     : [];
   if (rows.length === 0) {
-    const said = String(answer ?? "").trim().toLowerCase();
+    const said = scalarText(answer).toLowerCase();
     return said === "no" ? "No" : said === "yes" ? "Yes" : "Not specified";
   }
-  const detail = rows
-    .map((item) => {
-      const date = String(item.date ?? "").trim() || "Date not provided";
-      const severity = String(item.severity ?? "").trim() || "unspecified severity";
-      const status = item.resolved ? "resolved" : "open";
-      const summary = String(item.summary ?? "").trim() || "No summary";
-      const source = String(item.sourceUrl ?? item.source_url ?? "").trim();
-      return `${date} — ${severity} — ${status}: ${summary}${source ? ` (${source})` : ""}`;
-    })
-    .join("; ");
-  return `Yes · ${detail}`;
+  return `Yes · ${rows.map((item) => formatIncidentRow(item)).join("; ")}`;
 }
 
 function overlayAttestationPrivacySecurityFields(
@@ -1289,6 +1333,11 @@ function overlayAttestationPrivacySecurityFields(
       for (const key of spec.keys) {
         delete existing.items[key];
       }
+      if (spec.id === 5) {
+        for (const key of Object.keys(existing.items)) {
+          if (/security incident/i.test(key)) delete existing.items[key];
+        }
+      }
       existing.items = { ...existing.items, ...patch };
       existing.title = spec.title;
     } else {
@@ -1307,10 +1356,8 @@ function buildSectionsFromPayload(payload: Record<string, unknown>): ReportSecti
   const get = (k: string) => payload[k] ?? cp[k];
   const text = (v: unknown) => (v == null || String(v).trim() === "" ? "Not specified" : String(v));
   const json = (v: unknown) => {
-    if (v == null) return "Not specified";
-    if (Array.isArray(v)) return v.length ? v.map((x) => String(x)).join(", ") : "Not specified";
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
+    const text = scalarText(v);
+    return text || "Not specified";
   };
   const titleCase = (s: string) =>
     s

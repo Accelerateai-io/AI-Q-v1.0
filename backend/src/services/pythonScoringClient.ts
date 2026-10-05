@@ -87,6 +87,7 @@ export interface PythonCotsBuyerScoreResult {
     productName: string;
     usedAttestation: boolean;
   };
+  detail?: Record<string, unknown>;
   scoring_source?: string;
   scoring_version?: string;
   /** Plain-text rationale for terminal display (same as Python console). */
@@ -264,16 +265,24 @@ export async function scoreCotsBuyerWithPython(options: {
   attestationRow?: Record<string, unknown> | null;
   vendorName: string;
   productName: string;
+  timeoutMs?: number;
 }): Promise<PythonCotsBuyerScoreResult> {
   const url = `${scoringBaseUrl()}/assessment/cots-buyer/score`;
-  const r = await postJson(url, {
-    buyer_payload: options.buyerPayload,
-    attestation_row: options.attestationRow ?? null,
-    vendor_name: options.vendorName,
-    product_name: options.productName,
-  });
+  const r = await postJson(
+    url,
+    {
+      buyer_payload: options.buyerPayload,
+      attestation_row: options.attestationRow ?? null,
+      vendor_name: options.vendorName,
+      product_name: options.productName,
+    },
+    options.timeoutMs,
+  );
 
-  const implementationRiskScore = Math.round(Number(r.implementationRiskScore));
+  const implementationRiskScoreRaw = Number(r.implementationRiskScore);
+  const implementationRiskScore = Number.isFinite(implementationRiskScoreRaw)
+    ? Math.min(100, Math.max(0, Math.round((implementationRiskScoreRaw + Number.EPSILON) * 100) / 100))
+    : Number.NaN;
   if (!Number.isFinite(implementationRiskScore)) {
     throw new Error("Python cots-buyer scoring response missing implementationRiskScore");
   }
@@ -286,6 +295,10 @@ export async function scoreCotsBuyerWithPython(options: {
     r.source && typeof r.source === "object" && !Array.isArray(r.source)
       ? (r.source as Record<string, unknown>)
       : {};
+  const detailRaw =
+    r.detail && typeof r.detail === "object" && !Array.isArray(r.detail)
+      ? (r.detail as Record<string, unknown>)
+      : undefined;
 
   const vendorRisk = Math.round(Number(breakdownRaw.vendorRisk ?? 0) * 100) / 100;
   const organizationalReadinessGap =
@@ -319,6 +332,7 @@ export async function scoreCotsBuyerWithPython(options: {
       productName: String(sourceRaw.productName ?? options.productName),
       usedAttestation: Boolean(sourceRaw.usedAttestation),
     },
+    detail: detailRaw,
     scoring_source: r.scoring_source != null ? String(r.scoring_source) : "formula",
     scoring_version: r.scoring_version != null ? String(r.scoring_version) : "irs-1.1",
     rationale: typeof r.rationale === "string" ? r.rationale : undefined,

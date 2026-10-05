@@ -12,6 +12,7 @@ import {
   resolveScoreSubtitleForCompleteReport,
   type CompleteReportRiskMeterGrading,
 } from "../../../utils/completeReportGrade";
+import { clampScore2, formatScore2 } from "../../../utils/scoreFormat";
 import {
   isReportTimeExpired,
   reportArchivedStatusText,
@@ -118,15 +119,15 @@ function CompleteReportsCards({
         // Vendor COTS analysis reports store SRS as overallRiskScore (not IRS).
         const listSrs =
           row.overallRiskScore != null && Number.isFinite(Number(row.overallRiskScore))
-            ? Math.round(Number(row.overallRiskScore))
+            ? Number(row.overallRiskScore)
             : null;
         const srs = listSrs ?? overallRiskScoreFromReportJson(row.report);
-        return srs != null ? Math.round(srs) : null;
+        return srs != null ? clampScore2(srs) : null;
       }
       if (report.source === "buyer_vendor_risk") {
         const irs = reportContextScoreFromListPayload(row);
         if (irs == null) return null;
-        return isVendorPortalSession() ? irs : Math.round(Math.max(0, Math.min(100, 100 - irs)));
+        return irs;
       }
       if (isVendorPortalSession() && implementationRiskScoreFromReportPayload(row) != null) {
         return implementationRiskScoreFromReportPayload(row);
@@ -143,12 +144,7 @@ function CompleteReportsCards({
 
       if (report.source === "buyer_vendor_risk") {
         const irs = reportContextScoreFromListPayload(report);
-        const report_context_score =
-          irs == null
-            ? null
-            : isVendorPortalSession()
-              ? irs
-              : Math.round(Math.max(0, Math.min(100, 100 - irs)));
+        const report_context_score = irs == null ? null : irs;
         setScoreByReportId((prev) => ({ ...prev, [report.id]: report_context_score }));
         onViewReport(report);
         return;
@@ -170,12 +166,12 @@ function CompleteReportsCards({
             const irs = implementationRiskScoreFromReportPayload(payload);
             const listSrs =
               report.overallRiskScore != null && Number.isFinite(Number(report.overallRiskScore))
-                ? Math.round(Number(report.overallRiskScore))
+                ? Number(report.overallRiskScore)
                 : null;
             const srs = listSrs ?? overallRiskScoreFromReportJson(rep);
             const report_context_score =
               riskMeterGrading === "buyer_cots_irs"
-                ? (irs ?? (srs != null ? Math.round(srs) : null))
+                ? (irs ?? (srs != null ? clampScore2(srs) : null))
                 : isVendorPortalSession() && irs != null
                   ? irs
                   : reportContextScoreFromListPayload(payload);
@@ -298,9 +294,7 @@ function CompleteReportsCards({
             <span className="complete_rpr_card_risk_label">
               {isVendorPortalSession()
                 ? "READINESS SCORE"
-                : report.source === "buyer_vendor_risk" || meterGrading === "vendor_cots_irs"
-                  ? "RISK SCORE"
-                  : "READINESS SCORE"}
+                : "READINESS SCORE"}
             </span>
             <span className="complete_rpr_card_risk_value_wrap">
               <span className="complete_rpr_card_risk_value_row">
@@ -308,7 +302,7 @@ function CompleteReportsCards({
                   className="complete_rpr_card_risk_value"
                   style={meterColor ? { color: meterColor } : undefined}
                 >
-                  {isFetching ? "…" : report_context_score != null ? `(${report_context_score}/100)` : "—"}
+                  {isFetching ? "…" : report_context_score != null ? formatScore2(report_context_score) : "—"}
                 </span>
                 {showRationaleInfo && scoreRationale ? (
                   <button

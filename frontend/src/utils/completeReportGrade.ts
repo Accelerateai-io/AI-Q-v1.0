@@ -1,10 +1,16 @@
 /**
  * Letter grade from a risk-like score (0-100, higher = worse).
  * - `vendor`: mirrors backend `interpretSalesRiskScore` via dealProbability = 100 - risk.
- * - `buyer`: mirrors backend `buyerImplementationRiskScore` readiness grade via IRS = 100 - risk.
+ * - `buyer`: mirrors backend `buyerImplementationRiskScore` / Python `_interpret` on stored IRS (higher = more ready).
  */
 export type CompleteReportLetterGrade = "A" | "B" | "C" | "D" | "F";
 export type CompleteReportGradingProfile = "vendor" | "buyer";
+
+function formatScore2Local(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+}
 
 /** Legacy stored values may use "E" for the lowest band; UI and new logic use "F" (A–D, then F). */
 export function normalizeDisplayLetterGrade(g: string | null | undefined): string {
@@ -17,15 +23,14 @@ export function gradeFromOverallRiskScore(
   score: number,
   profile: CompleteReportGradingProfile = "vendor",
 ): CompleteReportLetterGrade {
-  const s = Math.max(0, Math.min(100, Math.round(Number(score))));
+  const s = Math.max(0, Math.min(100, Number(score)));
   if (profile === "buyer") {
-    const irs = Math.max(0, Math.min(100, Math.round(100 - s)));
-    if (irs >= 76) return "A";
-    if (irs >= 51) return "B";
-    if (irs >= 26) return "C";
+    if (s >= 76) return "A";
+    if (s >= 51) return "B";
+    if (s >= 26) return "C";
     return "D";
   }
-  const dealProbability = Math.max(0, Math.min(100, Math.round(100 - s)));
+  const dealProbability = Math.max(0, Math.min(100, 100 - s));
   if (dealProbability >= 90) return "A";
   if (dealProbability >= 80) return "B";
   if (dealProbability >= 70) return "C";
@@ -103,9 +108,10 @@ export function customerRiskReportApprovalHeading(
   return "Conditional Approval";
 }
 
-/** Invert a 0–100 score (readiness ↔ residual risk). */
+/** Invert a 0–100 score (readiness ↔ residual risk), rounded to 2 decimals. */
 export function invertScore100(score: number): number {
-  return Math.round(Math.max(0, Math.min(100, 100 - score)));
+  const n = Math.max(0, Math.min(100, Number(score) || 0));
+  return Math.round((100 - n + Number.EPSILON) * 100) / 100;
 }
 
 /** Readiness / alignment score shown on the complete report (100 − risk). */
@@ -134,7 +140,7 @@ export function reportContextScoreFromListPayload(
   if (row.source === "buyer_vendor_risk") {
     const irs = row.implementationRiskScore;
     if (irs != null && Number.isFinite(Number(irs)))
-      return Math.round(Math.max(0, Math.min(100, Number(irs))));
+      return Math.round((Math.max(0, Math.min(100, Number(irs))) + Number.EPSILON) * 100) / 100;
     return null;
   }
   const listRisk =
@@ -154,7 +160,7 @@ export function implementationRiskScoreFromReportPayload(
 ): number | null {
   const top = row.implementationRiskScore;
   if (top != null && Number.isFinite(Number(top))) {
-    return Math.round(Math.max(0, Math.min(100, Number(top))));
+    return Math.round((Math.max(0, Math.min(100, Number(top))) + Number.EPSILON) * 100) / 100;
   }
   const rep = row.report;
   if (rep == null || typeof rep !== "object") return null;
@@ -163,13 +169,13 @@ export function implementationRiskScoreFromReportPayload(
     r.implementationRiskScore ?? r.implementation_risk_score,
   );
   if (Number.isFinite(direct))
-    return Math.round(Math.max(0, Math.min(100, direct)));
+    return Math.round((Math.max(0, Math.min(100, direct)) + Number.EPSILON) * 100) / 100;
   const gen = r.generatedAnalysis;
   if (gen != null && typeof gen === "object" && !Array.isArray(gen)) {
     const g = gen as Record<string, unknown>;
     const raw = g.implementationRiskScore ?? g.implementation_risk_score;
     const n = Number(raw);
-    if (Number.isFinite(n)) return Math.round(Math.max(0, Math.min(100, n)));
+    if (Number.isFinite(n)) return Math.round((Math.max(0, Math.min(100, n)) + Number.EPSILON) * 100) / 100;
   }
   return null;
 }
@@ -248,9 +254,9 @@ export function organizationalPortalImplementationDecisionFromReport(
   );
 }
 
-/** Mirrors backend `buyerImplementationRiskScore` interpret().decision for IRS (0–100, higher = worse). */
+/** IRS readiness 0–100 (higher = more ready) → decision band. */
 export function implementationRiskDecisionFromIrs(irs: number): string {
-  const s = Math.max(0, Math.min(100, Math.round(Number(irs))));
+  const s = Math.max(0, Math.min(100, Number(irs)));
   if (s >= 76) return "PROCEED";
   if (s >= 51) return "PROCEED WITH CAUTION";
   if (s >= 26) return "PROCEED WITH CAUTION";
@@ -314,7 +320,7 @@ export const VENDOR_TRUST_ASSESSMENT_GRADE_COLORS = [
 export function vendorTrustGradeTierFromTrustScore(
   trustLikeScore: number,
 ): 0 | 1 | 2 | 3 | 4 {
-  const s = Math.max(0, Math.min(100, Math.round(Number(trustLikeScore))));
+  const s = Math.max(0, Math.min(100, Number(trustLikeScore)));
   if (s >= 90) return 4;
   if (s >= 80) return 3;
   if (s >= 70) return 2;
@@ -324,7 +330,7 @@ export function vendorTrustGradeTierFromTrustScore(
 export function buyerGradeTierFromTrustScore(
   trustLikeScore: number,
 ): 0 | 1 | 2 | 3 | 4 {
-  const s = Math.max(0, Math.min(100, Math.round(Number(trustLikeScore))));
+  const s = Math.max(0, Math.min(100, Number(trustLikeScore)));
   if (s >= 76) return 4;
   if (s >= 51) return 3;
   if (s >= 26) return 2;
@@ -344,7 +350,7 @@ export function vendorTrustGradeColorFromTrustScore(
 function vendorPortalRiskTrackColorFromImplementationRiskScore(
   irs: number,
 ): string {
-  const trustLike = Math.max(0, Math.min(100, Math.round(Number(irs))));
+  const trustLike = Math.max(0, Math.min(100, Number(irs)));
   return vendorTrustGradeColorFromTrustScore(trustLike);
 }
 
@@ -352,7 +358,7 @@ function vendorPortalRiskTrackColorFromImplementationRiskScore(
  * Buyer org portal COTS: IRS (higher worse) → readiness `100 − IRS`, then {@link buyerGradeTierFromTrustScore} bands.
  */
 export function buyerCotsIrsGradeColorFromScore(irs: number): string {
-  const trustLike = Math.max(0, Math.min(100, Math.round(Number(irs))));
+  const trustLike = Math.max(0, Math.min(100, Number(irs)));
   const tier = buyerGradeTierFromTrustScore(trustLike);
   return VENDOR_TRUST_ASSESSMENT_GRADE_COLORS[tier];
 }
@@ -373,6 +379,9 @@ export function resolveScoreSubtitleForCompleteReport(
 ): string | null {
   const irs = implementationRiskScoreFromReportPayload(row);
   if (grading === "vendor_cots_irs") {
+    if (row.source === "buyer_vendor_risk" && irs != null) {
+      return implementationRiskDecisionFromIrs(irs);
+    }
     return firstNonEmptyString(
       row.implementationRiskDecision,
       organizationalPortalImplementationDecisionFromReport(row.report),
@@ -490,20 +499,15 @@ function buildSrsRationaleFallback(report: Record<string, unknown>): string | nu
   if (!Number.isFinite(srs) && breakdown == null) return null;
 
   const scoreNum = Number.isFinite(srs) ? Math.max(0, Math.min(100, Number(srs))) : null;
-  const scoreLabel =
-    scoreNum != null
-      ? Number.isInteger(scoreNum)
-        ? String(scoreNum)
-        : scoreNum.toFixed(2)
-      : null;
+  const scoreLabel = scoreNum != null ? formatScore2Local(scoreNum) : null;
   const cfr = breakdown != null ? Number(breakdown.customer_friction_risk) : NaN;
   const ir = breakdown != null ? Number(breakdown.implementation_risk) : NaN;
   const cr = breakdown != null ? Number(breakdown.competitive_risk) : NaN;
   const deal =
     breakdown != null && Number.isFinite(Number(breakdown.deal_probability_pct))
-      ? Math.round(Number(breakdown.deal_probability_pct))
+      ? Math.round((Number(breakdown.deal_probability_pct) + Number.EPSILON) * 100) / 100
       : scoreNum != null
-        ? Math.max(0, Math.min(100, Math.round(100 - scoreNum)))
+        ? Math.round((Math.max(0, Math.min(100, 100 - scoreNum)) + Number.EPSILON) * 100) / 100
         : null;
   const grade = breakdown != null ? String(breakdown.grade ?? "").trim() : "";
   const classification =
@@ -594,7 +598,7 @@ function stripFormulaDiscussionFromRationale(text: string): string {
 }
 
 function readinessProfileFromScore(readiness: number): string {
-  const s = Math.max(0, Math.min(100, Math.round(Number(readiness))));
+  const s = Math.max(0, Math.min(100, Number(readiness)));
   if (s >= 76) return "Organization ready; vendor capable; integration straightforward";
   if (s >= 51) return "Some gaps exist; manageable with planning";
   if (s >= 26) return "Significant gaps; risk of failure if not addressed.";
@@ -626,12 +630,7 @@ function buildIrsRationaleFallback(
     gradeLetter && classification
       ? `${gradeLetter} - ${classification}`
       : gradeLetter ?? classification ?? null;
-  const decision = firstNonEmptyString(
-    row.implementationRiskDecision,
-    report.implementationRiskDecision,
-    g?.implementationRiskDecision,
-    implementationRiskDecisionFromIrs(readiness),
-  );
+  const decision = implementationRiskDecisionFromIrs(readiness);
   const profile = firstNonEmptyString(
     report.readinessProfile,
     report.readiness_profile,
@@ -707,7 +706,7 @@ function buildIrsRationaleFallback(
     "========================================================================",
     "",
     "RESULT",
-    `  Readiness:   ${Math.round(readiness)} / 100   (higher = more ready to implement)`,
+    `  Readiness:   ${formatScore2Local(readiness)} / 100   (higher = more ready to implement)`,
   ];
   if (grade) lines.push(`  Grade:       ${grade}`);
   if (decision) lines.push(`  Decision:    ${decision}`);
@@ -732,7 +731,7 @@ function buildIrsRationaleFallback(
 
   if (Number.isFinite(vts)) {
     lines.push(
-      `  Vendor trust used: ${Math.round(vts)}/100  (${usedAttestation ? "from selected product attestation" : "default / limited attestation"})`,
+      `  Vendor trust used: ${formatScore2Local(vts)}/100  (${usedAttestation ? "from selected product attestation" : "default / limited attestation"})`,
     );
   }
 

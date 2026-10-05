@@ -27,6 +27,7 @@ import {
   normalizeDisplayLetterGrade,
   type CompleteReportLetterGrade,
 } from "../../../utils/completeReportGrade";
+import { clampScore2, formatScore2 } from "../../../utils/scoreFormat";
 import "./dashboard.css";
 import "../UserManagement/user_management.css";
 import ClickTooltip from "../../UI/ClickTooltip";
@@ -170,7 +171,7 @@ function extractOverallRiskScoreFromCompleteReport(
   if (raw == null) return null;
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(100, Math.round(n)));
+  return clampScore2(n);
 }
 
 const VendorOverview = () => {
@@ -611,7 +612,7 @@ const VendorOverview = () => {
               const label = att.generated_profile_report?.trustScore?.label;
               const scoreNum =
                 score != null && !Number.isNaN(Number(score))
-                  ? Math.round(Number(score))
+                  ? Number(score)
                   : null;
               const labelUpper =
                 label &&
@@ -655,7 +656,7 @@ const VendorOverview = () => {
                     {scoreNum != null ? (
                       <>
                         <span className="vendor_portal_attestation_score_num">
-                          {scoreNum}
+                          {formatScore2(scoreNum)}
                         </span>
                         <span className="vendor_portal_attestation_score_label">
                           {trustSubtitle}

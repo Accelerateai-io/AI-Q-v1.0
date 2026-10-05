@@ -14,6 +14,7 @@ import {
 import LoadingMessage from "../../UI/LoadingMessage";
 import FileUpload from "../../UI/FileUpload";
 import { normalizeDisplayLetterGrade } from "../../../utils/completeReportGrade.js";
+import { formatScore2 } from "../../../utils/scoreFormat";
 
 function getRowPreviewValue(
   row: Record<string, unknown> | null | undefined,
@@ -219,8 +220,8 @@ function buyerFormulaReadinessRows(merged: Record<string, unknown>): React.React
         ) : null}
         {hasIrs ? (
           <div className="vendor_preview_row">
-            <dt className="vendor_preview_label">Implementation risk score</dt>
-            <dd className="vendor_preview_value">{Math.round(irsNum)}/100</dd>
+            <dt className="vendor_preview_label">Implementation readiness score</dt>
+            <dd className="vendor_preview_value">{formatScore2(irsNum)}/100</dd>
           </div>
         ) : null}
       </dl>

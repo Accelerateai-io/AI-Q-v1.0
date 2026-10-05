@@ -27,11 +27,13 @@ import type {
   StoredGeneratedReport,
 } from "../DirectoryListing/DirectoryListing";
 import { ReportsPagination } from "../Reports/ReportsPagination";
+import { clampScore2 } from "../../../utils/scoreFormat";
 import "../UserManagement/user_management.css";
 import "../MyVendors/MyVendors.css";
 import "../Assessments/assessments.css";
 import "./product_profile.css";
 import { formatDateDDMMMYYYY } from "../../../utils/formatDate.js";
+import { formatScore2Percent } from "../../../utils/scoreFormat";
 
 function formatVal(val: unknown): string {
   if (val == null || val === "") return "Not specified.";
@@ -100,11 +102,9 @@ function parseScoreFromText(text: string): number | null {
 }
 
 function coerceScore(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.min(100, Math.max(0, Math.round(value)));
-  }
+  if (typeof value === "number" && Number.isFinite(value)) return clampScore2(value);
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
-    return Math.min(100, Math.max(0, Math.round(Number(value))));
+    return clampScore2(value);
   }
   return null;
 }
@@ -167,7 +167,7 @@ function resolveProductTrustScore(
     (typeof fromParsed === "number" && fromParsed > 0 ? fromParsed : null);
 
   if (fromReport != null) {
-    return Math.min(100, Math.max(0, Math.round(fromReport)));
+    return clampScore2(fromReport);
   }
 
   const fromLatest = coerceScore(product.latest_trust_score);
@@ -481,7 +481,7 @@ function ProductProfileView({
     });
     if (scores.length === 0) return null;
     const sum = scores.reduce((a, b) => a + b, 0);
-    return Math.round(sum / scores.length);
+    return sum / scores.length;
   }, [currentProducts, storedReports]);
 
   /** On product detail, prefer company profile from loaded attestation; otherwise vendor form state. */
@@ -800,9 +800,9 @@ function ProductProfileView({
           icon={<Shield size={24} />}
           primary={
             averageTrustScore != null
-              ? `${averageTrustScore}%`
+              ? formatScore2Percent(averageTrustScore)
               : reportToShow?.trustScore
-                ? `${reportToShow.trustScore.overallScore}%`
+                ? formatScore2Percent(reportToShow.trustScore.overallScore)
                 : trustScore
           }
           secondary={
@@ -1201,7 +1201,7 @@ function ProductProfileView({
                 <div className="product_profile_product_cards">
                   {paginatedCurrentProducts.map((product) => {
                     const score = resolveProductTrustScore(product, storedReports);
-                    const trustScoreDisplay = score != null ? `${score}%` : "—";
+                    const trustScoreDisplay = score != null ? formatScore2Percent(score) : "—";
                     return (
                       <ProductProfileProductListCard
                         key={product.id}
@@ -1247,7 +1247,7 @@ function ProductProfileView({
                 <div className="product_profile_product_cards">
                   {paginatedArchivedProducts.map((product) => {
                     const score = resolveProductTrustScore(product, storedReports);
-                    const trustScoreDisplay = score != null ? `${score}%` : "—";
+                    const trustScoreDisplay = score != null ? formatScore2Percent(score) : "—";
                     return (
                       <ProductProfileProductListCard
                         key={product.id}
