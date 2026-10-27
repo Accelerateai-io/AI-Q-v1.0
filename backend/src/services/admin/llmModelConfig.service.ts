@@ -247,7 +247,7 @@ function pythonUrl(): string {
   return (
     process.env.PYTHON_SCORING_URL?.trim() ||
     process.env.PYTHON_INGEST_URL?.trim() ||
-    "http://localhost:8000"
+    "http://localhost:5004"
   ).replace(/\/$/, "");
 }
 
