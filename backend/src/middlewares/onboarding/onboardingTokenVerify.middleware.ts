@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../database/db.js";
 import type { NextFunction, Request, Response } from "express";
 import { usersTable } from "../../schema/schema.js";
+import { getJwtSecret } from "../../config/auth.js";
 
 import jwt from "jsonwebtoken";
 
@@ -17,7 +18,7 @@ const onboardingAccess = async (req:Request, res:Response, next:NextFunction) =>
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY ?? "fallback-secret");
+      decoded = jwt.verify(token, getJwtSecret());
     } catch (err) {
       return res.status(401).json({ message: "Invalid or expired token" });
     }

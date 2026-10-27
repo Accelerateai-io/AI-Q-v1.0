@@ -3,12 +3,8 @@ import { db } from "../../database/db.js";
 import { createOrganization, usersTable } from "../../schema/schema.js";
 import { eq } from "drizzle-orm";
 import { SIGNUP_LINK_EXPIRY_DAYS, ONBOARDING_LINK_EXPIRY_DAYS } from "../../constants/tokenExpiry.js";
-
-interface JwtPayload {
-  id?: number;
-  email?: string;
-  userRole?: string;
-}
+import { getCallerContext } from "../../utils/accessControl.js";
+import { SAFE_USER_COLUMNS } from "../../utils/safeUser.js";
 
 /**
  * Derive onboarding status from DB and token expiry.
@@ -59,53 +55,28 @@ function getOnboardingStatus(user: {
  */
 const fetchAllUsers = async (req: Request, res: Response) => {
   try {
-    const decoded = (req as { user?: JwtPayload }).user;
-    const userId = decoded?.id;
-
-    if (userId == null) {
+    const caller = await getCallerContext(req);
+    if (!caller) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const currentUserRows = await db
+    // Deny by default: only Accelerate AI internal users may list all users;
+    // every customer caller is scoped to their own organization. SAFE_USER_COLUMNS
+    // excludes user_password so the bcrypt hash never reaches the client.
+    const whereClause = caller.isInternal
+      ? undefined
+      : caller.organizationId != null
+        ? eq(usersTable.organization_id, caller.organizationId)
+        : eq(usersTable.id, -1); // no org => match nothing
+
+    const userRows = await db
       .select({
-        organization_id: usersTable.organization_id,
-        user_platform_role: usersTable.user_platform_role,
+        user: SAFE_USER_COLUMNS,
+        organizationName: createOrganization.organizationName,
       })
       .from(usersTable)
-      .where(eq(usersTable.id, Number(userId)))
-      .limit(1);
-
-    const currentUser = currentUserRows[0];
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const platformRole = (currentUser.user_platform_role ?? "").trim().toLowerCase();
-
-    let userRows: { user: typeof usersTable.$inferSelect; organizationName: string | null }[];
-    if (platformRole === "vendor" || platformRole === "buyer") {
-      const orgId = currentUser.organization_id;
-      if (orgId == null) {
-        userRows = [];
-      } else {
-        userRows = await db
-          .select({
-            user: usersTable,
-            organizationName: createOrganization.organizationName,
-          })
-          .from(usersTable)
-          .leftJoin(createOrganization, eq(usersTable.organization_id, createOrganization.id))
-          .where(eq(usersTable.organization_id, orgId));
-      }
-    } else {
-      userRows = await db
-        .select({
-          user: usersTable,
-          organizationName: createOrganization.organizationName,
-        })
-        .from(usersTable)
-        .leftJoin(createOrganization, eq(usersTable.organization_id, createOrganization.id));
-    }
+      .leftJoin(createOrganization, eq(usersTable.organization_id, createOrganization.id))
+      .where(whereClause);
 
     // Automatically mark as expired when not completed: invited + onboarding pending and signup expiry (invited_at) has passed
     const expiredUserIds = new Map<number, { accountStatus: "invited" | "confirmed" }>();

@@ -6,6 +6,7 @@ import { cotsBuyerAssessments } from "../../schema/assessments/cotsBuyerAssessme
 import { and, eq } from "drizzle-orm";
 import { expireSubmittedAssessmentsAndArchiveBuyerReports } from "../../services/expireAndArchiveCotsBuyerAssessments.js";
 import { hasCotsBuyerArchivedReportColumn } from "../../services/cotsBuyerArchivedColumn.js";
+import { hasReportStatusColumn } from "../../services/reportStatusColumn.js";
 import {
   enrichStoredBuyerVendorReport,
   regulatorySnippetFromJson,
@@ -108,6 +109,23 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    // Per-report generation status (additive column; probe so an unmigrated DB
+    // doesn't error). Lets the UI distinguish a failed report (show Retry) from
+    // one still generating.
+    let reportStatus: string | null = null;
+    try {
+      if (await hasReportStatusColumn(pool, "cots_buyer_assessments")) {
+        const sres = await pool.query(
+          `SELECT report_status FROM cots_buyer_assessments WHERE assessment_id = $1 LIMIT 1`,
+          [id],
+        );
+        const v = sres.rows[0]?.report_status;
+        reportStatus = v != null ? String(v) : null;
+      }
+    } catch (e) {
+      console.error("getBuyerVendorRiskReport report_status probe:", e);
+    }
+
     const assessmentTimeExpired = String(row.assessment_status ?? "").toLowerCase() === "expired";
     const aRow = row as { user_archived_at?: Date | null };
     const assessmentUserArchived = aRow.user_archived_at != null;
@@ -136,14 +154,27 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
         });
         return;
       }
+      const insufficient = reportStatus === "insufficient_data";
+      const failed = reportStatus === "failed";
       res.status(200).json({
         success: true,
-        pending: true,
+        pending: !failed && !insufficient,
+        failed,
+        insufficient,
+        reportStatus: reportStatus ?? "generating",
         archived: assessmentUserArchived,
         assessmentUserArchived,
         assessmentTimeExpired: false,
         reportUnavailable: false,
-        message: "Report is still being generated or was not available. Refresh shortly.",
+        // Retry (regenerate) only helps a scorer failure; insufficient data needs
+        // the user to complete their answers (reopen the assessment).
+        canRegenerate: failed,
+        canEditAssessment: insufficient,
+        message: insufficient
+          ? "Insufficient data — complete the missing answers to generate a score."
+          : failed
+            ? "Report generation failed. You can retry."
+            : "Report is still being generated or was not available. Refresh shortly.",
         vendorName,
         productName,
         organizationName: row.organization_name ?? "",
@@ -203,6 +234,7 @@ const getBuyerVendorRiskReport = async (req: Request, res: Response): Promise<vo
       productName,
       organizationName: row.organization_name ?? "",
       report: enriched,
+      reportStatus: reportStatus ?? "done",
       llmModelId: llmModelId || null,
       llmModelLabel: llmModelLabel || null,
       frameworkMappingRows,

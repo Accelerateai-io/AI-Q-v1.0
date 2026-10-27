@@ -26,7 +26,9 @@ export const REPORT_TYPES: ReportTypeOption[] = [
   { label: "Executive Stakeholder Brief", Icon: Presentation, accent: "exec", forPortal: "vendor" },
   { label: "Customer Risk Mitigation Plan", Icon: ShieldCheck, accent: "risk", forPortal: "vendor" },
   { label: "Implementation Roadmap Proposal", Icon: Route, accent: "roadmap", forPortal: "vendor" },
-  { label: "Vendor Comparison Matrix", Icon: LayoutGrid, accent: "exec", forPortal: "buyer" },
+  // "Vendor Comparison Matrix" is hidden from Reports > Generate until it supports
+  // multiple vendors. Its icon/accent mappings below are kept so any already-stored
+  // report of this type still renders correctly.
   { label: "Compliance & Risk Summary", Icon: ShieldAlert, accent: "risk", forPortal: "buyer" },
   { label: "Implementation Risk Assessment", Icon: ShieldCheck, accent: "roadmap", forPortal: "buyer" },
   { label: "Mitigation Action Plan", Icon: ListChecks, accent: "sales", forPortal: "buyer" },
@@ -42,11 +44,14 @@ const ICON_BY_LABEL = new Map<string, LucideIcon>(
 );
 /** Backward compatibility: old reports may have reportType "Qualification". */
 ICON_BY_LABEL.set("Qualification", Target);
+// "Vendor Comparison Matrix" is no longer offered in Generate but existing reports keep their icon.
+ICON_BY_LABEL.set("Vendor Comparison Matrix", LayoutGrid);
 
 const ACCENT_BY_LABEL = new Map<string, ReportTypeOption["accent"]>(
   REPORT_TYPES.map((t) => [t.label, t.accent])
 );
 ACCENT_BY_LABEL.set("Qualification", "sales");
+ACCENT_BY_LABEL.set("Vendor Comparison Matrix", "exec");
 
 export function getReportTypeIcon(reportType: string): LucideIcon {
   return ICON_BY_LABEL.get(reportType.trim()) ?? FileText;

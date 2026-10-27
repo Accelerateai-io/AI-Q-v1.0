@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { db } from "../../database/db.js";
 import { usersTable } from "../../schema/schema.js";
+import { getJwtSecret } from "../../config/auth.js";
 
 /**
  * GET /onboarding/access-status — Bearer: onboarding JWT (same as invite/signup link).
@@ -18,7 +19,7 @@ export default async function getOnboardingAccessStatus(req: Request, res: Respo
     const token = authHeader.split(" ")[1];
     let decoded: jwt.JwtPayload | string;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY ?? "fallback-secret");
+      decoded = jwt.verify(token, getJwtSecret());
     } catch {
       return res.status(401).json({ message: "Invalid or expired token" });
     }

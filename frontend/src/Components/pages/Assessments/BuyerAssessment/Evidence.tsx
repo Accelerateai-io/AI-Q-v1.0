@@ -1,8 +1,6 @@
 import { BUYER_COTS_FIELD_KEYS } from "../../../../constants/buyerCotsAssessmentKeys";
-import { MAX_FILE_SIZE_BYTES } from "../../../../constants/vendorAttestationDocumentConstants";
 import BuyerCotsField from "./BuyerCotsField";
 import FormField from "../../../UI/FormField";
-import FileUpload from "../../../UI/FileUpload";
 import HeaderForBuyer from "../../BuyerOnboarding/HeaderForBuyer";
 
 function isUploadField(config: { label?: string; placeholder?: string; options?: unknown }): boolean {
@@ -51,14 +49,12 @@ const Evidence = ({
                   mandatory={config.required === "true"}
                   tooltipText={config.placeholder}
                 >
-                  <FileUpload
-                    accept=".pdf,.doc,.docx,.ppt,.pptx"
-                    maxSizeBytes={MAX_FILE_SIZE_BYTES}
-                    value={fileNames}
-                    onFilesChange={(names) =>
-                      setFormData((prev) => ({ ...prev, [key]: JSON.stringify(names) }))
-                    }
-                  />
+                  <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                    Document upload coming soon — list your evidence in the notes field.
+                    {fileNames.length > 0 && (
+                      <span> Previously listed: {fileNames.join(", ")}</span>
+                    )}
+                  </p>
                 </FormField>
               </div>
             );

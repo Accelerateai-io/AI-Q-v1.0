@@ -6,6 +6,7 @@ import {
   emailClosingSignatureHtml,
   emailCopyrightYear,
 } from "./emailBrand.js";
+import { ONBOARDING_LINK_EXPIRY_DAYS } from "../constants/tokenExpiry.js";
 
 export const ONBOARDING_MAIL_PLATFORM_NAME = "AI-Q Platform";
 
@@ -40,6 +41,7 @@ export function buildOnboardingEmailHtml(
                 </td>
               </tr>
             </table>
+            <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:#555555;">This onboarding link expires in ${ONBOARDING_LINK_EXPIRY_DAYS} days. If it expires, sign in and request a fresh link from the onboarding page.</p>
             <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#333333;">If you have any questions, feel free to reply to this email - we're here to help.</p>
             <p style="margin:0 0 12px;font-size:16px;line-height:1.5;color:#333333;font-weight:600;">Here are a few things you can do next:</p>
             <ul style="margin:0 0 24px;padding:0 0 0 20px;font-size:16px;line-height:1.6;color:#333333;">

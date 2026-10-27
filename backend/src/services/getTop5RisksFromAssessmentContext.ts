@@ -1,5 +1,8 @@
 import { db } from "../database/db.js";
-import { sql, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
+import { riskMappings } from "../schema/risks/riskMappings.js";
+import { selectTop5, selectedBecauseLine, type MatchTrace } from "./riskMapping/selectTop5.js";
+import { getLookupVersion } from "./riskMapping/riskVocabulary.js";
 import { riskTop5Mitigations } from "../schema/risks/riskTop5Mitigations.js";
 import {
   fetchRisksFromRI,
@@ -30,6 +33,8 @@ export interface RiskMappingRow {
   likelihood?: number | null;
   impact?: number | null;
   severity?: number | null;
+  /** v2 reason trace: why this risk was selected (scoring + matched vocabulary/text). */
+  match_trace?: MatchTrace;
 }
 
 export interface MitigationRow {
@@ -58,6 +63,8 @@ export interface Top5RisksWithMitigations {
   mitigationsByRiskId: Record<string, MitigationRow[]>;
   /** Risks always come from the local AI-Q risk_mappings catalog. */
   source?: "local_db";
+  /** "insufficient_assessment_context" when no usable answers were provided (empty top-5). */
+  reason?: string;
   /** Applicable scoring domains aggregated from AIRI risk records. */
   applicableDomains?: RiApplicableDomain[];
   applicableDomainsSource?: "risk_intellect";
@@ -377,7 +384,7 @@ function extractRiSector(payload: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-function isType01AttestationPayload(payload: Record<string, unknown>): boolean {
+export function isType01AttestationPayload(payload: Record<string, unknown>): boolean {
   return Boolean(
     payload.decision_autonomy ??
       payload.ai_autonomy_level ??
@@ -393,7 +400,7 @@ function isType01AttestationPayload(payload: Record<string, unknown>): boolean {
  * Extract assessment context for matching risk_mappings table on domain, timing, intent, primary_risk, secondary_risks.
  * Type 01 uses attestation answers; types 2/3 keep buyer/vendor COTS fields.
  */
-function extractContext(payload: Record<string, unknown>): {
+export function extractContext(payload: Record<string, unknown>): {
   domain: string;
   intent: string;
   timing: string;
@@ -459,13 +466,30 @@ function extractContext(payload: Record<string, unknown>): {
   return { domain, intent, timing, primary_risk, secondary_risks };
 }
 
-function extractMappingIds(payload: Record<string, unknown>): number[] {
+export function extractMappingIds(
+  payload: Record<string, unknown>,
+  validIds?: Set<number>,
+): number[] {
   const raw = payload.risk_mitigation_mapping_ids ?? payload.riskMitigationMappingIds;
   const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [];
-  const ids = list
-    .map((v) => Number(String(v).trim()))
-    .filter((n) => Number.isInteger(n) && n > 0);
-  return [...new Set(ids)];
+  const ids = [
+    ...new Set(
+      list
+        .map((v) => Number(String(v).trim()))
+        .filter((n) => Number.isInteger(n) && n > 0),
+    ),
+  ];
+  if (!validIds) return ids;
+  // Only accept ids that are real risk_mappings primary keys; ignore the rest. Defends against the
+  // old bug where mitigation mapping_ids were passed here and treated as risk_mapping PKs.
+  const accepted = ids.filter((n) => validIds.has(n));
+  const ignored = ids.length - accepted.length;
+  if (ignored > 0) {
+    console.warn(
+      `[risk-mapping] extractMappingIds: ignored ${ignored} id(s) not present in risk_mappings.risk_mapping_id`,
+    );
+  }
+  return accepted;
 }
 
 /**
@@ -634,7 +658,13 @@ async function enrichIntentFromRiskIntellect(
  * Human-readable block for LLM prompts (same shape as vendor COTS "Database-matched top risks").
  */
 export function formatTop5RisksForPrompt(top5: Top5RisksWithMitigations | null): string {
-  if (!top5 || top5.top5Risks.length === 0) return "";
+  if (!top5 || top5.top5Risks.length === 0) {
+    return [
+      "--- Database-matched top risks and mitigations ---",
+      "Not enough assessment detail to select risks.",
+      "--- End of database-matched risks ---",
+    ].join("\n");
+  }
   const lines: string[] = ["--- Database-matched top risks and mitigations ---"];
   if (top5.intentScore) {
     lines.push(
@@ -659,6 +689,8 @@ export function formatTop5RisksForPrompt(top5: Top5RisksWithMitigations | null):
       `Risk [${r.risk_id}]: ${r.risk_title ?? "N/A"} | Domain: ${r.domains ?? "N/A"} | Intent: ${r.intent ?? "N/A"} | Timing: ${r.timing ?? "N/A"} | Primary risk: ${r.primary_risk ?? "N/A"}` +
         (liBits ? ` | ${liBits}` : ""),
     );
+    const because = selectedBecauseLine(r.match_trace);
+    if (because) lines.push(`  ${because}`);
     if (r.description) {
       lines.push(`  Description: ${r.description.slice(0, 300)}${r.description.length > 300 ? "..." : ""}`);
     }
@@ -679,66 +711,54 @@ export function formatTop5RisksForPrompt(top5: Top5RisksWithMitigations | null):
   return lines.join("\n");
 }
 
+let catalogueCache: RiskMappingRow[] | null = null;
+/** Load the full risk_mappings catalogue once (cached) for in-TS v2 selection. */
+async function loadCatalogueRows(): Promise<RiskMappingRow[]> {
+  if (catalogueCache) return catalogueCache;
+  const rows = await db.select().from(riskMappings);
+  catalogueCache = rows as unknown as RiskMappingRow[];
+  return catalogueCache;
+}
+
 /**
- * 1. Fetch top risks from the AI-Q local risk_mappings DB (primary).
- * 2. Extra: when AI Risk Intellect API key is set, calculate domains, intent,
- *    and likelihood / impact / severity from RI for those risks.
- * 3. Intent is used for type 2/3; domains and L/I/S are used for type 1 VTS.
+ * risk-mapping v2: match each assessment to the catalogue's own vocabulary (option VALUES -> the 7
+ * catalogue domains) plus capped text relevance, computed in TypeScript (selectTop5). Max 2 risks
+ * per domain; empty top-5 with reason "insufficient_assessment_context" when no usable answers.
+ *
+ * Extra (unchanged): when the AI Risk Intellect API key is set, intent and likelihood/impact/severity
+ * are enriched for the selected risks. Intent is used for type 2/3; domains and L/I/S for type 1 VTS.
  */
 export async function getTop5RisksWithMitigations(
   payload: Record<string, unknown>,
 ): Promise<Top5RisksWithMitigations> {
-  const { domain, intent, timing, primary_risk, secondary_risks } = extractContext(payload);
-  const explicitMappingIds = extractMappingIds(payload);
+  const catalogue = await loadCatalogueRows();
+  const validIds = new Set(catalogue.map((r) => r.risk_mapping_id));
+  const explicitMappingIds = extractMappingIds(payload, validIds);
+  const type1 = isType01AttestationPayload(payload);
 
-  const domainPattern = domain ? `%${domain}%` : null;
-  const intentPattern = intent ? `%${intent}%` : null;
-  const timingPattern = timing ? `%${timing}%` : null;
-  const primaryRiskPattern = primary_risk ? `%${primary_risk}%` : null;
-  const secondaryRisksPattern = secondary_risks ? `%${secondary_risks}%` : null;
+  const selection = selectTop5<RiskMappingRow>(catalogue, payload, { type1 });
+  const selectionReason = selection.reason;
 
-  type QueryResult = { rows: RiskMappingRow[] };
-  const selectedRows: RiskMappingRow[] = [];
+  let rows: RiskMappingRow[] = selection.selected;
+  // Explicit, validated risk_mapping_ids (real PKs only) are pinned first.
   if (explicitMappingIds.length > 0) {
-    const explicitTop5Result = await db.execute(sql`
-      SELECT risk_mapping_id, risk_id, risk_title, domains, description, technical_description,
-             executive_summary, attack_vector, observable_indicators, data_to_identify_risk,
-             evidence_sources, intent, timing, risk_type_detected, primary_risk, secondary_risks
-      FROM public.risk_mappings
-      WHERE risk_mapping_id IN (${sql.join(explicitMappingIds.map((id) => sql`${id}`), sql`, `)})
-      ORDER BY risk_mapping_id ASC
-      LIMIT 5
-    `);
-    selectedRows.push(...((((explicitTop5Result as unknown) as QueryResult).rows ?? []) as RiskMappingRow[]));
+    const byId = new Map(catalogue.map((r) => [r.risk_mapping_id, r]));
+    const pinned: RiskMappingRow[] = explicitMappingIds
+      .map((id) => byId.get(id))
+      .filter((r): r is RiskMappingRow => Boolean(r))
+      .map((r) => ({
+        ...r,
+        match_trace: {
+          score: 0,
+          vocabulary: ["explicit_mapping_id"],
+          text_terms: [],
+          unmatched: selection.vocab.unmatched,
+          lookup_version: getLookupVersion(),
+        },
+      }));
+    const seen = new Set(pinned.map((r) => r.risk_mapping_id));
+    rows = [...pinned, ...rows.filter((r) => !seen.has(r.risk_mapping_id))].slice(0, 5);
   }
-
-  const remaining = Math.max(0, 5 - selectedRows.length);
-  const excludeIds = selectedRows.map((r) => r.risk_mapping_id).filter((n) => Number.isInteger(n));
-  const fallbackResult =
-    remaining > 0
-      ? await db.execute(sql`
-          WITH scored AS (
-            SELECT *,
-              (CASE WHEN ${domainPattern}::text IS NOT NULL AND domains IS NOT NULL AND domains ILIKE ${domainPattern} THEN 1 ELSE 0 END +
-               CASE WHEN ${intentPattern}::text IS NOT NULL AND intent IS NOT NULL AND intent ILIKE ${intentPattern} THEN 1 ELSE 0 END +
-               CASE WHEN ${timingPattern}::text IS NOT NULL AND timing IS NOT NULL AND timing ILIKE ${timingPattern} THEN 1 ELSE 0 END +
-               CASE WHEN ${primaryRiskPattern}::text IS NOT NULL AND primary_risk IS NOT NULL AND primary_risk ILIKE ${primaryRiskPattern} THEN 1 ELSE 0 END +
-               CASE WHEN ${secondaryRisksPattern}::text IS NOT NULL AND secondary_risks IS NOT NULL AND secondary_risks ILIKE ${secondaryRisksPattern} THEN 1 ELSE 0 END) AS match_score
-            FROM public.risk_mappings
-          )
-          SELECT risk_mapping_id, risk_id, risk_title, domains, description, technical_description,
-                 executive_summary, attack_vector, observable_indicators, data_to_identify_risk,
-                 evidence_sources, intent, timing, risk_type_detected, primary_risk, secondary_risks
-          FROM scored
-          ${excludeIds.length > 0 ? sql`WHERE risk_mapping_id NOT IN (${sql.join(excludeIds.map((id) => sql`${id}`), sql`, `)})` : sql``}
-          ORDER BY match_score DESC NULLS LAST, risk_mapping_id ASC
-          LIMIT ${remaining}
-        `)
-      : null;
-  const fallbackRows: RiskMappingRow[] = fallbackResult
-    ? (((fallbackResult as unknown) as QueryResult).rows ?? [])
-    : [];
-  const rows: RiskMappingRow[] = [...selectedRows, ...fallbackRows].slice(0, 5);
 
   const riskIds = [...new Set(rows.map((r) => r.risk_id).filter(Boolean) as string[])];
 
@@ -766,6 +786,7 @@ export async function getTop5RisksWithMitigations(
     top5Risks: rows,
     mitigationsByRiskId,
     source: "local_db",
+    ...(selectionReason ? { reason: selectionReason } : {}),
   };
 
   return enrichIntentFromRiskIntellect(fromLocal, extractRiSector(payload) ?? "");

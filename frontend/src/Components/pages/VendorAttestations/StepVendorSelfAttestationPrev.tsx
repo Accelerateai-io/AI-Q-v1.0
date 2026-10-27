@@ -40,6 +40,8 @@ export type ComplianceDocumentExpiryMeta = {
     reason?: string;
     mismatch?: boolean;
     expired?: boolean;
+    status?: "mapped" | "no_catalog_yet" | "unclassified";
+    noCatalogYet?: boolean;
   };
 };
 
@@ -413,6 +415,9 @@ function StepVendorSelfAttestationPrev({
                     new Date(meta.expiryAt).getTime() < Date.now(),
                 );
               const mismatch = meta?.validation?.mismatch === true;
+              const unclassified = meta?.validation?.status === "unclassified";
+              const noCatalogYet =
+                meta?.validation?.noCatalogYet === true || meta?.validation?.status === "no_catalog_yet";
               const verified = Boolean(fileName) && meta?.validation?.isValid === true && !expired && !mismatch;
               const badgeLabel = !fileName
                 ? "Pending evidence"
@@ -420,9 +425,13 @@ function StepVendorSelfAttestationPrev({
                   ? "Mismatch"
                   : expired
                     ? "Expired"
-                    : verified
-                      ? "Verified"
-                      : "Unverified";
+                    : unclassified
+                      ? "Unclassified"
+                      : noCatalogYet
+                        ? "Recognised — no catalogue yet"
+                        : verified
+                          ? "Verified"
+                          : "Unverified";
               return (
                 <li key={category} className="preview_regulatory_doc_item">
                   <span className="preview_regulatory_doc_line">

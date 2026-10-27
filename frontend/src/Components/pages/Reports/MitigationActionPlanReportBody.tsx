@@ -31,6 +31,7 @@ export type MitigationActionPlanParsed = {
     fieldDefinitions: { fieldName: string; description: string }[];
     formatNotes: string;
   };
+  isFallback?: boolean;
 };
 
 function escapeCsvCell(s: string): string {
@@ -100,6 +101,7 @@ export function parseMitigationActionPlanJson(
         : [],
       formatNotes: typeof csvExport?.formatNotes === "string" ? csvExport.formatNotes : "",
     },
+    isFallback: j.isFallback === true,
   };
 }
 
@@ -189,6 +191,22 @@ export default function MitigationActionPlanReportBody({ data }: { data: Mitigat
 
   return (
     <div className="report_vcm_wrap map_report_root">
+      {data.isFallback && (
+        <div
+          role="status"
+          style={{
+            margin: "0 0 16px",
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid #f0c36d",
+            background: "#fff8e6",
+            color: "#7a5b00",
+            fontSize: 14,
+          }}
+        >
+          AI analysis unavailable — showing assessment data only.
+        </div>
+      )}
       <section className="bvr_card">
         <h2 className="bvr_section_title bvr_title_with_icon" style={{ marginTop: 0 }}>
           <ListChecks className="bvr_title_icon" size={22} strokeWidth={2} aria-hidden />

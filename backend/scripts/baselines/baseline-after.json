@@ -1,0 +1,170 @@
+{
+  "mode": "offline-v2",
+  "lookup_version": "v1",
+  "catalogSource": {
+    "type": "sql_dump",
+    "file": "DataBase/11Aug2026_aiq_db.sql",
+    "rowCount": 1248
+  },
+  "results": [
+    {
+      "assessmentId": "A",
+      "label": "Hospital clinical chatbot",
+      "assessmentType": "buyer_cots",
+      "reason": null,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 161,
+          "risk_id": "RISK-1142",
+          "risk_title": "AI Model Generates Harmful Mental Health Content",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 8,
+          "selected_because": "Selected because: impactedStakeholders:\"Patients (Healthcare)\" +1; decisionStakes:\"Life or Death - Medical decisions, safety-critical applications\" +3; dataSensitivity:\"Highly Sensitive - PHI, financial records, or PCI data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: health (score 8, v1)"
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 987,
+          "risk_id": "RISK-763",
+          "risk_title": "AI System Safety Risks from Exploratory Learning",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 8,
+          "selected_because": "Selected because: impactedStakeholders:\"Patients (Healthcare)\" +1; decisionStakes:\"Life or Death - Medical decisions, safety-critical applications\" +3; regulatoryRequirements:\"HIPAA (Healthcare)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"] | text overlap: patient, medical (score 8, v1)"
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 1019,
+          "risk_id": "RISK-792",
+          "risk_title": "Sensitive Data Exposure through Public Model APIs",
+          "domains": "Privacy and Security",
+          "score": 7,
+          "selected_because": "Selected because: dataSensitivity:\"Highly Sensitive - PHI, financial records, or PCI data\" +3; dataSensitivity:\"Highly Sensitive - PHI, financial records, or PCI data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: knowledge, healthcare, medical (score 7, v1)"
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 23,
+          "risk_id": "RISK-1018",
+          "risk_title": "AI-generated medical misinformation leading to user harm",
+          "domains": "Misinformation",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Answer questions from internal knowledge\" +2; regulatoryRequirements:\"HIPAA (Healthcare)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"]; regulatoryRequirements:\"HITECH (Healthcare Technology)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"] | text overlap: medication, healthcare, health, medical (score 7, v1)"
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 215,
+          "risk_id": "RISK-1191",
+          "risk_title": "Conversational AI Misinformation in Sensitive Domains",
+          "domains": "Human-Computer Interaction",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Answer questions from internal knowledge\" +2; regulatoryRequirements:\"HIPAA (Healthcare)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"]; regulatoryRequirements:\"HITECH (Healthcare Technology)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"] | text overlap: clinical, health, medical (score 7, v1)"
+        }
+      ]
+    },
+    {
+      "assessmentId": "B",
+      "label": "Bank fraud model",
+      "assessmentType": "vendor_cots",
+      "reason": null,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 984,
+          "risk_id": "RISK-760",
+          "risk_title": "Unintentional AI Discrimination through Technical Failures",
+          "domains": "Discrimination and Toxicity",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Automated Decision-Making\" +2; productFeatures:\"Predictive Analytics\" +1; dataSensitivity:\"Highly Sensitive - PHI, Financial Records, or PCI Data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: automat, decision, mak (score 7, v1)"
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 878,
+          "risk_id": "RISK-665",
+          "risk_title": "AI System Controls Insufficient for Autonomous Decision-Making",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Automated Decision-Making\" +2; regulatoryRequirements:\"GLBA (Financial Privacy)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"]; regulatoryRequirements:\"PCI DSS (Payment Cards)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"] | text overlap: automat, decision, mak (score 7, v1)"
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 824,
+          "risk_id": "RISK-616",
+          "risk_title": "AI System Controls Insufficient for Safety and Limitations",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Automated Decision-Making\" +2; regulatoryRequirements:\"GLBA (Financial Privacy)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"]; regulatoryRequirements:\"PCI DSS (Payment Cards)\" +2 [secondary_risks~\"Compliance/Regulatory Risk\"] | text overlap: automat, decision, mak (score 7, v1)"
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 990,
+          "risk_id": "RISK-766",
+          "risk_title": "Multi-step jailbreaks exploit conversational AI systems through sequential prompt engineering.",
+          "domains": "Privacy and Security",
+          "score": 7,
+          "selected_because": "Selected because: dataSensitivity:\"Highly Sensitive - PHI, Financial Records, or PCI Data\" +3; dataSensitivity:\"Highly Sensitive - PHI, Financial Records, or PCI Data\" +1 [secondary_risks~\"Privacy Risk\"] | text overlap: detection, automat, mak (score 7, v1)"
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 1018,
+          "risk_id": "RISK-791",
+          "risk_title": "Algorithmic Discrimination in AI Systems",
+          "domains": "Discrimination and Toxicity",
+          "score": 7,
+          "selected_because": "Selected because: productFeatures:\"Automated Decision-Making\" +2; productFeatures:\"Predictive Analytics\" +1; dataSensitivity:\"Highly Sensitive - PHI, Financial Records, or PCI Data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: decision, mak, servic (score 7, v1)"
+        }
+      ]
+    },
+    {
+      "assessmentId": "C",
+      "label": "HR resume screener",
+      "assessmentType": "buyer_cots",
+      "reason": null,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 892,
+          "risk_id": "RISK-678",
+          "risk_title": "Systemic Bias in Large Language Models from Training Data and RLHF",
+          "domains": "Discrimination and Toxicity",
+          "score": 7,
+          "selected_because": "Selected because: impactedStakeholders:\"General Public\" +1; productFeatures:\"Classify or route items\" +1; productFeatures:\"Recommend an action to a person\" +1 | text overlap: candidate, bias (score 7, v1)"
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 984,
+          "risk_id": "RISK-760",
+          "risk_title": "Unintentional AI Discrimination through Technical Failures",
+          "domains": "Discrimination and Toxicity",
+          "score": 7,
+          "selected_because": "Selected because: impactedStakeholders:\"General Public\" +1; productFeatures:\"Classify or route items\" +1; productFeatures:\"Recommend an action to a person\" +1 | text overlap: hir, bias, discrimination (score 7, v1)"
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 996,
+          "risk_id": "RISK-771",
+          "risk_title": "Inadequate AI Supply Chain Governance Exposes Systemic Bias and Trust Risks",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 7,
+          "selected_because": "Selected because: impactedStakeholders:\"General Public\" +1; decisionStakes:\"Major Financial Impact - Large financial losses or legal liability\" +2; dataSensitivity:\"Sensitive - PII or business critical data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: servic, bias (score 7, v1)"
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 975,
+          "risk_id": "RISK-752",
+          "risk_title": "AI Code Generation Model Security Risks Due to Training Data Biases and Lack of Safety Constraints",
+          "domains": "Privacy and Security",
+          "score": 7,
+          "selected_because": "Selected because: dataSensitivity:\"Sensitive - PII or business critical data\" +3; dataSensitivity:\"Sensitive - PII or business critical data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: bias (score 7, v1)"
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 610,
+          "risk_id": "RISK-423",
+          "risk_title": "AI System Safety Risks from Recursive Improvement and Bias Amplification",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "score": 7,
+          "selected_because": "Selected because: impactedStakeholders:\"General Public\" +1; decisionStakes:\"Major Financial Impact - Large financial losses or legal liability\" +2; dataSensitivity:\"Sensitive - PII or business critical data\" +1 [secondary_risks~\"Data Risk\"] | text overlap: job, employment, bias (score 7, v1)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+SOC 3 REPORT
+
+Report of Independent Service Auditors on a Description of a Service
+Organization's System and the Suitability of the Design and Operating
+Effectiveness of Controls Relevant to Security, Availability, and
+Confidentiality.
+
+This SOC 3 report covers the service organization's system throughout the
+report period from January 1, 2026 to December 31, 2026.
+
+In our opinion, the controls were suitably designed and operated effectively
+throughout the specified period based on the applicable trust services criteria.

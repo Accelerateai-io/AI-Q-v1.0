@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { getJwtSecret, getJwtExpiry } from "../../config/auth.js";
+import { pickSafeUser } from "../../utils/safeUser.js";
 
 const userLogin = async (req: Request, res: Response) => {
   const rawEmailOrUsername = req.body?.email;
@@ -118,12 +119,14 @@ const userLogin = async (req: Request, res: Response) => {
         id: user_table.id,
         email: user_table.email,
         userRole: user_table.role,
+        type: "session",
       },
       secret,
       { expiresIn: getJwtExpiry() } as SignOptions,
     );
 
-    const userDetails = [{ ...user_table, organization_name: row.organizationName ?? "", organization_id: user_table.organization_id }];
+    // Never return the bcrypt hash (user_password) to the client.
+    const userDetails = [{ ...pickSafeUser(user_table), organization_name: row.organizationName ?? "", organization_id: user_table.organization_id }];
     return res.status(200).json({
       message: "User Login Successful",
       token,

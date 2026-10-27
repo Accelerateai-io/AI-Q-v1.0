@@ -19,9 +19,8 @@ export default async function saveBuyerOnboardingProgress(req: Request, res: Res
       return res.status(200).json({ message: "Onboarding already completed" });
     }
 
-    const organizationId = String(
-      req.body.organization_Id ?? req.body.organizationId ?? user.organization_id ?? "",
-    ).trim();
+    // Organization id comes from the authenticated onboarding user (token), never the body.
+    const organizationId = String(user.organization_id ?? "").trim();
     if (!organizationId) {
       return res.status(400).json({ error: "Organization ID is required" });
     }

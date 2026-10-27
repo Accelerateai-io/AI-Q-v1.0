@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { eq, desc, or, inArray, sql } from "drizzle-orm";
+import { eq, desc, or, and, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/db.js";
 import { usersTable } from "../../schema/schema.js";
 import { customerRiskAssessmentReports } from "../../schema/assessments/customerRiskAssessmentReports.js";
@@ -52,10 +52,22 @@ const listCustomerRiskReports = async (req: Request, res: Response): Promise<voi
     const assessmentIdFromQuery =
       typeof req.query?.assessmentId === "string" ? req.query.assessmentId.trim() || null : null;
 
-    const whereClause = assessmentIdFromQuery
-      ? eq(customerRiskAssessmentReports.assessment_id, assessmentIdFromQuery)
+    // Keep the organization filter even when assessmentId is supplied, so a customer
+    // cannot read another org's report by guessing an assessment id. Internal/system
+    // users are explicitly allowed to query any assessment across orgs.
+    const whereClause = isSystemUser
+      ? assessmentIdFromQuery
+        ? eq(customerRiskAssessmentReports.assessment_id, assessmentIdFromQuery)
+        : orgId
+          ? eq(customerRiskAssessmentReports.organization_id, orgId)
+          : null
       : orgId
-        ? eq(customerRiskAssessmentReports.organization_id, orgId)
+        ? assessmentIdFromQuery
+          ? and(
+              eq(customerRiskAssessmentReports.organization_id, orgId),
+              eq(customerRiskAssessmentReports.assessment_id, assessmentIdFromQuery),
+            )
+          : eq(customerRiskAssessmentReports.organization_id, orgId)
         : null;
 
     if (!whereClause) {

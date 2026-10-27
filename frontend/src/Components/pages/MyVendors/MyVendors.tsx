@@ -31,6 +31,8 @@ import {
 } from "../../../utils/frameworkMappingControlsDisplay";
 import {
   buildControlMitigationCards,
+  severitySlug,
+  NO_MITIGATION_MESSAGE,
   type ControlDetailMitigationCardVM,
 } from "../../../utils/frameworkControlRiskMitigation";
 import { sanitizeFrameworkMappingNotesForDisplay } from "../../../utils/frameworkMappingNotesDisplay";
@@ -1491,13 +1493,8 @@ const MyVendors = () => {
     const detailLabel = parent.assessmentLabel?.trim();
     const { top5Risks: ctxRisks, mitigationsByRiskId: ctxMits, assessmentDetail: ctxDetail } =
       parseRiskMappingContextPayload(parent.riskMappingContext);
-    const mitigationCards = buildControlMitigationCards(
-      ctrl,
-      ctxRisks,
-      ctxMits,
-      (idx) => severityFromDomainScores(ctxDetail?.riskDomainScores, idx),
-      3,
-    );
+    const mitigationCards = buildControlMitigationCards(ctrl, ctxRisks, ctxMits, 3);
+    void ctxDetail;
     const controlTitleLabel =
       ctrl.title.trim() && ctrl.title !== "—"
         ? ctrl.title.trim()
@@ -1513,13 +1510,7 @@ const MyVendors = () => {
         : firstSentence(controlSummaryRaw);
     const canToggleSummary = collapsedSummary.length < controlSummaryRaw.length;
     const effectiveness =
-      mitigationCards.length === 0
-        ? "—"
-        : mitigationCards.every((c) => c.status === "MITIGATED")
-          ? "High (Mitigated)"
-          : mitigationCards.some((c) => c.status === "PARTIAL")
-            ? "Partial coverage"
-            : "—";
+      mitigationCards.length === 0 ? "No catalogue match yet" : "Suggested — not verified";
 
     return (
       <div className="sec_user_page org_settings_page fw_mapping_detail_page fw_control_detail_page">
@@ -1580,16 +1571,10 @@ const MyVendors = () => {
                 <div>
                   <dt>Effectiveness</dt>
                   <dd>
-                    {effectiveness === "—" ? (
-                      <span className="fw_control_detail_meta_muted">—</span>
+                    {mitigationCards.length === 0 ? (
+                      <span className="fw_control_detail_meta_muted">{effectiveness}</span>
                     ) : (
-                      <span
-                        className={
-                          effectiveness.startsWith("High")
-                            ? "fw_control_detail_pill fw_control_detail_pill_ok"
-                            : "fw_control_detail_pill fw_control_detail_pill_partial"
-                        }
-                      >
+                      <span className="fw_control_detail_pill fw_control_detail_pill_partial">
                         {effectiveness}
                       </span>
                     )}
@@ -1613,20 +1598,14 @@ const MyVendors = () => {
                 </h2>
                 <div className="fw_control_detail_legend" role="list" aria-label="Status legend">
                   <span className="fw_control_detail_legend_item" role="listitem">
-                    <span className="fw_control_detail_legend_dot fw_control_detail_legend_dot_ok" aria-hidden />
-                    Mitigated
-                  </span>
-                  <span className="fw_control_detail_legend_item" role="listitem">
                     <span className="fw_control_detail_legend_dot fw_control_detail_legend_dot_partial" aria-hidden />
-                    Partial
+                    Suggested — not verified (catalogue text match only)
                   </span>
                 </div>
               </div>
               {mitigationCards.length === 0 ? (
                 <p className="fw_mapping_detail_muted fw_control_detail_empty">
-                  No database-matched mitigations are linked for this assessment yet, or risk mapping has not been
-                  generated. Open Risk Register after completing the assessment, or check back when mitigation data is
-                  available.
+                  {NO_MITIGATION_MESSAGE}
                 </p>
               ) : (
                 <ul className="fw_control_detail_mitigation_list">
@@ -1639,18 +1618,14 @@ const MyVendors = () => {
                           </span>
                           <h3 className="fw_control_detail_mitigation_name">{card.title}</h3>
                           <div className="fw_control_detail_mitigation_status_block">
-                            <span
-                              className={
-                                card.status === "MITIGATED"
-                                  ? "fw_control_detail_status_pill fw_control_detail_status_pill_ok"
-                                  : "fw_control_detail_status_pill fw_control_detail_status_pill_partial"
-                              }
-                            >
+                            <span className="fw_control_detail_status_pill fw_control_detail_status_pill_partial">
                               {card.status}
                             </span>
-                            <span className="fw_control_detail_reliability">
-                              {card.reliabilityPercent}% Reliability
-                            </span>
+                            {card.matchedTerms.length > 0 && (
+                              <span className="fw_control_detail_matched_terms">
+                                Matched on: {card.matchedTerms.join(", ")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <p className="fw_control_detail_mitigation_desc">{card.description}</p>
@@ -1666,22 +1641,20 @@ const MyVendors = () => {
                                 |
                               </span>
                               <span
-                                className={`fw_control_detail_risk_sev fw_control_detail_risk_sev_${r.severity.toLowerCase()}`}
+                                className={`fw_control_detail_risk_sev fw_control_detail_risk_sev_${severitySlug(r.severity)}`}
                               >
                                 {r.severity}
                               </span>
-                              <span className="fw_control_detail_risk_sep" aria-hidden>
-                                |
-                              </span>
-                              <span
-                                className={
-                                  r.mitigationStatus === "MITIGATED"
-                                    ? "fw_control_detail_risk_stat_ok"
-                                    : "fw_control_detail_risk_stat_partial"
-                                }
-                              >
-                                STATUS: {r.mitigationStatus}
-                              </span>
+                              {r.matchedTerms.length > 0 && (
+                                <>
+                                  <span className="fw_control_detail_risk_sep" aria-hidden>
+                                    |
+                                  </span>
+                                  <span className="fw_control_detail_risk_stat_partial">
+                                    Matched on: {r.matchedTerms.join(", ")}
+                                  </span>
+                                </>
+                              )}
                             </li>
                           ))}
                         </ul>

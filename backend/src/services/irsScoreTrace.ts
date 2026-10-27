@@ -1304,7 +1304,8 @@ export function buildIrsScoreTrace(input: IrsTraceInput): ScoreTrace {
     scoreType: "buyer_implementation_risk",
     finalScore: Math.round((Math.max(0, Math.min(100, storedScore)) + Number.EPSILON) * 100) / 100,
     formula: "",
-    scoringVersion: SCORING_VERSION,
+    // Prefer the version stored with the score over the local display constant.
+    scoringVersion: input.scoringVersion?.trim() || SCORING_VERSION,
     rawSubScores: {
       vendorRisk: vRisk,
       orgReadinessGap: storedOrg,

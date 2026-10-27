@@ -1221,26 +1221,88 @@ def calculate_sales_risk_score(user_input: dict[str, Any]) -> dict[str, Any]:
     # Document 2 §3 declares fixed pillar weights. Missing groups drop inside
     # CFR/IR; headline weights are never redistributed. Document 0 §7 AIRI is not applied.
     weights = dict(PILLAR_WEIGHTS)
-    cfr_val = float(cfr["value"] or 0)
-    ir_val = float(ir["value"] or 0)
-    cr_val = float(cr["value"] or 0)
     cfr_w = weights["customer_friction"]
     ir_w = weights["implementation"]
     cr_w = weights["competitive"]
+    gates = evaluate_blocker_gates(user_input)
+    band = calc_confidence_band(user_input)
+    degraded = user_input.get("_degraded_fields") if isinstance(user_input.get("_degraded_fields"), list) else []
+    unmatched = user_input.get("_unmatched") if isinstance(user_input.get("_unmatched"), list) else []
+
+    # A pillar whose value is None was NOT measured. It must never be treated as
+    # 0 risk — doing so silently inflates the confidence score toward 100 for an
+    # unanswered assessment. Weights are fixed and never redistributed, so when any
+    # pillar is unmeasured the headline score and grade are withheld (insufficient
+    # data) rather than fabricated.
+    pillar_values = {
+        "customer_friction": cfr.get("value"),
+        "implementation": ir.get("value"),
+        "competitive": cr.get("value"),
+    }
+    measured_flags = {k: (v is not None) for k, v in pillar_values.items()}
+    pillars_measured = sum(1 for ok in measured_flags.values() if ok)
+
+    if pillars_measured < len(pillar_values):
+        return {
+            "sales_risk_score": None,
+            "sales_confidence_score": None,
+            "deal_probability_pct": None,
+            "customer_friction_risk": pillar_values["customer_friction"],
+            "implementation_risk": pillar_values["implementation"],
+            "competitive_risk": pillar_values["competitive"],
+            "grade": None,
+            "classification": f"Insufficient data — {pillars_measured} of {len(pillar_values)} areas answered",
+            "deal_characteristics": "",
+            "recommended_actions": "Answer the unmeasured areas to produce a score.",
+            "scoring_source": "insufficient_data",
+            "scoring_version": SCORING_VERSION,
+            "calibration_version": CALIBRATION_VERSION,
+            "pillars_measured": pillars_measured,
+            "pillars_total": len(pillar_values),
+            "pillars_measured_detail": measured_flags,
+            "degraded_fields": degraded,
+            "detail": {
+                "customer_friction_risk": cfr,
+                "implementation_risk": ir,
+                "competitive_risk": cr,
+                "blocker_gates": gates,
+                "confidence_band": band,
+                "final_formula": {
+                    "expression": "SCS = 100 − [ CFR × 0.35 + IR × 0.35 + CR × 0.30 ]",
+                    "pillar_weights": weights,
+                    "note": (
+                        "Score withheld: one or more pillars were not measured. "
+                        "Weights are fixed and not redistributed (Doc 2 §3)."
+                    ),
+                },
+                "score_trace": {
+                    "registry_version": SCORING_VERSION,
+                    "calibration_version": CALIBRATION_VERSION,
+                    "unmatched_markers": unmatched,
+                    "pillars_measured": pillars_measured,
+                    "pillars_measured_detail": measured_flags,
+                    "excluded_groups": {
+                        "customer_friction": cfr.get("excluded_groups") or [],
+                        "implementation": ir.get("excluded_groups") or [],
+                        "competitive": cr.get("excluded_groups") or [],
+                    },
+                },
+            },
+        }
+
+    cfr_val = float(cfr["value"])
+    ir_val = float(ir["value"])
+    cr_val = float(cr["value"])
     weighted_risk = cfr_val * cfr_w + ir_val * ir_w + cr_val * cr_w
     srs = _pf(min(100.0, max(0.0, weighted_risk)), 2)
     scs = _pf(max(0.0, min(100.0, 100.0 - srs)), 2)
     interpretation = interpret_sales_risk_score(scs)
-    gates = evaluate_blocker_gates(user_input)
     if gates:
         interpretation = {
             **interpretation,
             "recommended_actions": gates[0]["recommendation"],
             "blocker_gate": gates[0]["gate"],
         }
-    band = calc_confidence_band(user_input)
-    degraded = user_input.get("_degraded_fields") if isinstance(user_input.get("_degraded_fields"), list) else []
-    unmatched = user_input.get("_unmatched") if isinstance(user_input.get("_unmatched"), list) else []
 
     return {
         "sales_risk_score": srs,
@@ -1256,6 +1318,9 @@ def calculate_sales_risk_score(user_input: dict[str, Any]) -> dict[str, Any]:
         "scoring_source": "degraded" if (degraded or unmatched) else "formula",
         "scoring_version": SCORING_VERSION,
         "calibration_version": CALIBRATION_VERSION,
+        "pillars_measured": pillars_measured,
+        "pillars_total": len(pillar_values),
+        "pillars_measured_detail": measured_flags,
         "degraded_fields": degraded,
         "detail": {
             "customer_friction_risk": cfr,

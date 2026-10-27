@@ -36,6 +36,8 @@ export type ComplianceRiskSummaryPayload = {
   /** Buyer-entered validation / diligence notes (may be empty). */
   vendorValidationNotes: string;
   methodologyEvidenceTrail: string;
+  /** True when the AI analysis was unavailable; the report shows assessment data only. */
+  isFallback?: boolean;
 };
 
 const PROMPT = `You are an enterprise compliance and risk officer. The user has a COMPLETE buyer vendor risk assessment report (JSON), optional database-matched catalog risks with mitigations, optional buyer validation/testing notes, and vendor attestation excerpts.
@@ -147,36 +149,31 @@ function normalizePayload(raw: Record<string, unknown>, fb: ComplianceRiskSummar
   };
 }
 
-function fallbackPayload(completeReport: Record<string, unknown>, validationNotes: string): ComplianceRiskSummaryPayload {
+/**
+ * Used as per-field defaults when the LLM returns a partial object (success
+ * path), and as the whole payload when the LLM is unavailable. It carries NO
+ * fabricated risk rows or compliance-mapping rows: on failure we show assessment
+ * data only and mark isFallback so the UI banners it.
+ */
+export function fallbackPayload(completeReport: Record<string, unknown>, validationNotes: string): ComplianceRiskSummaryPayload {
   const overall = Number(completeReport.overallRiskScore);
+  // RAG derived from the stored score is real assessment data, not fabrication.
   const inherentRag: RagLevel =
     Number.isFinite(overall) && overall >= 70 ? "Low" : Number.isFinite(overall) && overall >= 45 ? "Medium" : "High";
   return {
     executiveRiskSummary: {
       inherentRag,
-      residualRag: inherentRag === "Low" ? "Low" : "Medium",
-      summary: String(completeReport.executiveSummary ?? "").slice(0, 2000) || "See complete vendor risk assessment for context.",
+      // No AI control analysis available → do not claim a residual improvement.
+      residualRag: inherentRag,
+      summary:
+        String(completeReport.executiveSummary ?? "").slice(0, 2000) ||
+        "AI analysis unavailable — showing assessment data only.",
     },
-    topRisks: [
-      {
-        rank: 1,
-        title: "Residual AI / data risk",
-        likelihood: 3,
-        impact: 4,
-        lxi: 12,
-        drivers: ["Data sensitivity", "Model behavior", "Integration scope"],
-      },
-    ],
-    complianceMapping: [
-      {
-        framework: "Organizational policy",
-        requirement: "Align vendor processing with buyer data classification",
-        vendorControlOrEvidence: "Cross-check attestation and complete report strengths/gaps.",
-      },
-    ],
+    topRisks: [],
+    complianceMapping: [],
     vendorValidationNotes: validationNotes.trim() || "No buyer validation notes were provided in the assessment payload.",
-    methodologyEvidenceTrail:
-      "Derived from stored complete buyer vendor risk assessment JSON; augment with catalog risks and buyer notes when present.",
+    methodologyEvidenceTrail: "AI analysis unavailable — showing assessment data only.",
+    isFallback: true,
   };
 }
 

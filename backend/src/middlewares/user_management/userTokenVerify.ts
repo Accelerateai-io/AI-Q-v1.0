@@ -37,10 +37,14 @@ const userTokenVerify = async (req: InviteTokenRequest, res: Response, next: Nex
 
     next();
   } catch (err: any) {
-    // When token is expired (signup not done within 7 days from sent time), mark account as expired
+    // When token is expired (signup not done within 7 days from sent time), mark account as expired.
+    // Verify the signature first (ignoring only expiry) so an unsigned/forged token can never
+    // flip an arbitrary account to "expired".
     if (err.name === "TokenExpiredError") {
       try {
-        const decoded = jwt.decode(tokenParam) as InviteTokenPayload | null;
+        const decoded = jwt.verify(tokenParam, process.env.JWT_SECRET_KEY!, {
+          ignoreExpiration: true,
+        }) as InviteTokenPayload;
         const email = decoded?.email?.trim().toLowerCase();
         if (email) {
           await db

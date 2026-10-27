@@ -1,0 +1,15 @@
+{
+  "id": "C",
+  "label": "HR resume screener",
+  "assessmentType": "buyer_cots",
+  "notes": "Reference payload C from PROMPT 0. Buyer COTS: sector from industrySector; intent and primary_risk both derive from businessPainPoint (no expectedOutcomes / primaryPainPoint present).",
+  "payload": {
+    "productName": "HR Resume Screener",
+    "useCaseTypes": ["Classify or route items", "Recommend an action to a person"],
+    "industrySector": "Professional Services",
+    "dataSensitivity": "Sensitive - PII or business critical data",
+    "impactedStakeholders": ["Employees (Internal)", "General Public"],
+    "decisionStakes": "Major Financial Impact - Large financial losses or legal liability",
+    "businessPainPoint": "Screening thousands of job applicants for open roles"
+  }
+}

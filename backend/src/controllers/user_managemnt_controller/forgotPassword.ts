@@ -63,6 +63,14 @@ const forgotPassword = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
+  // Same response whether or not the email exists, so this endpoint cannot be used
+  // to enumerate registered accounts.
+  const genericSuccess = {
+    code: "reset_email_sent",
+    message:
+      "If an account exists for that email, a password reset link has been sent. It may take a few minutes to arrive.",
+  };
+
   try {
     const user = await db
       .select({ id: usersTable.id, email: usersTable.email })
@@ -71,10 +79,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       .limit(1);
 
     if (user.length === 0) {
-      return res.status(404).json({
-        code: "email_not_found",
-        message: "No account found with this email address.",
-      });
+      return res.status(200).json(genericSuccess);
     }
 
     const secret = process.env.JWT_SECRET_KEY;
@@ -126,11 +131,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       });
     }
 
-    return res.status(200).json({
-      code: "reset_email_sent",
-      message:
-        "Check your inbox for a link to reset your password. It may take a few minutes to arrive.",
-    });
+    return res.status(200).json(genericSuccess);
   } catch (err: unknown) {
     console.error("Forgot password error:", err);
     return res.status(500).json({

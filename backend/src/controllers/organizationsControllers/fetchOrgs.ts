@@ -3,6 +3,7 @@ import { db } from "../../database/db.js";
 import { createOrganization } from "../../schema/organizations/createOrganization.js";
 import { usersTable } from "../../schema/schema.js";
 import { asc, sql } from "drizzle-orm";
+import { getCallerContext } from "../../utils/accessControl.js";
 
 const AI_EVAL_ORG_ID = 1;
 
@@ -16,6 +17,11 @@ function parseCustomerOrgPlatformRole(raw: unknown): "vendor" | "buyer" | undefi
 /** Fetch organizations with hasAdmin flag (each org can have only one admin for invite UI). */
 const fetchOrganizations = async (req: Request, res: Response) => {
   try {
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const organizations = await db
       .select()
       .from(createOrganization);
@@ -62,9 +68,14 @@ const fetchOrganizations = async (req: Request, res: Response) => {
       };
     });
 
+    // Non-internal callers (customer vendor/buyer admins) may only see their own org.
+    const scopedData = caller.isInternal
+      ? data
+      : data.filter((org) => caller.organizationId != null && org.id === caller.organizationId);
+
     res.status(200).json({
       message: "Organizations fetched successfully",
-      data,
+      data: scopedData,
     });
   } catch (error) {
     console.error("Error in fetchOrganizations:", error instanceof Error ? error.message : String(error));

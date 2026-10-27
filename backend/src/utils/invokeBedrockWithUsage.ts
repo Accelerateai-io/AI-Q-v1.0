@@ -2,6 +2,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { getActiveBedrockModelId } from "./bedrockModelId.js";
 import { recordLlmUsage } from "../services/observability/llmUsage.service.js";
 import {
@@ -15,7 +16,26 @@ const REGION =
   process.env.AWS_DEFAULT_REGION?.trim() ||
   "us-east-1";
 
-const sharedClient = new BedrockRuntimeClient({ region: REGION });
+/**
+ * Report generation can block on a slow Bedrock call. Bound each request to
+ * ~120s and let the SDK retry transient/throttling failures adaptively, so a
+ * single stalled call can't leave a report stuck "Generating" forever.
+ */
+const BEDROCK_REQUEST_TIMEOUT_MS =
+  Number(process.env.BEDROCK_REQUEST_TIMEOUT_MS) || 120_000;
+const BEDROCK_CONNECTION_TIMEOUT_MS =
+  Number(process.env.BEDROCK_CONNECTION_TIMEOUT_MS) || 10_000;
+const BEDROCK_MAX_ATTEMPTS = Number(process.env.BEDROCK_MAX_ATTEMPTS) || 4;
+
+const sharedClient = new BedrockRuntimeClient({
+  region: REGION,
+  maxAttempts: BEDROCK_MAX_ATTEMPTS,
+  retryMode: "adaptive",
+  requestHandler: new NodeHttpHandler({
+    requestTimeout: BEDROCK_REQUEST_TIMEOUT_MS,
+    connectionTimeout: BEDROCK_CONNECTION_TIMEOUT_MS,
+  }),
+});
 
 export type InvokeBedrockAnthropicOptions = {
   prompt: string;

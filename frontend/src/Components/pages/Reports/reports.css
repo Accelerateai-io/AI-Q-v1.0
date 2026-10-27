@@ -2346,9 +2346,14 @@ html[data-theme="dark"] .report_assessment_back svg {
   line-height: 1.45;
 }
 
-/* Executive Summary */
+/* Executive Summary — normal wrapping so PDF capture paints the paragraphs. */
+.report_exec_summary {
+  white-space: normal;
+  color: var(--text-primary, #1a1f36);
+}
 .report_exec_summary p {
   margin: 0 0 0.75rem 0;
+  color: inherit;
 }
 .report_exec_summary p:last-child {
   margin-bottom: 0;

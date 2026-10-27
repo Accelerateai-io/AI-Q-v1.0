@@ -1,17 +1,14 @@
 import { useEffect } from "react";
 import HeaderForBuyer from "../../BuyerOnboarding/HeaderForBuyer";
 import FormField from "../../../UI/FormField";
-import FileUpload from "../../../UI/FileUpload";
 import FieldError from "../../../UI/FieldError";
 import ChipMultiSelect from "../../../UI/ChipMultiSelect";
-import { MAX_FILE_SIZE_BYTES } from "../../../../constants/vendorAttestationDocumentConstants";
 import type { BuyerCotsFieldConfig, BuyerCotsSectionConfig } from "../../../../constants/buyerCotsFormSchema";
 import {
   getBuyerCotsExclusiveValue,
   getBuyerCotsFieldOptions,
   INTEGRATION_ACCESS_LEVEL_OPTIONS,
 } from "../../../../constants/buyerCotsOptions";
-import { toast } from "react-toastify";
 import {
   applyBuyerCotsDerivedFields,
   parseEvidenceFilesByCategory,
@@ -162,7 +159,7 @@ export default function BuyerCotsDynamicStep({
                   tooltipText={field.placeholder}
                 >
                   <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.5rem" }}>
-                    Select the regulatory documents you currently hold. Optionally upload a copy of each. Max 10MB per file.
+                    Select the regulatory documents you currently hold.
                   </p>
                   <ChipMultiSelect
                     id={field.key}
@@ -191,39 +188,9 @@ export default function BuyerCotsDynamicStep({
                 )}
                 {uploadCategories.length > 0 && (
                   <div style={{ marginTop: "1rem" }} className="compliance_cert_categories">
-                    {uploadCategories.map((category) => {
-                      const docs = byCategory[category] ?? [];
-                      return (
-                        <div
-                          key={category}
-                          className="form_fields_vendor compliance_cert_category_block"
-                          style={{ marginBottom: "1rem" }}
-                        >
-                          <FormField
-                            label={category}
-                            mandatory={false}
-                            tooltipText={`Upload one file for ${category}. Max 10MB.`}
-                          >
-                            <FileUpload
-                              accept=".pdf,.doc,.docx,.ppt,.pptx"
-                              maxSizeBytes={MAX_FILE_SIZE_BYTES}
-                              maxFiles={1}
-                              value={docs}
-                              onFilesChange={(fileNames) => {
-                                commit({
-                                  vendorComplianceDocumentation: JSON.stringify({
-                                    ...byCategory,
-                                    [category]: fileNames,
-                                  }),
-                                });
-                              }}
-                              onValidationError={(msg) => msg && toast.error(msg)}
-                              disabled={docs.length >= 1}
-                            />
-                          </FormField>
-                        </div>
-                      );
-                    })}
+                    <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                      Document upload coming soon — list your evidence in the notes field.
+                    </p>
                   </div>
                 )}
               </div>
@@ -494,12 +461,12 @@ export default function BuyerCotsDynamicStep({
                   mandatory={field.required}
                   tooltipText={field.placeholder}
                 >
-                  <FileUpload
-                    accept=".pdf,.doc,.docx,.ppt,.pptx"
-                    maxSizeBytes={MAX_FILE_SIZE_BYTES}
-                    value={parseFileNames(formData[field.key])}
-                    onFilesChange={(names) => commit({ [field.key]: JSON.stringify(names) })}
-                  />
+                  <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                    Document upload coming soon — list your evidence in the notes field.
+                    {parseFileNames(formData[field.key]).length > 0 && (
+                      <span> Previously listed: {parseFileNames(formData[field.key]).join(", ")}</span>
+                    )}
+                  </p>
                 </FormField>
                 {error && <FieldError message={error} />}
               </div>

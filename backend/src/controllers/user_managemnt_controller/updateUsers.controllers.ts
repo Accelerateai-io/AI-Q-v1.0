@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { db } from "../../database/db.js";
 import { eq } from "drizzle-orm";
 import { createOrganization, userEditLogs, usersTable } from "../../schema/schema.js";
+import { getCallerContext, canManageUserInOrg } from "../../utils/accessControl.js";
 import emailConfig from "../../functions/emailconfig.js";
 import {
   EMAIL_BRAND_PRIMARY,
@@ -87,6 +88,23 @@ const updatesUsers = async (req: Request, res: Response) => {
     const organizationId = Number(currentUserRow.organization_id);
     const previousStatus = String(currentUserRow.userStatus ?? "").trim().toLowerCase();
 
+    // Authorize: non-internal admins may only update users in their own org and may
+    // never assign org 1 or a system role. The audit actor comes from the token.
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    const updateAuth = canManageUserInOrg({
+      isInternal: caller.isInternal,
+      callerOrgId: caller.organizationId,
+      targetOrgId: organizationId,
+      targetRole: data.role,
+    });
+    if (!updateAuth.allowed) {
+      return res.status(403).json({ success: false, message: updateAuth.reason ?? "Forbidden" });
+    }
+    const actorId = String(caller.userId);
+
     const [orgRow] = await db
       .select({ organizationName: createOrganization.organizationName })
       .from(createOrganization)
@@ -127,11 +145,11 @@ const updatesUsers = async (req: Request, res: Response) => {
       .where(eq(usersTable.id, user_Id));
 
     await db.insert(userEditLogs).values({
-      userId: data.userId,
+      userId: actorId,
       email: emailLower,
       organizationName: organizationNameForLog,
       userStatus: data.isStatus,
-      updated_by: data.userId,
+      updated_by: actorId,
       reason: data.isReason,
     });
 
@@ -150,7 +168,7 @@ const updatesUsers = async (req: Request, res: Response) => {
               address: process.env.SENDER_EMAIL_ID || "",
             },
             to: emailLower,
-            subject: "Your AI Eval account has been reactivated – Confirm your email",
+            subject: "Your AI-Q account has been reactivated – Confirm your email",
             html: signupConfirmationEmailHtml(
               organizationNameForLog,
               data.role ?? "",

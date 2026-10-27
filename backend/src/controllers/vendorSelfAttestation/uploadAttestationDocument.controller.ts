@@ -3,8 +3,9 @@ import * as path from "path";
 import * as fs from "fs";
 import multer, { type FileFilterCallback } from "multer";
 import { db } from "../../database/db.js";
-import { vendorSelfAttestations, usersTable } from "../../schema/schema.js";
-import { and, eq } from "drizzle-orm";
+import { usersTable, vendorSelfAttestations } from "../../schema/schema.js";
+import { eq } from "drizzle-orm";
+import { canAccessOrgAttestation } from "../../utils/attestationAccess.js";
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "public", "uploads_vendor_attestations");
 
@@ -33,26 +34,39 @@ export async function uploadAttestationDocument(req: Request, res: Response): Pr
     return;
   }
 
-  const payload = req.user as { id?: number; userId?: string | number; email?: string } | undefined;
-  let rawId = payload?.id ?? payload?.userId;
-  let userId = rawId != null ? Number(rawId) : NaN;
+  const payload = req.user as { id?: number; userId?: string | number } | undefined;
+  const rawId = payload?.id ?? payload?.userId;
+  const userId = rawId != null ? Number(rawId) : NaN;
 
   try {
-    if ((!Number.isInteger(userId) || userId < 1) && payload?.email) {
-      const [u] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, String(payload.email).trim())).limit(1);
-      if (u) userId = u.id;
-    }
+    // No email-lookup fallback: only a verified session token's id may upload.
     if (!Number.isInteger(userId) || userId < 1) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
+    // Any user in the owning organization may upload evidence (not just the
+    // original author) — authorize via canAccessOrgAttestation.
+    const [caller] = await db
+      .select({ orgId: usersTable.organization_id })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    const callerOrgId = caller?.orgId != null ? String(caller.orgId) : null;
     const [row] = await db
-      .select({ id: vendorSelfAttestations.id })
+      .select({
+        id: vendorSelfAttestations.id,
+        organization_id: vendorSelfAttestations.organization_id,
+        user_id: vendorSelfAttestations.user_id,
+      })
       .from(vendorSelfAttestations)
-      .where(and(eq(vendorSelfAttestations.id, attestationId), eq(vendorSelfAttestations.user_id, userId)))
+      .where(eq(vendorSelfAttestations.id, attestationId))
       .limit(1);
     if (!row) {
       res.status(404).json({ success: false, message: "Attestation not found" });
+      return;
+    }
+    if (!canAccessOrgAttestation(row.organization_id, row.user_id, callerOrgId, userId)) {
+      res.status(403).json({ success: false, message: "You do not have access to this attestation" });
       return;
     }
 

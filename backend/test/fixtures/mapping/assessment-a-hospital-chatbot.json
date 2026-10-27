@@ -1,0 +1,17 @@
+{
+  "id": "A",
+  "label": "Hospital clinical chatbot",
+  "assessmentType": "buyer_cots",
+  "notes": "Reference payload A from PROMPT 0. riskDomainScores is derived server-side by the buyer COTS controller (count of risks per domain) and is intentionally omitted here; extractContext() only falls back to riskDomainScores when no sector is present, and industrySector is present for A.",
+  "payload": {
+    "productName": "Hospital Clinical Chatbot",
+    "useCaseTypes": ["Answer questions from internal knowledge"],
+    "industrySector": "Healthcare - Hospitals & Health Systems",
+    "dataSensitivity": "Highly Sensitive - PHI, financial records, or PCI data",
+    "regulatoryRequirements": ["HIPAA (Healthcare)", "HITECH (Healthcare Technology)"],
+    "impactedStakeholders": ["Patients (Healthcare)"],
+    "decisionStakes": "Life or Death - Medical decisions, safety-critical applications",
+    "currentlyUsing": "No",
+    "businessPainPoint": "Patients wait too long for answers to medication and appointment questions"
+  }
+}

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "test:reports": "node --import ../backend/node_modules/tsx/dist/loader.mjs --test test/reportTypes.test.tsx",
     "lint": "eslint .",
     "preview": "vite preview"
   },

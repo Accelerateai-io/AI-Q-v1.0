@@ -19,6 +19,7 @@ import {
 } from "../../email/inviteUserEmailHtml.js";
 
 import { capitalizeWords as capitalizeFirstLetter } from "../../utils/capitalizeWords.js";
+import { getCallerContext, canManageUserInOrg } from "../../utils/accessControl.js";
 
 export const inviteUser = async (req: Request, res: Response) => {
   const BASE_URL = process.env.BASE_URL;
@@ -31,6 +32,11 @@ export const inviteUser = async (req: Request, res: Response) => {
     }
 
     email = email.toLowerCase();
+
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     const existingUser = await db
       .select()
@@ -47,6 +53,17 @@ export const inviteUser = async (req: Request, res: Response) => {
     const orgIdNum = organization === "AI EVAL" || organization === "1" ? 1 : Number(organization);
     if (!Number.isInteger(orgIdNum) || orgIdNum < 1) {
       return res.status(400).json({ message: "Invalid organization" });
+    }
+
+    // A non-internal admin may only invite into their own org and never assign org 1 or a system role.
+    const inviteAuth = canManageUserInOrg({
+      isInternal: caller.isInternal,
+      callerOrgId: caller.organizationId,
+      targetOrgId: orgIdNum,
+      targetRole: role,
+    });
+    if (!inviteAuth.allowed) {
+      return res.status(403).json({ message: inviteAuth.reason ?? "Forbidden" });
     }
 
     // Each organization may have only one admin; reject inviting a second admin for the same org
@@ -179,6 +196,19 @@ export const reinviteUser = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const reinviteAuth = canManageUserInOrg({
+      isInternal: caller.isInternal,
+      callerOrgId: caller.organizationId,
+      targetOrgId: user.organization_id,
+      targetRole: user.role,
+    });
+    if (!reinviteAuth.allowed) {
+      return res.status(403).json({ message: reinviteAuth.reason ?? "Forbidden" });
+    }
     const accountStatus = String(user.account_status ?? "").toLowerCase();
     if (accountStatus !== "invited" && accountStatus !== "expired") {
       return res.status(400).json({ message: "User is already confirmed. Reinvite is only for invited or expired users." });
@@ -234,6 +264,19 @@ export const resendOnboardingLink = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const resendAuth = canManageUserInOrg({
+      isInternal: caller.isInternal,
+      callerOrgId: caller.organizationId,
+      targetOrgId: user.organization_id,
+      targetRole: user.role,
+    });
+    if (!resendAuth.allowed) {
+      return res.status(403).json({ message: resendAuth.reason ?? "Forbidden" });
+    }
     if (String(user.user_signup_completed ?? "").toLowerCase() !== "true") {
       return res.status(400).json({ message: "User has not completed signup. Resend onboarding is only for users who have signed up." });
     }
@@ -288,6 +331,65 @@ export const resendOnboardingLink = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Resend onboarding error:", err);
     return res.status(500).json({ message: "Failed to resend onboarding link", error: err.message });
+  }
+};
+
+/**
+ * Self-service: issue a FRESH onboarding link for the authenticated user whose
+ * onboarding is incomplete (e.g. their emailed link expired). Returns the path to
+ * redirect to instead of a "Page Not Found" dead end. GET /onboarding/self-link
+ */
+export const issueSelfOnboardingLink = async (req: Request, res: Response) => {
+  const authUser = (req as Request & { user?: { id?: number; userId?: number } }).user;
+  const userId = Number(authUser?.id ?? authUser?.userId);
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const BASE_URL = process.env.BASE_URL;
+  const secret = process.env.JWT_SECRET_KEY;
+  if (!secret || !BASE_URL) {
+    return res.status(500).json({ message: "Server configuration error" });
+  }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (String(user.user_signup_completed ?? "").toLowerCase() !== "true") {
+      return res.status(400).json({ message: "Signup not completed." });
+    }
+    if (String(user.user_onboarding_completed ?? "").toLowerCase() === "true") {
+      return res.status(200).json({ onboardingCompleted: true });
+    }
+    const email = (user.email ?? "").toLowerCase();
+    const [orgRow] = await db
+      .select({
+        organizationName: createOrganization.organizationName,
+        organizationType: createOrganization.organizationType,
+      })
+      .from(createOrganization)
+      .where(eq(createOrganization.id, user.organization_id))
+      .limit(1);
+
+    const organizationTypeForJwt =
+      String(orgRow?.organizationType ?? "").trim().toLowerCase() === "buyer" ? "buyer" : "vendor";
+    const token = jwt.sign(
+      { email, userId: user.id, organizationId: user.organization_id, organizationType: organizationTypeForJwt },
+      secret,
+      { expiresIn: ONBOARDING_LINK_EXPIRY_JWT } as jwt.SignOptions,
+    );
+    const pathSegment = onboardingPathSegmentFromOrgType(orgRow?.organizationType);
+    await db
+      .update(usersTable)
+      .set({ onboarding_status: "pending", onboarding_link_sent_at: new Date() })
+      .where(eq(usersTable.id, userId));
+    return res.status(200).json({
+      token,
+      onboardingPath: `/onBoarding/${pathSegment}/${token}`,
+    });
+  } catch (err: any) {
+    console.error("issueSelfOnboardingLink error:", err);
+    return res.status(500).json({ message: "Failed to issue onboarding link", error: err.message });
   }
 };
 

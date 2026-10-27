@@ -16,6 +16,11 @@ import { vendorSelfAttestations } from "../schema/schema.js";
 import { eq } from "drizzle-orm";
 import { buildFrameworkMappingRowsFromComplianceExpiries } from "./frameworkMappingFromCompliance.js";
 import { loadFrameworkDatasets, type FrameworkControl } from "./frameworkDatasetsLoader.js";
+import { resolveClassToCatalog, getClassifierThreshold } from "./frameworkMapping/frameworkCatalogMap.js";
+import { buildBm25Index, bm25Query, normalizeScores } from "./frameworkMapping/bm25.js";
+
+/** Minimum normalised BM25 relevance (0-1) for a control to be shown for a document. Calibrated on fixtures. */
+const DOC_CONTROL_RELEVANCE_THRESHOLD = 0.35;
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "public", "uploads_vendor_attestations");
 
@@ -27,18 +32,23 @@ export type ComplianceDocExpiryEntry = {
   frameworkMapping?: {
     framework: string;
     version?: string;
+    status?: "mapped" | "no_catalog_yet";
+    basis?: string;
     controls: Array<{
       controlId: string;
       title: string;
       /** Full catalog description for this control (from framework JSON). */
       description: string;
       relevanceScore: number;
+      matchedTerms?: string[];
     }>;
   };
   validation?: {
     isValid: boolean;
     reason: string;
     controlsMapped: number;
+    status?: "mapped" | "no_catalog_yet" | "unclassified";
+    noCatalogYet?: boolean;
   };
   error?: string;
 };
@@ -64,20 +74,46 @@ function tokenizeText(s: string): Set<string> {
   );
 }
 
-function classifyDocument(fileName: string, text: string): string {
-  const hay = `${fileName} ${text.slice(0, 5000)}`.toLowerCase();
-  if (/soc\s*3|soc3/.test(hay)) return "SOC3";
-  if (/soc\s*2|soc2/.test(hay)) return "SOC2";
-  if (/iso\s*27001|iso-?27001/.test(hay)) return "ISO27001";
-  if (/nist|800-53|800-171|csf/.test(hay)) return "NIST";
-  if (/hipaa|phi|e-?phi|\bbaa\b|hitrust/.test(hay)) return "HIPAA";
-  if (/gdpr|privacy/.test(hay)) return "GDPR";
-  if (/pci|dss/.test(hay)) return "PCI-DSS";
-  if (/dora/.test(hay)) return "DORA";
-  if (/cmmc/.test(hay)) return "CMMC";
-  if (/fedramp/.test(hay)) return "FEDRAMP";
-  if (/certificat|attestation|audit|compliance/.test(hay)) return "COMPLIANCE_EVIDENCE";
-  return "GENERAL_COMPLIANCE_DOCUMENT";
+type WeightedPattern = { re: RegExp; w: number };
+/** Word-boundary, case-insensitive patterns on full names AND acronyms, scored per class. */
+const DOC_CLASS_PATTERNS: Array<{ cls: string; patterns: WeightedPattern[] }> = [
+  { cls: "HIPAA", patterns: [{ re: /health insurance portability/i, w: 2 }, { re: /\bbusiness associate (agreement|contract)\b/i, w: 2 }, { re: /\bHIPAA\b/i, w: 2 }, { re: /\b45\s*CFR\s*164\b/i, w: 2 }] },
+  { cls: "HITECH", patterns: [{ re: /\bHITECH\b/i, w: 2 }] },
+  { cls: "GDPR", patterns: [{ re: /general data protection regulation/i, w: 2 }, { re: /\bdata processing (agreement|addendum)\b/i, w: 2 }, { re: /\bGDPR\b/i, w: 2 }] },
+  { cls: "PCI-DSS", patterns: [{ re: /payment card industry data security standard/i, w: 2 }, { re: /\bPCI[\s-]?DSS\b/i, w: 2 }] },
+  { cls: "SOC3", patterns: [{ re: /\bSOC\s?3\b/i, w: 2 }] },
+  { cls: "SOC2", patterns: [{ re: /\bSOC\s?2\b/i, w: 2 }] },
+  { cls: "ISO27001", patterns: [{ re: /\bISO\/?\s?(IEC\s?)?27001\b/i, w: 2 }] },
+  { cls: "ISO42001", patterns: [{ re: /\bISO\/?\s?(IEC\s?)?42001\b/i, w: 2 }] },
+  { cls: "ISO27701", patterns: [{ re: /\bISO\/?\s?(IEC\s?)?27701\b/i, w: 2 }] },
+  { cls: "NIST-800-53", patterns: [{ re: /\bSP\s?800-53\b/i, w: 2 }, { re: /\b800-53\b/, w: 2 }, { re: /\bNIST\b/i, w: 1 }] },
+  { cls: "NIST-800-171", patterns: [{ re: /\bSP\s?800-171\b/i, w: 2 }, { re: /\b800-171\b/, w: 2 }] },
+  { cls: "NIST-AI-RMF", patterns: [{ re: /\bAI\s?RMF\b/i, w: 2 }, { re: /ai risk management framework/i, w: 2 }] },
+  { cls: "NIST-CSF", patterns: [{ re: /\bNIST\s?CSF\b/i, w: 2 }, { re: /cybersecurity framework/i, w: 2 }] },
+  { cls: "DORA", patterns: [{ re: /\bDORA\b/, w: 2 }, { re: /digital operational resilience act/i, w: 2 }] },
+  { cls: "CMMC", patterns: [{ re: /\bCMMC\b/i, w: 2 }] },
+  { cls: "FEDRAMP", patterns: [{ re: /\bFedRAMP\b/i, w: 2 }] },
+];
+
+/** Score every class; return the highest-scoring class, or "unclassified" below the threshold. */
+export function classifyDocument(fileName: string, text: string): string {
+  const hay = `${fileName}\n${text.slice(0, 8000)}`;
+  const scores: Record<string, number> = {};
+  const add = (cls: string, w: number) => { scores[cls] = (scores[cls] ?? 0) + w; };
+  for (const { cls, patterns } of DOC_CLASS_PATTERNS) {
+    for (const { re, w } of patterns) if (re.test(hay)) add(cls, w);
+  }
+  // PHI counts for HIPAA ONLY with HIPAA / Business Associate context (so "phishing" never triggers HIPAA).
+  if (/\be?phi\b/i.test(hay) && /(hipaa|business associate|health insurance portability)/i.test(hay)) add("HIPAA", 1);
+  // "Attestation of Compliance" + payment-card wording => PCI DSS (AOC), even when "PCI" is absent.
+  if (/attestation of compliance/i.test(hay) && /(payment card|cardholder|pci)/i.test(hay)) add("PCI-DSS", 2);
+
+  let best = "unclassified";
+  let bestScore = 0;
+  for (const [cls, s] of Object.entries(scores)) {
+    if (s > bestScore) { best = cls; bestScore = s; }
+  }
+  return bestScore >= getClassifierThreshold() ? best : "unclassified";
 }
 
 function categoryExpectedClass(category: string): string | null {
@@ -100,87 +136,72 @@ function classMatchesCategory(docClass: string, category: string): boolean {
   return docClass === expected;
 }
 
-function frameworkFitsClass(name: string, docClass: string): boolean {
-  const n = name.toLowerCase();
-  if (docClass === "SOC3") return n.includes("soc");
-  if (docClass === "SOC2") return n.includes("soc2") || n.includes("soc 2") || n.includes("soc");
-  if (docClass === "ISO27001") return n.includes("iso");
-  if (docClass === "NIST") return n.includes("nist");
-  if (docClass === "HIPAA") return n.includes("hipaa");
-  if (docClass === "GDPR") return n.includes("gdpr");
-  if (docClass === "PCI-DSS") return n.includes("pci");
-  if (docClass === "DORA") return n.includes("dora");
-  if (docClass === "CMMC") return n.includes("cmmc");
-  return true;
-}
-
 const MAX_STORED_CONTROL_DESCRIPTION_LEN = 4000;
 
-function mapToFrameworkControls(
-  text: string,
-  docClass: string,
-): {
+export interface FrameworkMappingResult {
   framework: string;
   version?: string;
+  status: "mapped" | "no_catalog_yet";
+  basis?: string;
   controls: Array<{
     controlId: string;
     title: string;
     description: string;
     relevanceScore: number;
+    matchedTerms: string[];
   }>;
-} | null {
-  const frameworks = loadFrameworkDatasets();
-  if (frameworks.length === 0) return null;
-  const textTokens = tokenizeText(text.slice(0, 20000));
-  let best:
-    | {
-        framework: string;
-        version?: string;
-        controls: Array<{
-          controlId: string;
-          title: string;
-          description: string;
-          relevanceScore: number;
-        }>;
-      }
-    | null = null;
-  for (const ds of frameworks) {
-    const fName = String(ds.framework?.name ?? "").trim() || "Unknown Framework";
-    if (!frameworkFitsClass(fName, docClass)) continue;
-    const scored = ds.controls
-      .map((c: FrameworkControl) => {
-        const tokens = tokenizeText(
-          `${c.title ?? ""} ${c.description ?? ""} ${c.implementationGuidance ?? ""}`,
-        );
-        let overlap = 0;
-        for (const t of tokens) if (textTokens.has(t)) overlap++;
-        const descRaw = String(c.description ?? c.implementationGuidance ?? "").trim();
-        const description =
-          descRaw.length > MAX_STORED_CONTROL_DESCRIPTION_LEN
-            ? `${descRaw.slice(0, MAX_STORED_CONTROL_DESCRIPTION_LEN)}…`
-            : descRaw;
-        return {
-          controlId: String(c.controlId ?? "").trim(),
-          title: String(c.title ?? "").trim(),
-          description,
-          relevanceScore: overlap,
-        };
-      })
-      .filter((c) => c.controlId && c.relevanceScore > 0)
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 6);
-    if (scored.length === 0) continue;
-    const total = scored.reduce((sum, c) => sum + c.relevanceScore, 0);
-    const bestTotal = best ? best.controls.reduce((sum, c) => sum + c.relevanceScore, 0) : -1;
-    if (total > bestTotal) {
-      best = {
-        framework: fName,
-        version: ds.framework?.version,
-        controls: scored,
-      };
-    }
+}
+
+/**
+ * Map a classified document to its catalogue controls via the versioned frameworkCatalogMap.
+ * Resolves the class to exactly one catalogue by name (no fuzzy framework matching). A class with
+ * no catalogue returns an honest { status: "no_catalog_yet" } marker with zero controls — never
+ * null (which the old flow treated as "invalid").
+ */
+export function mapToFrameworkControls(text: string, docClass: string): FrameworkMappingResult {
+  const resolution = resolveClassToCatalog(docClass, docClass);
+  if (resolution.kind === "no_catalog_yet") {
+    return { framework: resolution.wording, status: "no_catalog_yet", basis: resolution.basis, controls: [] };
   }
-  return best;
+  const ds = loadFrameworkDatasets().find(
+    (d) => String(d.framework?.name ?? "").trim() === resolution.catalogName,
+  );
+  if (!ds) {
+    return { framework: resolution.catalogName, status: "no_catalog_yet", basis: resolution.basis, controls: [] };
+  }
+  // BM25 relevance of each control (id + title + description) against the document text.
+  const index = buildBm25Index(
+    ds.controls.map((c: FrameworkControl) => ({
+      id: String(c.controlId ?? "").trim(),
+      text: `${c.controlId ?? ""} ${c.title ?? ""} ${c.description ?? ""}`,
+    })),
+  );
+  const byId = new Map(ds.controls.map((c) => [String(c.controlId ?? "").trim(), c]));
+  const controls = normalizeScores(bm25Query(index, text.slice(0, 20000)))
+    .filter((r) => r.id && r.score >= DOC_CONTROL_RELEVANCE_THRESHOLD)
+    .slice(0, 10)
+    .map((r) => {
+      const c = byId.get(r.id)!;
+      const descRaw = String(c.description ?? c.implementationGuidance ?? "").trim();
+      const description =
+        descRaw.length > MAX_STORED_CONTROL_DESCRIPTION_LEN
+          ? `${descRaw.slice(0, MAX_STORED_CONTROL_DESCRIPTION_LEN)}…`
+          : descRaw;
+      return {
+        controlId: r.id,
+        title: String(c.title ?? "").trim(),
+        description,
+        relevanceScore: r.score,
+        matchedTerms: r.matchedTerms.slice(0, 12),
+      };
+    });
+  return {
+    framework: String(ds.framework?.name ?? resolution.catalogName),
+    version: ds.framework?.version,
+    status: "mapped",
+    basis: resolution.basis,
+    controls,
+  };
 }
 
 function padY(y: number): number {
@@ -407,34 +428,35 @@ export async function parseAndStoreComplianceDocumentExpiries(
       const expiry = extractExpiryFromText(text);
       const documentClass = classifyDocument(safe, text);
       const frameworkMapping = mapToFrameworkControls(text, documentClass);
+      const recognized = documentClass !== "unclassified";
+      const noCatalogYet = frameworkMapping.status === "no_catalog_yet";
+      const controlsMapped = frameworkMapping.controls.length;
       const expired =
         expiry != null && expiry.getTime() < Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
-      const mismatch = !classMatchesCategory(documentClass, category);
-      const mappedOk = (frameworkMapping?.controls.length ?? 0) > 0;
-      const isValid = mappedOk && !expired && !mismatch;
+      const mismatch = recognized && !classMatchesCategory(documentClass, category);
+      // A recognised document (including one with no catalogue yet) is NOT invalid. Only an
+      // unclassified, expired, or category-mismatched document fails validation.
+      const isValid = recognized && !expired && !mismatch;
       const reasons: string[] = [];
+      if (!recognized) reasons.push("Document could not be classified to a known framework (unclassified).");
+      if (noCatalogYet) reasons.push(frameworkMapping.framework);
       if (expired) reasons.push("Certificate expiry date is in the past");
       if (mismatch) reasons.push(`Document class ${documentClass} does not match selected category ${category}`);
-      if (!mappedOk) {
-        reasons.push(
-          frameworkMapping
-            ? "Framework detected but no controls matched document content"
-            : "No framework mapping found from backend data folder",
-        );
-      }
       const validation = {
         isValid,
         reason: reasons.join("; "),
-        controlsMapped: frameworkMapping?.controls.length ?? 0,
+        controlsMapped,
         mismatch,
         expired: Boolean(expired),
+        status: noCatalogYet ? ("no_catalog_yet" as const) : recognized ? ("mapped" as const) : ("unclassified" as const),
+        noCatalogYet,
       };
       result[safe] = {
         category,
         expiryAt: expiry ? toDateOnlyLocal(expiry) : null,
         parsedAt: nowIso,
         documentClass,
-        frameworkMapping: frameworkMapping ?? undefined,
+        frameworkMapping,
         validation,
         ...(expiry ? {} : { error: "No expiry date pattern detected" }),
       };

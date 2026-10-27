@@ -13,6 +13,7 @@ import {
 } from "../../utils/bedrockModelId.js";
 import { upsertEnvFile } from "../../utils/envFile.js";
 import { backendRoot } from "../../utils/backendRoot.js";
+import { pythonServiceHeaders } from "../pythonServiceHeaders.js";
 import {
   invokeBedrockModelTest,
   invokeInferenceProfileTest,
@@ -246,7 +247,7 @@ function pythonUrl(): string {
   return (
     process.env.PYTHON_SCORING_URL?.trim() ||
     process.env.PYTHON_INGEST_URL?.trim() ||
-    "http://localhost:5004"
+    "http://localhost:8000"
   ).replace(/\/$/, "");
 }
 
@@ -289,7 +290,7 @@ async function syncPythonModel(modelId: string): Promise<PythonSyncOutcome> {
   try {
     const res = await fetch(url, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: pythonServiceHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ modelId }),
       signal: AbortSignal.timeout(8_000),
     });
@@ -326,7 +327,7 @@ async function probePythonModel(): Promise<{ modelId?: string; error?: string }>
   try {
     const res = await fetch(url, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: pythonServiceHeaders({ Accept: "application/json" }),
       signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) {

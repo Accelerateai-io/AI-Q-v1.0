@@ -1,0 +1,17 @@
+BUSINESS ASSOCIATE AGREEMENT (BAA)
+
+This Business Associate Agreement is entered into between Covered Entity and
+Business Associate pursuant to the Health Insurance Portability and
+Accountability Act and the HITECH Act.
+
+The Business Associate shall implement administrative safeguards, physical
+safeguards, and technical safeguards reasonably designed to protect the
+confidentiality, integrity, and availability of protected health information
+(PHI) that it creates, receives, maintains, or transmits on behalf of the
+Covered Entity.
+
+Administrative safeguards include a documented security management process,
+workforce security training, and periodic risk analysis.
+
+This Agreement is effective through December 31, 2027 and shall be reviewed
+annually.

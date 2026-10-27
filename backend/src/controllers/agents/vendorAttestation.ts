@@ -67,23 +67,26 @@ export interface VendorAttestationReport {
   scoringResult?: PythonScoreResult;
 }
 
+// Must match the section numbering in VENDOR_ATTESTATION_PROMPT exactly: the
+// parser uses these titles to OVERRIDE the model's heading, so any misalignment
+// relabels content under the wrong section (e.g. certifications under "Operations
+// & Support").
 const SECTION_TITLES: Record<number, string> = {
   0: "Trust Score",
   1: "Product Information",
-  2: "Company Identity",
+  2: "Company Identity and Company Reach",
   3: "AI Models & Technology",
-  4: "AI Governance",
-  5: "Security Posture",
-  6: "Data Practices",
-  7: "Compliance & Certifications",
-  8: "Operations & Support",
-  9: "Vendor Management",
-  10: "AI Safety & Testing",
+  4: "AI Safety & Testing",
+  5: "AI Governance",
+  6: "Security Posture",
+  7: "Data Practices",
+  8: "Compliance & Certifications",
+  9: "Operations & Support",
+  10: "Vendor Management",
   11: "Evidence & Trust",
-  12: "Company Reach",
 };
 
-const VENDOR_ATTESTATION_PROMPT = `You are a vendor attestation analyst. Using ONLY the vendor data provided below, generate a structured vendor attestation report. For any detail not explicitly stated in the data, infer a reasonable value consistent with the vendor type and product, or write "Not specified" where nothing can be inferred.
+const VENDOR_ATTESTATION_PROMPT = `You are a vendor attestation analyst. Using ONLY the vendor data provided below, generate a structured vendor attestation report. For any detail not explicitly stated in the data, write "Not specified" — do not infer, guess, or invent values.
 
 Output the report in the following sections with clear headings and bullet points. Use the exact section titles and item labels below. Write concise, professional descriptions (1–2 sentences per item where appropriate).
 
@@ -192,7 +195,7 @@ Use only vendor attestation facts for this section. Do NOT include score calcula
 - **Model / Safety Testing Results (Under NDA):** [availability under NDA]
 
 ---
-Vendor data to use (use only this information; infer only when reasonable):
+Vendor data to use (use only this information; write "Not specified" for anything missing — do not infer or invent):
 
 `;
 
@@ -395,7 +398,7 @@ export function parseScoreFromTrustText(text: string): number | null {
   return Number.isNaN(n) ? null : Math.min(100, Math.max(0, n));
 }
 
-function parseReportSections(rawReply: string): {
+export function parseReportSections(rawReply: string): {
   trustScore: TrustScoreBlock;
   sections: ReportSection[];
 } {
@@ -780,7 +783,7 @@ export async function generateVendorAttestationReport(
   const summary =
     summaryFromLlm && !/^\*+$/.test(summaryFromLlm)
       ? summaryFromLlm
-      : buildSummaryFromAssessmentData(formulaPayload);
+      : buildSummaryFromAssessmentData(formulaPayload, overallRounded);
 
   let sections =
     Array.isArray(formula.sections) && formula.sections.length > 0
@@ -833,7 +836,10 @@ export async function generateVendorAttestationReport(
 
 type LooseInput = Record<string, any>;
 
-function buildSummaryFromAssessmentData(payload: Record<string, unknown>): string {
+export function buildSummaryFromAssessmentData(
+  payload: Record<string, unknown>,
+  score?: number,
+): string {
   const cp =
     payload.companyProfile && typeof payload.companyProfile === "object"
       ? (payload.companyProfile as Record<string, unknown>)
@@ -845,13 +851,14 @@ function buildSummaryFromAssessmentData(payload: Record<string, unknown>): strin
     return s === "yes" || s === "true" || s === "available";
   };
   const vendorName = pick(cp.vendorName, payload.vendor_name) || "This vendor";
-  const maturity = pick(cp.vendorMaturity, payload.company_stage).toLowerCase();
+
+  // No canned "moderate" posture: without a computed trust score there is nothing
+  // honest to summarize, and the posture word is derived from the actual score.
+  if (score == null || !Number.isFinite(score) || score <= 0) {
+    return "Summary unavailable — insufficient attestation data to summarize this vendor's trust posture.";
+  }
   const posture =
-    maturity.includes("mature") || maturity.includes("growth")
-      ? "moderate-to-strong"
-      : maturity.includes("early") || maturity.includes("startup")
-        ? "moderate"
-        : "moderate";
+    score >= 80 ? "strong" : score >= 60 ? "moderate-to-strong" : score >= 40 ? "moderate" : score >= 20 ? "limited" : "weak";
 
   const strengths: string[] = [];
   if (has(payload.uptime_sla) || has(payload.sla_guarantee)) strengths.push("operations reliability");
@@ -877,7 +884,7 @@ function buildSummaryFromAssessmentData(payload: Record<string, unknown>): strin
   const strengthsText = strengths.length > 0 ? strengths.slice(0, 3).join(", ") : "baseline operational controls";
   const improvementsText = improvements.length > 0 ? improvements.slice(0, 3).join(", ") : "continued enhancement of governance documentation";
 
-  return `${vendorName} demonstrates a ${posture} overall trust posture as an AI vendor with reasonable security controls, data practices, and AI governance frameworks in place. Key strengths include ${strengthsText}. Areas for improvement include ${improvementsText}.`;
+  return `${vendorName} has an overall trust score of ${Math.round(score)}/100, indicating a ${posture} trust posture as an AI vendor. Key strengths include ${strengthsText}. Areas for improvement include ${improvementsText}.`;
 }
 
 function numericScoreList(raw: unknown, fallback: number[], max = 5): number[] {

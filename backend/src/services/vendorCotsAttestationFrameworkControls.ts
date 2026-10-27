@@ -172,16 +172,50 @@ function withStoredControlsCappedToTopN(
 }
 
 /**
+ * Build the risks + vendor-evidence query text used to rank controls by BM25 relevance.
+ * Works with or without PR #47: it reads whatever top-5 risk representation is on the payload plus
+ * the vendor's free-text evidence; it does not require the live top-5 interface.
+ */
+function buildRiskEvidenceQueryText(payload: Record<string, unknown>): string {
+  const parts: string[] = [];
+  const pushText = (v: unknown): void => {
+    if (v == null) return;
+    if (typeof v === "string") parts.push(v);
+    else if (Array.isArray(v)) v.forEach(pushText);
+    else if (typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      for (const k of ["risk_title", "title", "name", "description", "risk_description", "summary", "primary_risk"]) {
+        if (typeof o[k] === "string") parts.push(o[k] as string);
+      }
+    }
+  };
+  const p = payload as Record<string, unknown>;
+  const dbTop5 = p.dbTop5Risks as { top5Risks?: unknown; risks?: unknown } | undefined;
+  pushText(dbTop5?.top5Risks ?? dbTop5?.risks ?? p.top5Risks);
+  pushText(p.identified_risks ?? p.identifiedRisks);
+  pushText(p.customer_specific_risks ?? p.customerSpecificRisks);
+  for (const k of [
+    "businessPainPoint", "business_pain_point", "primaryPainPoint", "primary_pain_point",
+    "expectedOutcomes", "expected_outcomes", "productFeatures", "product_features", "useCaseTypes",
+    "use_case_types", "notes", "evidence", "productDescription", "product_description",
+    "solutionDescription", "solution_description",
+  ]) {
+    pushText(p[k]);
+  }
+  return parts.join(" ");
+}
+
+/**
  * For each substantive attestation framework row, keep only the top controls (default 3) with
- * controlId, title, description — chosen from the data catalog filtered by assessment AI risk domains,
- * preferring attestation-listed controls by relevance score.
+ * controlId, title, description — ranked by BM25 relevance to the assessment's risks + the vendor's
+ * evidence (no AI-risk-domain filter; vendor-attested controls boosted; no alphabetical fallback).
  */
 export function narrowVendorCotsFrameworkRowsToAiDomainControls(
   rows: FrameworkMappingTableRow[],
   payload: Record<string, unknown>,
   controlsPerFramework: number = DEFAULT_CONTROLS_PER_FRAMEWORK,
 ): FrameworkMappingTableRow[] {
-  const focusDomains = parseAiRiskDomainFocusFromPayload(payload);
+  const queryText = buildRiskEvidenceQueryText(payload);
   return rows.map((row) => {
     if (isVendorCotsNotProvidedMappingRow(row) || isVendorCotsRegulatoryGapRow(row)) return row;
 
@@ -195,7 +229,7 @@ export function narrowVendorCotsFrameworkRowsToAiDomainControls(
     const hints = parseAttestationControlHints(row.controls);
     const slim = pickTopControlsForFrameworkAndAiDomains(
       row.framework,
-      focusDomains,
+      queryText,
       controlsPerFramework,
       hints.length > 0 ? hints : undefined,
     );

@@ -22,8 +22,6 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
     const alreadyCompleted = user.user_onboarding_completed === "true";
 
     const {
-      organization_Id: bodyOrgId,
-      organizationId: bodyOrgIdCamel,
       vendorType,
       vendorName,
       sector,
@@ -43,8 +41,8 @@ export default async function saveVendorOnboardingProgress(req: Request, res: Re
       req.body as Record<string, unknown>,
     );
 
-    const organizationIdRaw = bodyOrgId ?? bodyOrgIdCamel ?? user.organization_id;
-    const organizationId = String(organizationIdRaw ?? "").trim();
+    // Organization id comes from the authenticated onboarding user (token), never the body.
+    const organizationId = String(user.organization_id ?? "").trim();
     if (!organizationId) {
       return res.status(400).json({ error: "Organization ID is required" });
     }

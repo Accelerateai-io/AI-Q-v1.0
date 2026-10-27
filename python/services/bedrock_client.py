@@ -10,12 +10,16 @@ from botocore.config import Config
 
 from config import settings
 
+# ServiceUnavailable is temporary. Two attempts return 500 before Haiku accepts
+# the report invoke. Adaptive mode keeps retrying that same call with backoff.
+_BEDROCK_MAX_ATTEMPTS = 8
+
 _client_lock = Lock()
 _cached_client: Any | None = None
-_cached_key: tuple[str, str, str, int, int] | None = None
+_cached_key: tuple[str, str, str, int, int, int] | None = None
 
 
-def _client_cache_key() -> tuple[str, str, str, int, int]:
+def _client_cache_key() -> tuple[str, str, str, int, int, int]:
     read_timeout = int(getattr(settings, "BEDROCK_READ_TIMEOUT", 300) or 300)
     connect_timeout = int(getattr(settings, "BEDROCK_CONNECT_TIMEOUT", 10) or 10)
     return (
@@ -24,6 +28,7 @@ def _client_cache_key() -> tuple[str, str, str, int, int]:
         (settings.AWS_SESSION_TOKEN or "").strip(),
         read_timeout,
         connect_timeout,
+        _BEDROCK_MAX_ATTEMPTS,
     )
 
 
@@ -48,7 +53,7 @@ def create_bedrock_runtime_client() -> Any:
             "config": Config(
                 connect_timeout=connect_timeout,
                 read_timeout=read_timeout,
-                retries={"max_attempts": 2, "mode": "standard"},
+                retries={"max_attempts": _BEDROCK_MAX_ATTEMPTS, "mode": "adaptive"},
             ),
         }
         if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:

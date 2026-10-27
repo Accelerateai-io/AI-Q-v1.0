@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { db } from "../../database/db.js";
-import { vendorSelfAttestations } from "../../schema/schema.js";
-import { and, eq } from "drizzle-orm";
+import { vendorSelfAttestations, usersTable } from "../../schema/schema.js";
+import { eq } from "drizzle-orm";
+import { canAccessOrgAttestation } from "../../utils/attestationAccess.js";
 
 /**
  * PATCH /vendorSelfAttestation/visibility
@@ -37,16 +38,45 @@ const updateAttestationVisibility = async (req: Request, res: Response): Promise
       return;
     }
 
+    // Any user in the owning organization may change visibility (not just the
+    // author). Match on the caller's org, keeping owner-id as a fallback for older
+    // rows that predate organization_id.
+    const [caller] = await db
+      .select({ orgId: usersTable.organization_id })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    const callerOrgId = caller?.orgId != null ? String(caller.orgId) : null;
+
+    const [existing] = await db
+      .select({
+        id: vendorSelfAttestations.id,
+        organization_id: vendorSelfAttestations.organization_id,
+        user_id: vendorSelfAttestations.user_id,
+      })
+      .from(vendorSelfAttestations)
+      .where(eq(vendorSelfAttestations.id, attestationId))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({
+        success: false,
+        message: "Attestation not found or you do not have permission to update it.",
+      });
+      return;
+    }
+    if (!canAccessOrgAttestation(existing.organization_id, existing.user_id, callerOrgId, userId)) {
+      res.status(403).json({
+        success: false,
+        message: "You do not have permission to update this attestation.",
+      });
+      return;
+    }
+
     // Only update visibility; do not touch updated_at so attestation "Submitted" date is unchanged
     const result = await db
       .update(vendorSelfAttestations)
       .set({ visible_to_buyer: Boolean(visible) })
-      .where(
-        and(
-          eq(vendorSelfAttestations.id, attestationId),
-          eq(vendorSelfAttestations.user_id, userId)
-        )
-      )
+      .where(eq(vendorSelfAttestations.id, attestationId))
       .returning({ id: vendorSelfAttestations.id });
 
     if (!result || result.length === 0) {

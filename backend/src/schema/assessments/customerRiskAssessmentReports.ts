@@ -10,6 +10,8 @@ export const customerRiskAssessmentReports = pgTable("customer_risk_assessment_r
   organization_id: varchar("organization_id", { length: 255 }).notNull(),
   title: varchar("title", { length: 500 }).notNull(),
   report: jsonb("report").notNull(),
+  /** Generation status: 'generating' | 'failed' | 'done'. Additive (20261021). */
+  report_status: varchar("report_status", { length: 16 }).default("done"),
   score_rationale: text("score_rationale"),
   score_rationale_type: varchar("score_rationale_type", { length: 8 }),
   /** Controls LLM used when this analysis report was generated. */

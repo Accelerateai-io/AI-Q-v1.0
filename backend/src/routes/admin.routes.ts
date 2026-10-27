@@ -1,5 +1,6 @@
 import express from "express";
 import authenticateToken from "../middlewares/routesProtection.js";
+import { requireInternalUser } from "../middlewares/requireInternalUser.js";
 import {
   getLlmModelHandler,
   setLlmModelHandler,
@@ -26,6 +27,9 @@ import {
 } from "../controllers/admin/adminNotifications.controller.js";
 
 const adminRouter = express.Router();
+
+// The entire admin API is internal-only (Accelerate AI system users).
+adminRouter.use(authenticateToken, requireInternalUser);
 
 adminRouter.get(
   "/services/llm-model",

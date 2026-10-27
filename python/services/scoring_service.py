@@ -902,21 +902,29 @@ def calc_certifications_score(p: LooseInput) -> dict[str, Any]:
             row["detail"] = detail
         breakdown.append(row)
 
+    # High-value compliance certs (SOC 2, HIPAA/HITRUST, CMMC, PCI DSS) must be
+    # backed by structured, in-date certificate evidence — the same gate ISO/NIST
+    # already use. A file name or free-text mention alone (self-attested or
+    # undated) never earns points. Document 1 §4.5.
+    soc2_re = re.compile(r"\bsoc\s*2\b|soc2", re.I)
     soc2_points = 0
-    if re.search(r"\bsoc\s*2\b|soc2", combined, re.I):
+    if soc2_re.search(combined):
         if re.search(r"type\s*2|type\s*ii|type2", combined, re.I):
             soc2_points = 15
         elif re.search(r"type\s*1|type\s*i\b|type1", combined, re.I):
             soc2_points = 8
-    if soc2_points == 15:
-        add("SOC 2 Type 2", 15)
-    elif soc2_points == 8:
-        add("SOC 2 Type 1", 8)
+    if soc2_points and _structured_certificate_status(p, soc2_re) == "current":
+        if soc2_points == 15:
+            add("SOC 2 Type 2", 15)
+        elif soc2_points == 8:
+            add("SOC 2 Type 1", 8)
 
-    if re.search(r"hipaa", combined, re.I) and re.search(r"hitrust", combined, re.I):
-        add("HIPAA BAA + HITRUST", 15)
-    elif re.search(r"hipaa|\bbaa\b", combined, re.I):
-        add("HIPAA BAA only", 10)
+    hipaa_re = re.compile(r"hipaa|\bbaa\b", re.I)
+    if re.search(r"hipaa|\bbaa\b", combined, re.I) and _structured_certificate_status(p, hipaa_re) == "current":
+        if re.search(r"hitrust", combined, re.I):
+            add("HIPAA BAA + HITRUST", 15)
+        else:
+            add("HIPAA BAA only", 10)
 
     iso27001_re = re.compile(r"\biso\s*27001\b|27001:2022|\b27001\b", re.I)
     if iso27001_re.search(combined):
@@ -955,10 +963,12 @@ def calc_certifications_score(p: LooseInput) -> dict[str, Any]:
         if status != "expired_or_undated":
             add("NIST SP 800-171 Rev 3", 10 if status == "current" else 5, status.replace("_", "-"))
 
-    if re.search(r"\bcmmc\b", combined, re.I):
+    cmmc_re = re.compile(r"\bcmmc\b", re.I)
+    if cmmc_re.search(combined) and _structured_certificate_status(p, cmmc_re) == "current":
         add("CMMC v2 Level 2+", 12)
 
-    if re.search(r"pci[\s.-]*dss|payment card industry", combined, re.I):
+    pci_re = re.compile(r"pci[\s.-]*dss|payment card industry", re.I)
+    if pci_re.search(combined) and _structured_certificate_status(p, pci_re) == "current":
         add("PCI DSS 4.0", 10)
 
     dora_re = re.compile(r"\bdora\b|digital operational resilience", re.I)

@@ -81,6 +81,8 @@ export type VtsTraceInput = {
    * 0.40 / 0.30 / 0.30.
    */
   pillarWeights?: { product: number; governance: number; operational: number } | null;
+  /** Stored formula version (e.g. "vts-2.1"); falls back to the local constant. */
+  scoringVersion?: string | null;
 };
 
 const DEFAULT_PILLAR_WEIGHTS = { product: 0.4, governance: 0.3, operational: 0.3 };
@@ -191,7 +193,8 @@ export function buildVtsScoreTrace(input: VtsTraceInput): ScoreTrace {
     scoreType: "vendor_trust",
     finalScore: storedTrustScore,
     formula: "",
-    scoringVersion: SCORING_VERSION,
+    // Prefer the version stored with the score over the local display constant.
+    scoringVersion: input.scoringVersion?.trim() || SCORING_VERSION,
     rawSubScores: {
       productScore:    productScore    ?? undefined,
       governanceScore: govScore        ?? undefined,

@@ -22,15 +22,12 @@ from schemas.scoring_schema import ScoreRequest, ScoreResponse
 from services.llm_trust_score_service import generate_llm_trust_report
 from services.llm_usage_actor import clear_usage_actor, set_usage_actor
 from services.scoring_service import (
+    SCORING_VERSION as VTS_SCORING_VERSION,
     build_formula_input_from_payload,
     calculate_vendor_trust_score,
     interpret_trust_score,
 )
 from services.vts_rationale import print_vts_rationale
-from services.vts_vector_retrieval import (
-    format_formula_context_for_prompt,
-    retrieve_vts_formula_context,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +146,7 @@ async def score_assessment(body: ScoreRequest) -> ScoreResponse:
         sections: list = []
         raw: str | None = None
         scoring_source = "formula"
-        scoring_version = "vts-1.1"
+        scoring_version = VTS_SCORING_VERSION
         llm_error: str | None = None
         vector_meta: dict = {"used": False, "chunks": []}
         formula_context = ""
@@ -164,6 +161,13 @@ async def score_assessment(body: ScoreRequest) -> ScoreResponse:
             getattr(settings, "VTS_LLM_INCLUDE_FORMULA_CONTEXT", False)
         )
         if include_formula_ctx:
+            # Imported here so a blocked native dependency (xxhash via LangChain)
+            # does not stop the scoring service from starting.
+            from services.vts_vector_retrieval import (
+                format_formula_context_for_prompt,
+                retrieve_vts_formula_context,
+            )
+
             retrieved = retrieve_vts_formula_context(vendor_data)
             formula_context = format_formula_context_for_prompt(
                 str(retrieved.get("context_text") or ""),
@@ -220,11 +224,12 @@ async def score_assessment(body: ScoreRequest) -> ScoreResponse:
         # LLM still supplies narrative summary/sections when available.
         final_score = formula_vts
         scoring_source = "formula"
-        scoring_version = "vts-1.1"
+        # Stamp the real running formula version, not a hard-coded legacy string.
+        scoring_version = VTS_SCORING_VERSION
         if llm_score is not None and llm_score > 0:
             # LLM narrative only — do not override formula VTS.
             scoring_source = "formula+llm-narrative"
-            scoring_version = "vts-formula-1.1"
+            scoring_version = f"{VTS_SCORING_VERSION}+llm-narrative"
 
         interpretation = interpretation_preview
 

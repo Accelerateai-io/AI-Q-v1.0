@@ -27,10 +27,6 @@ from exceptions.custom_exceptions import (
 )
 from services.assessment_llm_service import invoke_assessment_llm
 from services.llm_usage_actor import clear_usage_actor, set_usage_actor
-from services.vts_vector_retrieval import (
-    format_formula_context_for_prompt,
-    retrieve_formula_context,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +97,13 @@ async def llm_with_vector(body: LlmWithVectorRequest) -> LlmWithVectorResponse:
         }
         formula_context = ""
         if include_formula:
+            # Imported here so a blocked native dependency (xxhash via LangChain)
+            # does not stop the scoring service from starting.
+            from services.vts_vector_retrieval import (
+                format_formula_context_for_prompt,
+                retrieve_formula_context,
+            )
+
             query_text = (body.query_text or prompt[:2000]).strip()
             retrieved = retrieve_formula_context(body.assessment_type, query_text)
             formula_context = format_formula_context_for_prompt(

@@ -171,6 +171,20 @@ async function buildLoadedTrace(row: ProfileRow): Promise<LoadedVtsTrace> {
     }
   }
 
+  const reportRec =
+    report && typeof report === "object" && !Array.isArray(report)
+      ? (report as Record<string, unknown>)
+      : null;
+  const trustScoreRec =
+    reportRec && typeof reportRec.trustScore === "object" && reportRec.trustScore != null
+      ? (reportRec.trustScore as Record<string, unknown>)
+      : null;
+  const storedScoringVersion =
+    (typeof reportRec?.scoringVersion === "string" ? reportRec.scoringVersion : null) ??
+    (typeof reportRec?.scoring_version === "string" ? reportRec.scoring_version : null) ??
+    (typeof trustScoreRec?.scoringVersion === "string" ? trustScoreRec.scoringVersion : null) ??
+    null;
+
   const trace = buildVtsScoreTrace({
     storedTrustScore: Number(row.trust_score ?? 0),
     scoreByCategory: Object.keys(scoreByCategory ?? {}).length > 0 ? scoreByCategory : null,
@@ -179,6 +193,7 @@ async function buildLoadedTrace(row: ProfileRow): Promise<LoadedVtsTrace> {
     factorExplanations,
     generatedAt: row.created_at,
     pillarWeights,
+    scoringVersion: storedScoringVersion,
   });
 
   return {

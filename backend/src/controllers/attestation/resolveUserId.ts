@@ -1,30 +1,19 @@
 import type { Request } from "express";
-import { db } from "../../database/db.js";
-import { usersTable } from "../../schema/schema.js";
-import { eq } from "drizzle-orm";
 
 /**
- * Resolve user id from JWT (id/userId) or by email. Returns NaN if not found.
+ * Resolve the session user id from a verified session token (id/userId).
+ *
+ * No email-lookup fallback: an invite / reset / onboarding token must never be
+ * able to act as a session by resolving a user id from its email. authenticateToken
+ * already rejects non-session tokens, so a valid session always carries `id`.
+ * Returns NaN when no usable session id is present.
  */
 export async function resolveUserId(req: Request): Promise<number> {
   const payload = req.user as {
     id?: number;
     userId?: string | number;
-    email?: string;
   } | undefined;
-  let rawId = payload?.id ?? payload?.userId;
-  let userId = rawId != null ? Number(rawId) : NaN;
-
-  if ((!Number.isInteger(userId) || userId < 1) && payload?.email) {
-    const email = String(payload.email).trim();
-    if (email) {
-      const users = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.email, email))
-        .limit(1);
-      if (users[0]) userId = users[0].id;
-    }
-  }
+  const rawId = payload?.id ?? payload?.userId;
+  const userId = rawId != null ? Number(rawId) : NaN;
   return Number.isInteger(userId) && userId >= 1 ? userId : NaN;
 }

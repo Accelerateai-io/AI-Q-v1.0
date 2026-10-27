@@ -63,6 +63,13 @@
   margin: 0 0 4pt 0;
 }
 
+.report_pdf_capture .report_exec_summary,
+.report_pdf_capture .report_exec_summary p {
+  white-space: normal !important;
+  color: #1a1f36 !important;
+  -webkit-text-fill-color: #1a1f36 !important;
+}
+
 .report_pdf_capture .report_context_panel,
 .report_pdf_capture .report_exec_brief_section,
 .report_pdf_capture .report_approval_summary_banner {

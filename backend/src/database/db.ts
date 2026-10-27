@@ -2,13 +2,16 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { logger } from "../middlewares/logger.js";
+import { assertServerEnv } from "../config/requireEnv.js";
 
-// Create the postgresql client
-const DATABASE_USER = (process.env.DATABASE_USER ?? "postgres").trim();
-const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD ?? "Postgresql123";
-const DATABASE_HOST = (process.env.DATABASE_HOST ?? "127.0.0.1").trim();
+// Create the postgresql client.
+// No hard-coded credential fallbacks: a missing DB var must fail the boot check
+// in initDB() rather than silently connect with a well-known default password.
+const DATABASE_USER = (process.env.DATABASE_USER ?? "").trim();
+const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD ?? "";
+const DATABASE_HOST = (process.env.DATABASE_HOST ?? "").trim();
 const DATABASE_PORT = (process.env.DATABASE_PORT ?? "5432").trim();
-const DATABASE_NAME = (process.env.DATABASE_NAME ?? "ai_q_db").trim();
+const DATABASE_NAME = (process.env.DATABASE_NAME ?? "").trim();
 
 const pool = new Pool({
   user: DATABASE_USER,
@@ -26,6 +29,8 @@ export { pool };
 // Optional: function to check connection
 export async function initDB() {
   try {
+    // Fail fast with a clear message before attempting to connect with a blank/default secret.
+    assertServerEnv();
     await db.execute(`SELECT 1 AS connected`);
     // logger.info("Database connected successfully");
     console.log("Database connected successfully")

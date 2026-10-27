@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     S3_BUCKET: str = "vendor-documents"
     LOG_LEVEL: str = "INFO"
 
+    # Shared secret for the only caller (Node). When set, every request (except
+    # health/root) must send it as the X-Service-Key header; see app.py.
+    PY_SERVICE_KEY: str = ""
+
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_SESSION_TOKEN: str = ""

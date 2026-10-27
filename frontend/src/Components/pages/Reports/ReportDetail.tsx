@@ -1048,6 +1048,8 @@ function ReportDetail() {
   const cachedReportTitle = cachedTitleKey ? (sessionStorage.getItem(cachedTitleKey) ?? "").trim() : ""
   const autoExportTriggeredRef = useRef(false)
   const showExportPdf = !isSystemUserRole()
+  const [reopening, setReopening] = useState(false)
+  const [reopenError, setReopenError] = useState<string | null>(null)
   const [report, setReport] = useState<{
     id: string
     assessmentId?: string
@@ -1225,6 +1227,72 @@ function ReportDetail() {
   }
 
   const data = report.report as Record<string, unknown>
+
+  // Insufficient-data: the score was withheld because whole scoring areas were
+  // left unanswered. A retry can't help — offer to reopen the assessment so the
+  // user can complete the missing answers.
+  if (data.reportStatus === "insufficient_data") {
+    const insufficient = (data.insufficientData as {
+      classification?: string
+      unmeasuredAreas?: string[]
+    } | undefined) ?? {}
+    const areas = Array.isArray(insufficient.unmeasuredAreas)
+      ? insufficient.unmeasuredAreas
+      : []
+    const assessmentIdForEdit = report.assessmentId ?? ""
+    const completeMissingAnswers = async () => {
+      if (!assessmentIdForEdit || reopening) return
+      const token = sessionStorage.getItem("bearerToken")
+      if (!token) { setReopenError("Please log in."); return }
+      setReopening(true)
+      setReopenError(null)
+      try {
+        const res = await fetch(
+          `${BASE_URL}/vendorCotsAssessment/${encodeURIComponent(assessmentIdForEdit)}/reopen-for-edit`,
+          { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+        )
+        const j = await res.json().catch(() => ({}))
+        if (!res.ok) { setReopenError(j.message || "Could not reopen the assessment"); return }
+        navigate(`/vendorcots/${encodeURIComponent(assessmentIdForEdit)}`)
+      } catch {
+        setReopenError("Network error")
+      } finally {
+        setReopening(false)
+      }
+    }
+    return (
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout">
+        <div className="report_detail_empty">
+          <h2 className="report_detail_empty_title">More answers needed</h2>
+          <p className="report_detail_empty_text">
+            {insufficient.classification ||
+              "Some scoring areas were not answered, so a score cannot be produced yet."}
+            {areas.length > 0 && ` Unmeasured: ${areas.join(", ")}.`}
+            {" "}Your answers are saved — complete the missing areas to generate the report.
+          </p>
+          {reopenError && <div className="report_detail_empty_text">{reopenError}</div>}
+          {assessmentIdForEdit && (
+            <button
+              type="button"
+              className="report_assessment_back report_detail_empty_back"
+              onClick={completeMissingAnswers}
+              disabled={reopening}
+            >
+              {reopening ? "Opening…" : "Complete missing answers"}
+            </button>
+          )}
+          <a
+            href="/reports"
+            className="report_assessment_back report_detail_empty_back"
+            onClick={handleBack}
+          >
+            <CircleChevronLeft size={20} aria-hidden /> Back to Reports
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   const assessmentDate = formatDateDDMMMYYYY(report.createdAt)
   const title = report.title || "Analysis Report"
   const expiryAt = report.expiryAt
@@ -1266,10 +1334,6 @@ function ReportDetail() {
     fullReport?: FullReport
   } | undefined
   const fullReport = generated?.fullReport
-  const roiAnalysisHeadingText =
-    fullReport?.roiAnalysis?.roiMultiple && formatReportValue(fullReport.roiAnalysis.roiMultiple) !== "—"
-      ? `Projected ${formatReportValue(fullReport.roiAnalysis.roiMultiple)} Return on Investment`
-      : "Projected Return on Investment"
   const appendixRiskTableRows = buildAppendixRiskTableRows(
     fullReport?.appendix,
     domainByRiskId,
@@ -1534,27 +1598,18 @@ function ReportDetail() {
           <FileText size={20} aria-hidden /> Executive Summary
         </h2>
         <div className="report_summary_body report_exec_summary">
-          {generated?.executiveSummary ? (
-            (() => {
-              const text = stripMarkdownBold(generated.executiveSummary)
-                .trim();
-              return text
-                ? (
-                  <>
-                    {text
-                    .split(/\n\n/)
-                    .map((p) => stripMarkdownBold(p).trim())
-                    .filter((p) => p.length > 0 && !/^\s*-{2,}\s*$/.test(p))
-                    .map((p, i) => <p key={i}>{p}</p>)}
-                  </>
-                )
-                : <p>No executive summary generated.</p>;
-            })()
-          ) : generated?.summary ? (
-            <p>{stripMarkdownBold(String(generated.summary)).trim()}</p>
-          ) : (
-            <p>No executive summary generated.</p>
-          )}
+          {(() => {
+            const narrative = [generated?.executiveSummary, generated?.summary]
+              .map((value) => stripMarkdownBold(String(value ?? "")).trim())
+              .find((text) => text.length > 0 && text !== "No summary generated.")
+            if (!narrative) return <p>No executive summary generated.</p>
+            const paragraphs = narrative
+              .split(/\n\n/)
+              .map((p) => stripMarkdownBold(p).trim())
+              .filter((p) => p.length > 0 && !/^\s*-{2,}\s*$/.test(p))
+            if (paragraphs.length === 0) return <p>No executive summary generated.</p>
+            return paragraphs.map((p, i) => <p key={i}>{p}</p>)
+          })()}
         </div>
       </section>
 
@@ -1751,7 +1806,8 @@ function ReportDetail() {
         </div>
       </div>
 
-      {/* Comparison to Alternatives — same data as ROI appendix, own section (not inside ROI Analysis) */}
+      {/* Comparison to Alternatives — ROI-derived; shown only when the customer's inputs produced it */}
+      {fullReport?.roiAnalysis?.comparisonAlternatives && fullReport.roiAnalysis.comparisonAlternatives.length > 0 && (
       <section className="report_section_card">
         <h2 className="report_section_heading">
           <BarChart3 size={20} aria-hidden /> Comparison to Alternatives
@@ -1760,15 +1816,14 @@ function ReportDetail() {
           <table className="report_table">
             <thead><tr><th>Alternative</th><th>Annual Cost</th><th>ROI</th><th>Notes</th></tr></thead>
             <tbody>
-              {fullReport?.roiAnalysis?.comparisonAlternatives && fullReport.roiAnalysis.comparisonAlternatives.length > 0
-                ? fullReport.roiAnalysis.comparisonAlternatives.map((row, i) => (
-                    <tr key={i}><td>{formatReportValue(row.alternative)}</td><td>{formatReportValue(row.annualCost)}</td><td>{formatReportValue(row.roi)}</td><td>{formatReportValue(row.notes)}</td></tr>
-                  ))
-                : <tr><td colSpan={4} className="report_table_empty">No comparison data.</td></tr>}
+              {fullReport.roiAnalysis.comparisonAlternatives.map((row, i) => (
+                <tr key={i}><td>{formatReportValue(row.alternative)}</td><td>{formatReportValue(row.annualCost)}</td><td>{formatReportValue(row.roi)}</td><td>{formatReportValue(row.notes)}</td></tr>
+              ))}
             </tbody>
           </table>
         </div>
       </section>
+      )}
 
       {/* Risk Assessment — catalog risks plus Security Posture as the last table row */}
       <section className="report_section_card">
@@ -2296,7 +2351,7 @@ function ReportDetail() {
                     methodologyRaw,
                   );
                 if (methodologyRaw !== "—" && !looksLikeFormula) return methodologyRaw;
-                return "AI EVAL 3-Layer Risk Assessment Framework v2.1 — Customer-Specific Analysis";
+                return "AI-Q 3-Layer Risk Assessment Framework v2.1 — Customer-Specific Analysis";
               })()}
             </div>
           </article>
@@ -2308,13 +2363,13 @@ function ReportDetail() {
             <div className="report_appendix_card_body">
               {formatReportValue(fullReport?.appendix?.preparedBy) !== "—"
                 ? formatReportValue(fullReport?.appendix?.preparedBy)
-                : "AI EVAL Platform — Automated Analysis Report Engine"}
+                : "AI-Q Platform — Automated Analysis Report Engine"}
             </div>
           </article>
           <article className="report_appendix_card">
             <h4 className="report_appendix_card_title report_appendix_card_title_reviewed">
               <CheckCircle2 size={14} aria-hidden />
-              Reviewed By
+              Submitted By
             </h4>
             <div className="report_appendix_card_body">{formatReportValue(fullReport?.appendix?.reviewedBy)}</div>
           </article>

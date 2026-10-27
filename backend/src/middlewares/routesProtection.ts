@@ -6,19 +6,10 @@ import { getJwtSecret } from "../config/auth.js";
 import { db } from "../database/db.js";
 import { createOrganization, usersTable } from "../schema/schema.js";
 import { runWithRequestActor } from "../utils/requestActorContext.js";
+import { isSessionTokenPayload, sessionUserId } from "../utils/accessControl.js";
 
 interface AuthRequest extends Request {
   user?: string | JwtPayload;
-}
-
-function parseTokenUserId(decoded: unknown): number | null {
-  if (decoded == null || typeof decoded !== "object" || Array.isArray(decoded)) {
-    return null;
-  }
-  const p = decoded as Record<string, unknown>;
-  const raw = p.id ?? p.userId;
-  const n = typeof raw === "number" ? raw : Number(raw);
-  return Number.isInteger(n) && n >= 1 ? n : null;
 }
 
 function parseTokenEmail(decoded: unknown): string | undefined {
@@ -31,16 +22,28 @@ function parseTokenEmail(decoded: unknown): string | undefined {
   return trimmed || undefined;
 }
 
-/** True when the user's organization row exists and organizationStatus is active. */
-async function isUserOrganizationActive(userId: number): Promise<boolean> {
+interface SessionUserStatus {
+  found: boolean;
+  userActive: boolean;
+  orgActive: boolean;
+}
+
+/** Fetch the session user's own status + organization status in one query. */
+async function getSessionUserStatus(userId: number): Promise<SessionUserStatus> {
   const rows = await db
-    .select({ organizationStatus: createOrganization.organizationStatus })
+    .select({
+      userStatus: usersTable.userStatus,
+      organizationStatus: createOrganization.organizationStatus,
+    })
     .from(usersTable)
     .leftJoin(createOrganization, eq(usersTable.organization_id, createOrganization.id))
     .where(eq(usersTable.id, userId))
     .limit(1);
-  const orgStatus = String(rows[0]?.organizationStatus ?? "").trim().toLowerCase();
-  return orgStatus === "active";
+  const row = rows[0];
+  if (!row) return { found: false, userActive: false, orgActive: false };
+  const userStatus = String(row.userStatus ?? "").trim().toLowerCase();
+  const orgStatus = String(row.organizationStatus ?? "").trim().toLowerCase();
+  return { found: true, userActive: userStatus === "active", orgActive: orgStatus === "active" };
 }
 
 /**
@@ -84,21 +87,35 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 
     void (async () => {
       try {
-        const userId = parseTokenUserId(decoded);
-        const email = parseTokenEmail(decoded);
-        if (userId != null) {
-          const active = await isUserOrganizationActive(userId);
-          if (!active) {
-            return res.status(403).json({
-              code: "organization_inactive",
-              message:
-                "Your organization is inactive. Access is denied. Please contact your administrator.",
-            });
-          }
+        // Only true login session tokens may authenticate an API request.
+        // Invite, password-reset and onboarding tokens must not act as sessions.
+        if (!isSessionTokenPayload(decoded)) {
+          return res.status(403).json({ message: "Not a session token" });
         }
-        if (decoded !== undefined) req.user = decoded;
+        const userId = sessionUserId(decoded)!;
+        const email = parseTokenEmail(decoded);
+
+        const status = await getSessionUserStatus(userId);
+        if (!status.found) {
+          return res.status(403).json({ message: "User not found" });
+        }
+        if (!status.userActive) {
+          return res.status(403).json({
+            code: "inactive",
+            message: "This account is inactive. Please contact your administrator.",
+          });
+        }
+        if (!status.orgActive) {
+          return res.status(403).json({
+            code: "organization_inactive",
+            message:
+              "Your organization is inactive. Access is denied. Please contact your administrator.",
+          });
+        }
+
+        req.user = decoded;
         await nextWithActor(
-          { userId: userId ?? undefined, email },
+          { userId, email },
           res,
           next,
         );

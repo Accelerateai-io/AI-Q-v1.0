@@ -102,6 +102,8 @@ export const cotsBuyerAssessments = pgTable("cots_buyer_assessments", {
   risk_mitigation_mapping_ids: jsonb("risk_mitigation_mapping_ids"),
   /** Generated on submit: full Vendor Risk Assessment Report (buyer + attestation). */
   vendor_risk_assessment_report: jsonb("vendor_risk_assessment_report"),
+  /** Report generation status: 'generating' | 'failed' | 'done'. Additive (20261021). */
+  report_status: varchar("report_status", { length: 16 }),
   /** Full IRS rationale block (same as terminal); denormalized for admin i-icon reads. */
   score_rationale: text("score_rationale"),
   score_rationale_type: varchar("score_rationale_type", { length: 8 }),

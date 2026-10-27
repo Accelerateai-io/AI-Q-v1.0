@@ -640,7 +640,7 @@ const VendorAttestationDetails = () => {
           <div className="page_header_title_block">
             <h1 className="page_header_title">Attestation</h1>
             <p className="sub_title page_header_subtitle">
-              Establish and maintain your vendor trust profile for the AI EVAL
+              Establish and maintain your vendor trust profile for the AI-Q
               directory.
             </p>
           </div>

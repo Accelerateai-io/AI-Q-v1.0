@@ -1,0 +1,14 @@
+CERTIFICATE OF REGISTRATION
+
+Information Security Management System
+
+This is to certify that the organisation has been assessed and registered
+against the requirements of ISO/IEC 27001:2022.
+
+Scope: Design, development, and operation of cloud-based software services,
+including the associated information security management controls in Annex A.
+
+Certificate Number: IS-7781024
+Original Certification Date: March 15, 2025
+This certificate is valid until March 14, 2028, subject to continued
+surveillance audits.

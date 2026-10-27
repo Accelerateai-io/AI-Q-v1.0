@@ -89,7 +89,8 @@ const insertBuyerOnboarding = async (req: Request, res: Response) => {
         .json({ message: "Onboarding already completed" });
     }
 
-    const organizationId = bodyOrgId ?? bodyOrgIdCamel ?? user.organization_id;
+    // Organization id comes from the authenticated onboarding user (token), never the body.
+    const organizationId = user.organization_id;
     const sectorValue =
       sector != null && typeof sector === "object"
         ? JSON.stringify(sector)

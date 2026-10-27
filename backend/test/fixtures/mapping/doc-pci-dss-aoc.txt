@@ -1,0 +1,14 @@
+ATTESTATION OF COMPLIANCE
+
+Payment Card Industry Data Security Standard
+
+This document serves as the Attestation of Compliance for the service provider
+named below, confirming the results of the annual on-site assessment conducted
+by a Qualified Security Assessor.
+
+The assessed entity has demonstrated compliance with the applicable Payment Card
+Industry Data Security Standard requirements for the protection of cardholder
+data across its in-scope environment.
+
+Assessment completed: September 10, 2026
+This Attestation of Compliance is valid through September 9, 2027.

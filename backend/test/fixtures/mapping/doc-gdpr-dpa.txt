@@ -1,0 +1,15 @@
+DATA PROCESSING AGREEMENT (DPA)
+
+This Data Processing Agreement supplements the services agreement between the
+Data Controller and the Data Processor and governs the processing of personal
+data in accordance with the General Data Protection Regulation (GDPR).
+
+The Processor shall implement appropriate technical and organisational measures
+to ensure a level of security appropriate to the risk, including measures to
+protect against phishing, social engineering, and unauthorised disclosure of
+personal data. Staff receive regular anti-phishing awareness training.
+
+Sub-processors are listed in Annex III. Data subject rights requests will be
+supported by the Processor.
+
+This Agreement remains valid until June 30, 2028 unless terminated earlier.

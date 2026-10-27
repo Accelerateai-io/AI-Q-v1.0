@@ -1,5 +1,5 @@
 import express from "express";
-import { inviteUser, reinviteUser, resendOnboardingLink } from "../controllers/user_managemnt_controller/user.js";
+import { inviteUser, reinviteUser, resendOnboardingLink, issueSelfOnboardingLink } from "../controllers/user_managemnt_controller/user.js";
 import userSignup from "../controllers/user_managemnt_controller/signup.js";
 import userTokenVerify from "../middlewares/user_management/userTokenVerify.js";
 import userLogin from "../controllers/user_managemnt_controller/login.js";
@@ -12,21 +12,23 @@ import updatesUsers from "../controllers/user_managemnt_controller/updateUsers.c
 import forgotPassword from "../controllers/user_managemnt_controller/forgotPassword.js";
 import resetPassword from "../controllers/user_managemnt_controller/resetPassword.js";
 import getOnboardingAccessStatus from "../controllers/onboarding/getOnboardingAccessStatus.controller.js";
+import { authRateLimiter, passwordResetRateLimiter } from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
 router
 .get("/onboarding/access-status", getOnboardingAccessStatus)
+.get("/onboarding/self-link", authenticateToken, issueSelfOnboardingLink)
 .get("/me", authenticateToken, getMe)
 .put("/me", authenticateToken, updateMyProfile)
 .get("/allUsers",authenticateToken, fetchAllUsers)
 .post("/invite_user", authenticateToken, inviteUser)
 .post("/reinvite_user/:id", authenticateToken, reinviteUser)
 .post("/resend_onboarding/:id", authenticateToken, resendOnboardingLink)
-.post("/signupData/:token", userTokenVerify, signupAccess, userSignup)
-.post("/login", userLogin)
-.post("/forgotPassword", forgotPassword)
-.post("/resetPassword", resetPassword)
+.post("/signupData/:token", authRateLimiter, userTokenVerify, signupAccess, userSignup)
+.post("/login", authRateLimiter, userLogin)
+.post("/forgotPassword", passwordResetRateLimiter, forgotPassword)
+.post("/resetPassword", passwordResetRateLimiter, resetPassword)
 .put("/updateUser/:id",authenticateToken,updatesUsers)
 
 .post("/logout", authenticateToken, (req, res) => {

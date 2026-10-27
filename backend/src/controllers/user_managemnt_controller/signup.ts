@@ -17,9 +17,10 @@ import { capitalizeWords as capitalizeFirstLetter } from "../../utils/capitalize
 const userSignup = async (req: Request, res: Response) => {
   const userData = req.body ?? {};
   const BASE_URL = process.env.BASE_URL;
-  const emailFromBody = userData.email != null ? String(userData.email).trim() : "";
+  // Use ONLY the email inside the verified invite token (set by userTokenVerify),
+  // never the email in the request body, so a signup cannot be redirected to another account.
   const emailFromToken = (req as { email?: string }).email != null ? String((req as { email?: string }).email).trim() : "";
-  const email = (emailFromBody || emailFromToken).toLowerCase();
+  const email = emailFromToken.toLowerCase();
   if (!email) {
     return res.status(400).json({ message: "Email is required" });
   }

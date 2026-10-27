@@ -13,6 +13,8 @@ import {
   throwIfTokenQuotaHttpError,
 } from "./admin/featureTokenQuota.service.js";
 import { maybeNotifyTokenQuotaExhausted } from "./admin/tokenQuotaAlert.service.js";
+import { ScoringUnavailableError } from "../utils/scoringUnavailable.js";
+import { pythonServiceHeaders } from "./pythonServiceHeaders.js";
 
 export interface PythonScoreResult {
   vendor_trust_score: number;
@@ -119,7 +121,7 @@ async function postJson(
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: pythonServiceHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -232,8 +234,40 @@ export async function scoreCotsVendorWithPython(
   payload: Record<string, unknown>,
 ): Promise<PythonCotsVendorScoreResult> {
   const url = `${scoringBaseUrl()}/assessment/cots-vendor/score`;
+  console.log(`[cots_vendor] POST ${url}`);
   const r = await postJson(url, { payload });
 
+  // A withheld score arrives as null (insufficient data) — Number(null) is 0,
+  // which would masquerade as a real 0-risk / 100-confidence result. Reject it.
+  const scoringSourceRaw = r.scoring_source != null ? String(r.scoring_source) : "formula";
+  if (scoringSourceRaw === "insufficient_data" || r.sales_risk_score == null) {
+    const PILLAR_LABELS: Record<string, string> = {
+      customer_friction: "Customer friction",
+      implementation: "Implementation",
+      competitive: "Competitive",
+    };
+    const detailMap =
+      r.pillars_measured_detail && typeof r.pillars_measured_detail === "object"
+        ? (r.pillars_measured_detail as Record<string, unknown>)
+        : {};
+    const unmeasuredAreas = Object.entries(detailMap)
+      .filter(([, measured]) => measured === false)
+      .map(([key]) => PILLAR_LABELS[key] ?? key);
+    throw new ScoringUnavailableError(
+      "Python cots-vendor scoring returned insufficient data",
+      "insufficient_data",
+      undefined,
+      {
+        classification:
+          typeof r.classification === "string" ? r.classification : undefined,
+        pillarsMeasured:
+          typeof r.pillars_measured === "number" ? r.pillars_measured : undefined,
+        pillarsTotal:
+          typeof r.pillars_total === "number" ? r.pillars_total : undefined,
+        unmeasuredAreas: unmeasuredAreas.length ? unmeasuredAreas : undefined,
+      },
+    );
+  }
   const salesRiskScore = Number(r.sales_risk_score);
   if (!Number.isFinite(salesRiskScore)) {
     throw new Error("Python cots-vendor scoring response missing sales_risk_score");

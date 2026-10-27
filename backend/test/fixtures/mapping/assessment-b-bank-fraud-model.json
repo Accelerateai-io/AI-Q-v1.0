@@ -1,0 +1,14 @@
+{
+  "id": "B",
+  "label": "Bank fraud model",
+  "assessmentType": "vendor_cots",
+  "notes": "Reference payload B from PROMPT 0. Vendor COTS: sector comes from customerSector; there is no expectedOutcomes/businessPainPoint, so extractContext() derives intent from regulatoryRequirements and primary_risk from primaryPainPoint.",
+  "payload": {
+    "productName": "Bank Fraud Detection Model",
+    "customerSector": "Financial Services - Banking",
+    "dataSensitivity": "Highly Sensitive - PHI, Financial Records, or PCI Data",
+    "regulatoryRequirements": ["GLBA (Financial Privacy)", "PCI DSS (Payment Cards)"],
+    "productFeatures": ["Anomaly Detection", "Automated Decision-Making", "Predictive Analytics"],
+    "primaryPainPoint": "Card fraud losses and false declines"
+  }
+}

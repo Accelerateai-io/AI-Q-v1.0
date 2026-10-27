@@ -603,6 +603,19 @@ export async function getScsScoreTrace(req: Request, res: Response): Promise<voi
         detailRaw != null && typeof detailRaw === "object" && !Array.isArray(detailRaw)
           ? (detailRaw as Record<string, unknown>)
           : null,
+      // Stored formula version (python stamps scs-2.0); read it rather than the
+      // local "1.2.0" display constant.
+      scoringVersion:
+        (typeof (breakdown as Record<string, unknown> | null)?.scoring_version === "string"
+          ? String((breakdown as Record<string, unknown>).scoring_version)
+          : null) ??
+        (typeof (detailRaw as Record<string, unknown> | null)?.score_trace === "object" &&
+        (detailRaw as Record<string, unknown>)?.score_trace != null
+          ? (() => {
+              const st = (detailRaw as Record<string, unknown>).score_trace as Record<string, unknown>;
+              return typeof st.registry_version === "string" ? st.registry_version : null;
+            })()
+          : null),
       generatedAt: resolveScoreCalculatedAt(report, row.created_at),
     });
 

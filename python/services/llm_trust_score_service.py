@@ -14,20 +14,23 @@ from config import get_bedrock_model_id, settings
 from prompts.vendor_attestation_prompt import VENDOR_ATTESTATION_PROMPT
 from services.assessment_llm_service import invoke_bedrock_with_chunking
 
+# Must match the section numbering in VENDOR_ATTESTATION_PROMPT exactly: the
+# parser uses these titles to OVERRIDE the model's heading (parse_report_sections),
+# so any misalignment relabels content under the wrong section (e.g. certifications
+# showing up under "Operations & Support").
 SECTION_TITLES = {
     0: "Trust Score",
     1: "Product Information",
-    2: "Company Identity",
+    2: "Company Identity and Company Reach",
     3: "AI Models & Technology",
-    4: "AI Governance",
-    5: "Security Posture",
-    6: "Data Practices",
-    7: "Compliance & Certifications",
-    8: "Operations & Support",
-    9: "Vendor Management",
-    10: "AI Safety & Testing",
+    4: "AI Safety & Testing",
+    5: "AI Governance",
+    6: "Security Posture",
+    7: "Data Practices",
+    8: "Compliance & Certifications",
+    9: "Operations & Support",
+    10: "Vendor Management",
     11: "Evidence & Trust",
-    12: "Company Reach",
 }
 
 TRUST_SCORE_KNOWN_CATEGORIES = [

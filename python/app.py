@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from api.health import router as health_router
 from api.scoring import router as scoring_router
@@ -11,6 +12,32 @@ from config import aws_credentials_configured, get_bedrock_model_id, settings
 app = FastAPI(
     title=settings.APP_NAME
 )
+
+# Paths that never require the service key (used by load balancers / liveness checks).
+_SERVICE_KEY_EXEMPT_PATHS = {"/", "/health", "/docs", "/openapi.json"}
+
+
+@app.middleware("http")
+async def require_service_key(request: Request, call_next):
+    """
+    Node is the only caller of this service. When PY_SERVICE_KEY is configured,
+    reject any request that does not present it as X-Service-Key. When it is not
+    configured, requests pass (local dev) but startup logs a loud warning.
+    """
+    expected = (settings.PY_SERVICE_KEY or "").strip()
+    if expected and request.url.path not in _SERVICE_KEY_EXEMPT_PATHS:
+        provided = (request.headers.get("x-service-key") or "").strip()
+        if provided != expected:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing service key"})
+    return await call_next(request)
+
+
+if not (settings.PY_SERVICE_KEY or "").strip():
+    print(
+        "[warn] PY_SERVICE_KEY is not set — the scoring service accepts unauthenticated "
+        "requests. Set PY_SERVICE_KEY in python/.env (and on the Node side) before deploying.",
+        flush=True,
+    )
 
 if not aws_credentials_configured():
     # Without credentials the LLM leg of /assessment/score fails and profile reports
@@ -49,4 +76,4 @@ def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app:app", host="0.0.0.0", port=5004, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

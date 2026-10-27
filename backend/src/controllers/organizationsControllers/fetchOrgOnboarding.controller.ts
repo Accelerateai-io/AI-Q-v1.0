@@ -6,6 +6,7 @@ import { vendorOnboarding } from "../../schema/vendor/addVendor.schema.js";
 import { usersTable } from "../../schema/schema.js";
 import { eq, or, sql } from "drizzle-orm";
 import { loadVendorOnboardingBusinessFields } from "../../utils/normalizeVendorOnboardingBusinessFields.js";
+import { getCallerContext } from "../../utils/accessControl.js";
 
 function userDisplayName(u: { user_name?: string | null; user_first_name?: string | null; user_last_name?: string | null; email?: string | null }): string {
   const name = (u.user_name ?? "").trim();
@@ -27,6 +28,15 @@ const fetchOrgOnboarding = async (req: Request, res: Response) => {
     const orgIdParam = String(req.params.id ?? "").trim();
     if (!orgIdParam) {
       return res.status(400).json({ message: "Organization ID is required" });
+    }
+
+    // Non-internal callers may only read their own organization's onboarding data.
+    const caller = await getCallerContext(req);
+    if (!caller) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!caller.isInternal && Number(caller.organizationId) !== Number(orgIdParam)) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     const orgRow = await db

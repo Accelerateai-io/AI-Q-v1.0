@@ -24,6 +24,8 @@ export type MitigationActionPlanPayload = {
     fieldDefinitions: { fieldName: string; description: string }[];
     formatNotes: string;
   };
+  /** True when the AI plan was unavailable; actions come from assessment data only. */
+  isFallback?: boolean;
 };
 
 const PROMPT = `You are an enterprise GRC program manager. The user has a COMPLETE buyer vendor risk assessment report (JSON), optional database-matched catalog risks with mitigations, and optional buyer validation notes.
@@ -61,7 +63,7 @@ Rules:
 - Each action must have all RACI fields (use \"TBD\" or role name if unknown).
 - csvExport.fieldDefinitions: include one entry per column you would export for the actions table (rank, title, score, phase, responsible, accountable, consulted, informed, successCriteria, verification) plus any IDs; keep descriptions concise.
 - Align actions with catalog risks/mitigations and buyer recommendations when those appear in inputs.
-Use only information supported by inputs; if thin, still produce 15 actions with conservative, role-based placeholders.`;
+Use only information supported by inputs; if inputs are thin, produce fewer specific, inputs-grounded actions rather than padding with generic placeholder rows.`;
 
 function extractJsonObject(text: string): Record<string, unknown> | null {
   const t = text.trim();
@@ -98,7 +100,9 @@ function normalizePayload(raw: Record<string, unknown>, fb: MitigationActionPlan
       .sort((a, b) => b.score - a.score || a.rank - b.rank)
       .map((a, i) => ({ ...a, rank: i + 1 }));
   }
-  if (actions.length < 15) actions = fb.actions;
+  // Keep however many real actions the model produced; fall back to the
+  // assessment-derived actions only when the model gave us none. Never pad.
+  if (actions.length === 0) actions = fb.actions;
 
   const triggers = Array.isArray(raw.reassessmentTriggers)
     ? (raw.reassessmentTriggers as unknown[]).map((s) => String(s).slice(0, 400)).filter(Boolean).slice(0, 20)
@@ -123,7 +127,7 @@ function normalizePayload(raw: Record<string, unknown>, fb: MitigationActionPlan
   const formatNotes = String(csvRaw?.formatNotes ?? fb.csvExport.formatNotes).slice(0, 1500);
 
   return {
-    actions: actions.length >= 15 ? actions.slice(0, 30) : fb.actions,
+    actions: actions.slice(0, 30),
     reassessmentTriggers: triggers.length > 0 ? triggers : fb.reassessmentTriggers,
     reassessmentCadence: cadence || fb.reassessmentCadence,
     csvExport: {
@@ -133,7 +137,7 @@ function normalizePayload(raw: Record<string, unknown>, fb: MitigationActionPlan
   };
 }
 
-function fallbackFromCompleteReport(complete: Record<string, unknown>): MitigationActionPlanPayload {
+export function fallbackFromCompleteReport(complete: Record<string, unknown>): MitigationActionPlanPayload {
   const recs = Array.isArray(complete.recommendations) ? (complete.recommendations as unknown[]) : [];
   const baseActions: MitigationActionRow[] = [];
   let r = 0;
@@ -154,23 +158,11 @@ function fallbackFromCompleteReport(complete: Record<string, unknown>): Mitigati
     });
     if (baseActions.length >= 20) break;
   }
-  while (baseActions.length < 15) {
-    const n = baseActions.length + 1;
-    baseActions.push({
-      rank: n,
-      title: `Control strengthening ${n}`,
-      score: 55,
-      phase: "Operate",
-      responsible: "Ops",
-      accountable: "Sponsor",
-      consulted: "Risk",
-      informed: "Stakeholders",
-      successCriteria: "Control operating as designed",
-      verification: "Sample testing",
-    });
-  }
+  // No placeholder padding: if the complete report has few/no recommendations,
+  // the plan simply lists those real actions (or none) — never filler rows.
   return {
     actions: baseActions.slice(0, 30),
+    isFallback: true,
     reassessmentTriggers: [
       "Material change in vendor subprocessors or hosting",
       "Regulatory or policy change affecting AI use",

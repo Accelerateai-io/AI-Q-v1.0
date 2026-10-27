@@ -46,6 +46,7 @@ class CotsBuyerScoreRequest(BaseModel):
 @router.post("/cots-vendor/score")
 async def score_cots_vendor(body: CotsVendorScoreRequest) -> dict[str, Any]:
     """Sales Risk Score (Type 2) — deterministic formula owned by Python."""
+    print("[cots-vendor] scoring request", flush=True)
     try:
         if body.formula_input and isinstance(body.formula_input, dict):
             formula_input = body.formula_input

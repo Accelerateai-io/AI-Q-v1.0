@@ -12,9 +12,13 @@ export type ImplementationRiskAssessmentPayload = {
     rationale: string;
   };
   breakdown: {
-    vendorFit: { score: number; summary: string };
-    orgReadinessGap: { score: number; summary: string };
-    integrationRisk: { score: number; summary: string };
+    // Per-dimension scores are intentionally optional: the stored IRS has no
+    // per-dimension breakdown, so these carry qualitative summaries only and are
+    // never a fabricated number. The headline overallScore is the authoritative
+    // stored IRS.
+    vendorFit: { score?: number; summary: string };
+    orgReadinessGap: { score?: number; summary: string };
+    integrationRisk: { score?: number; summary: string };
   };
   readinessGaps: {
     technical: string[];
@@ -30,22 +34,24 @@ export type ImplementationRiskAssessmentPayload = {
     roughOrderOfMagnitude: string;
     notes: string;
   };
+  /** True when the AI narrative could not be generated; headline score still stands. */
+  isFallback?: boolean;
 };
 
 const PROMPT = `You are an enterprise implementation and program risk analyst. The user has a COMPLETE buyer vendor risk assessment report (JSON), optional database-matched catalog risks with mitigations, and optional buyer validation notes.
+
+The authoritative implementation readiness SCORE and the Proceed/Defer decision are computed from the stored assessment, NOT by you — do not output a headline score or recommendation. Provide the qualitative analysis only.
 
 Output ONLY valid JSON (no markdown, no code fences) with exactly these keys:
 
 {
   "scoreAndRecommendation": {
-    "overallScore": <integer 0-100, higher = better readiness to proceed>,
-    "recommendation": "Proceed" | "Proceed with conditions" | "Defer",
-    "rationale": "<2-5 sentences tying score to recommendation>"
+    "rationale": "<2-5 sentences explaining the readiness picture; do NOT state a numeric score>"
   },
   "breakdown": {
-    "vendorFit": { "score": <0-100>, "summary": "<vendor/product fit vs buyer need>" },
-    "orgReadinessGap": { "score": <0-100 higher=better readiness>, "summary": "<governance, maturity, change>" },
-    "integrationRisk": { "score": <0-100 higher=lower integration risk>, "summary": "<systems, APIs, data flows>" }
+    "vendorFit": { "summary": "<vendor/product fit vs buyer need>" },
+    "orgReadinessGap": { "summary": "<governance, maturity, change>" },
+    "integrationRisk": { "summary": "<systems, APIs, data flows>" }
   },
   "readinessGaps": {
     "technical": ["<gap>", "..."],
@@ -64,7 +70,6 @@ Output ONLY valid JSON (no markdown, no code fences) with exactly these keys:
 }
 
 Rules:
-- recommendation must align with overallScore (high score + Proceed unless blockers; Defer for severe gaps).
 - readinessGaps: 3-6 bullets per category where applicable; use empty arrays only if truly none.
 - Use only information supported by inputs; if thin, state limitations in narrative fields.`;
 
@@ -80,109 +85,98 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   }
 }
 
-function clampScore(n: number, fb: number): number {
-  if (!Number.isFinite(n)) return fb;
-  return clampScore2(n);
-}
-
-function parseRecommendation(v: unknown): ImplementationRecommendation {
-  const s = String(v ?? "").trim();
-  if (s === "Proceed" || s === "Proceed with conditions" || s === "Defer") return s;
-  return "Proceed with conditions";
-}
-
 function asStringArray(raw: unknown, max = 12): string[] {
   if (!Array.isArray(raw)) return [];
   return (raw as unknown[]).map((x) => String(x).slice(0, 500)).filter(Boolean).slice(0, max);
 }
 
-function normalizePayload(raw: Record<string, unknown>, fb: ImplementationRiskAssessmentPayload): ImplementationRiskAssessmentPayload {
-  const srRaw = raw.scoreAndRecommendation as Record<string, unknown> | undefined;
-  const scoreAndRecommendation = srRaw
-    ? {
-        overallScore: clampScore(Number(srRaw.overallScore), fb.scoreAndRecommendation.overallScore),
-        recommendation: parseRecommendation(srRaw.recommendation),
-        rationale: String(srRaw.rationale ?? fb.scoreAndRecommendation.rationale).slice(0, 3000),
-      }
-    : fb.scoreAndRecommendation;
+/** The stored IRS (0-100, higher = safer/better fit) drives the headline score. */
+export function storedIrsFromReport(completeReport: Record<string, unknown>): number {
+  const n = Number(completeReport.overallRiskScore);
+  return Number.isFinite(n) ? clampScore2(n) : NaN;
+}
 
+/**
+ * Proceed/Defer is a deterministic mapping of the stored IRS — not an LLM call
+ * and not a change to any scoring weight. With no authoritative score we do not
+ * recommend proceeding.
+ */
+export function recommendationFromStoredIrs(score: number): ImplementationRecommendation {
+  if (!Number.isFinite(score)) return "Defer";
+  return score >= 75 ? "Proceed" : score >= 50 ? "Proceed with conditions" : "Defer";
+}
+
+/** Build the final payload: headline from the stored IRS, narrative from the LLM. */
+function buildPayload(
+  storedScore: number,
+  rationale: string,
+  narrative: Omit<ImplementationRiskAssessmentPayload, "scoreAndRecommendation" | "isFallback"> | null,
+  isFallback: boolean,
+): ImplementationRiskAssessmentPayload {
+  const base: Omit<ImplementationRiskAssessmentPayload, "scoreAndRecommendation" | "isFallback"> =
+    narrative ?? {
+      breakdown: {
+        vendorFit: { summary: "—" },
+        orgReadinessGap: { summary: "—" },
+        integrationRisk: { summary: "—" },
+      },
+      readinessGaps: { technical: [], governance: [], talent: [] },
+      timelineImpact: { drivers: [], assumptions: [], narrative: "—" },
+      budgetImpactMvp: { roughOrderOfMagnitude: "—", notes: "—" },
+    };
+  return {
+    scoreAndRecommendation: {
+      overallScore: storedScore,
+      recommendation: recommendationFromStoredIrs(storedScore),
+      rationale,
+    },
+    ...base,
+    ...(isFallback ? { isFallback: true } : {}),
+  };
+}
+
+/** Parse ONLY the qualitative narrative from the LLM; scores are ignored here. */
+function narrativeFromRaw(
+  raw: Record<string, unknown>,
+): Omit<ImplementationRiskAssessmentPayload, "scoreAndRecommendation" | "isFallback"> {
   const bRaw = raw.breakdown as Record<string, unknown> | undefined;
   const vf = bRaw?.vendorFit as Record<string, unknown> | undefined;
   const org = bRaw?.orgReadinessGap as Record<string, unknown> | undefined;
   const ir = bRaw?.integrationRisk as Record<string, unknown> | undefined;
   const breakdown: ImplementationRiskAssessmentPayload["breakdown"] = {
-    vendorFit: {
-      score: clampScore(Number(vf?.score), fb.breakdown.vendorFit.score),
-      summary: String(vf?.summary ?? fb.breakdown.vendorFit.summary).slice(0, 2000),
-    },
-    orgReadinessGap: {
-      score: clampScore(Number(org?.score), fb.breakdown.orgReadinessGap.score),
-      summary: String(org?.summary ?? fb.breakdown.orgReadinessGap.summary).slice(0, 2000),
-    },
-    integrationRisk: {
-      score: clampScore(Number(ir?.score), fb.breakdown.integrationRisk.score),
-      summary: String(ir?.summary ?? fb.breakdown.integrationRisk.summary).slice(0, 2000),
-    },
+    vendorFit: { summary: String(vf?.summary ?? "—").slice(0, 2000) },
+    orgReadinessGap: { summary: String(org?.summary ?? "—").slice(0, 2000) },
+    integrationRisk: { summary: String(ir?.summary ?? "—").slice(0, 2000) },
   };
 
   const rgRaw = raw.readinessGaps as Record<string, unknown> | undefined;
   const readinessGaps = {
-    technical: asStringArray(rgRaw?.technical).length > 0 ? asStringArray(rgRaw?.technical) : fb.readinessGaps.technical,
-    governance: asStringArray(rgRaw?.governance).length > 0 ? asStringArray(rgRaw?.governance) : fb.readinessGaps.governance,
-    talent: asStringArray(rgRaw?.talent).length > 0 ? asStringArray(rgRaw?.talent) : fb.readinessGaps.talent,
+    technical: asStringArray(rgRaw?.technical),
+    governance: asStringArray(rgRaw?.governance),
+    talent: asStringArray(rgRaw?.talent),
   };
 
   const tiRaw = raw.timelineImpact as Record<string, unknown> | undefined;
   const timelineImpact = {
-    drivers: asStringArray(tiRaw?.drivers).length > 0 ? asStringArray(tiRaw?.drivers) : fb.timelineImpact.drivers,
-    assumptions: asStringArray(tiRaw?.assumptions).length > 0 ? asStringArray(tiRaw?.assumptions) : fb.timelineImpact.assumptions,
-    narrative: String(tiRaw?.narrative ?? fb.timelineImpact.narrative).slice(0, 3000),
+    drivers: asStringArray(tiRaw?.drivers),
+    assumptions: asStringArray(tiRaw?.assumptions),
+    narrative: String(tiRaw?.narrative ?? "—").slice(0, 3000),
   };
 
   const biRaw = raw.budgetImpactMvp as Record<string, unknown> | undefined;
   const budgetImpactMvp = {
-    roughOrderOfMagnitude: String(biRaw?.roughOrderOfMagnitude ?? fb.budgetImpactMvp.roughOrderOfMagnitude).slice(0, 500),
-    notes: String(biRaw?.notes ?? fb.budgetImpactMvp.notes).slice(0, 2000),
+    roughOrderOfMagnitude: String(biRaw?.roughOrderOfMagnitude ?? "—").slice(0, 500),
+    notes: String(biRaw?.notes ?? "—").slice(0, 2000),
   };
 
-  return {
-    scoreAndRecommendation,
-    breakdown,
-    readinessGaps,
-    timelineImpact,
-    budgetImpactMvp,
-  };
+  return { breakdown, readinessGaps, timelineImpact, budgetImpactMvp };
 }
 
-function fallbackPayload(completeReport: Record<string, unknown>): ImplementationRiskAssessmentPayload {
-  const overall = Number(completeReport.overallRiskScore);
-  const base = Number.isFinite(overall) ? clampScore(overall, 65) : 65;
-  return {
-    scoreAndRecommendation: {
-      overallScore: base,
-      recommendation: base >= 75 ? "Proceed" : base >= 50 ? "Proceed with conditions" : "Defer",
-      rationale: String(completeReport.executiveSummary ?? "").slice(0, 1500) || "See complete assessment for context.",
-    },
-    breakdown: {
-      vendorFit: { score: base, summary: "Derived from complete report vendor fit and attestation themes." },
-      orgReadinessGap: { score: Math.max(40, base - 10), summary: "Governance and maturity per buyer assessment fields." },
-      integrationRisk: { score: Math.max(40, base - 5), summary: "Integration scope from buyer systems and vendor APIs." },
-    },
-    readinessGaps: {
-      technical: ["Confirm API and data contract details with vendor."],
-      governance: ["Align AI use with internal policies and oversight."],
-      talent: ["Staff training and change management for rollout."],
-    },
-    timelineImpact: {
-      drivers: ["Pilot scope", "Integration complexity", "Procurement"],
-      assumptions: ["Vendor delivery as quoted", "Buyer resources available"],
-      narrative: "Timeline sensitivity depends on integration breadth and governance gates.",
-    },
-    budgetImpactMvp: {
-      roughOrderOfMagnitude: "Order-of-magnitude not computable from inputs alone — use internal finance bands.",
-      notes: "Refine after vendor quote and pilot scope lock.",
-    },
-  };
+function rationaleFromRaw(raw: Record<string, unknown>, completeReport: Record<string, unknown>): string {
+  const srRaw = raw.scoreAndRecommendation as Record<string, unknown> | undefined;
+  const fromLlm = String(srRaw?.rationale ?? "").trim();
+  if (fromLlm) return fromLlm.slice(0, 3000);
+  return String(completeReport.executiveSummary ?? "").slice(0, 1500) || "See complete assessment for context.";
 }
 
 async function invokeModel(prompt: string): Promise<string> {
@@ -199,7 +193,7 @@ export async function generateImplementationRiskAssessmentReport(
   dbRisksBlock: string,
   buyerValidationSnippet: string,
 ): Promise<ImplementationRiskAssessmentPayload> {
-  const fb = fallbackPayload(completeReport);
+  const storedScore = storedIrsFromReport(completeReport);
   const userPrompt = [
     PROMPT,
     "",
@@ -217,10 +211,25 @@ export async function generateImplementationRiskAssessmentReport(
   try {
     const rawText = await invokeModel(userPrompt);
     const parsed = extractJsonObject(rawText);
-    if (parsed) return normalizePayload(parsed, fb);
+    if (parsed) {
+      return buildPayload(
+        storedScore,
+        rationaleFromRaw(parsed, completeReport),
+        narrativeFromRaw(parsed),
+        false,
+      );
+    }
   } catch (e) {
     if (isTokenQuotaExceededError(e)) throw e;
     console.error("generateImplementationRiskAssessmentReport LLM error:", e);
   }
-  return fb;
+  // LLM unavailable: keep the authoritative stored-IRS headline, mark the
+  // narrative as a fallback instead of fabricating analysis.
+  const execSummary = String(completeReport.executiveSummary ?? "").slice(0, 1500);
+  return buildPayload(
+    storedScore,
+    execSummary || "AI narrative unavailable — headline score is from the stored implementation risk result.",
+    null,
+    true,
+  );
 }

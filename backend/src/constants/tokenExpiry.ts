@@ -8,5 +8,5 @@ export const SIGNUP_LINK_EXPIRY_DAYS = 7;
 export const SIGNUP_LINK_EXPIRY_JWT = "7d";
 
 /** Onboarding link: how long the admin has to complete org onboarding after signup. Used in signup.ts. */
-export const ONBOARDING_LINK_EXPIRY_DAYS = 1;
-export const ONBOARDING_LINK_EXPIRY_JWT = "1d";
+export const ONBOARDING_LINK_EXPIRY_DAYS = 7;
+export const ONBOARDING_LINK_EXPIRY_JWT = "7d";

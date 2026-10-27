@@ -39,7 +39,10 @@ import {
 } from "../Reports/ReportsPagination";
 import type { GeneratedProductProfileReport } from "../../../types/generatedProductProfile";
 import { mergeMissingProfileSectionsFromAttestation } from "../../../utils/mergeProductProfileReportFromAttestation";
-import { vendorTrustGradeColorFromTrustScore } from "../../../utils/completeReportGrade";
+import {
+  vendorTrustGradeColorFromTrustScore,
+  vendorTrustGradeTierFromTrustScore,
+} from "../../../utils/completeReportGrade";
 import { formatScore2Percent } from "../../../utils/scoreFormat";
 
 const BASE_URL =
@@ -454,7 +457,7 @@ const CERTIFICATION_FILTERS: { id: CertificationFilterId; label: string }[] = [
 
 const BADGE_FILTERS: { id: BadgeFilterId; label: string }[] = [
   { id: "all", label: "All badges" },
-  { id: "verified", label: "Verified" },
+  { id: "verified", label: "Self-attested" },
   { id: "listed", label: "Listed" },
   { id: "under_review", label: "Under review" },
 ];
@@ -469,7 +472,9 @@ function directoryStatusForProduct(
     return { label: "Under review", tone: "review", icon: "eye" };
   }
   const score = Math.max(0, Math.min(100, trustNumeric));
-  if (score >= 90) return { label: "Verified", tone: "verified", icon: "check" };
+  // "Self-attested": the trust score comes from the vendor's own attestation,
+  // not an independent audit — label it honestly rather than "Verified".
+  if (score >= 90) return { label: "Self-attested", tone: "verified", icon: "check" };
   if (score >= 80) return { label: "Listed", tone: "listed", icon: "eye" };
   return { label: "Needs info", tone: "closed", icon: "x" };
 }
@@ -521,7 +526,7 @@ function displayVendorName(v: PublicVendor): string {
   return v.organizationId || "Vendor";
 }
 
-function trustGradeFromScore(score: number | undefined): {
+export function trustGradeFromScore(score: number | undefined): {
   letter: string;
   scoreText: string;
   gradeClass: string;
@@ -547,26 +552,23 @@ function trustGradeFromScore(score: number | undefined): {
   const letterColor = withVisibleDirectoryColor(
     vendorTrustGradeColorFromTrustScore(band),
   );
-  if (band >= 90)
-    return {
-      letter: "A",
-      scoreText: formatScore2Percent(score),
-      gradeClass: "vd_premium_grade_a",
-      letterColor,
-    };
-  if (band >= 80)
-    return {
-      letter: "B",
-      scoreText: formatScore2Percent(score),
-      gradeClass: "vd_premium_grade_b",
-      // AI Vendor Directory requirement: B grade should use Product Profile green.
-      letterColor: PRODUCT_PROFILE_GREEN,
-    };
+  // Use the canonical VTS grade bands (A≥90, B≥80, C≥70, D≥60, F<60) so the
+  // directory letter matches the vendor's stored trust grade. Previously every
+  // score below 80 collapsed to "C"; a 12, for example, must show "F".
+  const tier = vendorTrustGradeTierFromTrustScore(band); // 4=A … 0=F
+  const letter = (["F", "D", "C", "B", "A"] as const)[tier];
+  const gradeClass =
+    tier === 4
+      ? "vd_premium_grade_a"
+      : tier === 3
+        ? "vd_premium_grade_b"
+        : "vd_premium_grade_c";
   return {
-    letter: "C",
+    letter,
     scoreText: formatScore2Percent(score),
-    gradeClass: "vd_premium_grade_c",
-    letterColor,
+    gradeClass,
+    // AI Vendor Directory requirement: B grade uses Product Profile green.
+    letterColor: tier === 3 ? PRODUCT_PROFILE_GREEN : letterColor,
   };
 }
 

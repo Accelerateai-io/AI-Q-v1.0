@@ -7,6 +7,11 @@
 import type { FrameworkMappingTableRow } from "./frameworkMappingFromCompliance.js";
 import { VENDOR_COTS_ATTESTATION_FRAMEWORK_MAPPING_NOT_PROVIDED_ROW } from "./frameworkMappingFromCompliance.js";
 import { getVendorCotsRegulatoryComplexitySnapshot } from "../controllers/agents/vendorCotsReportAgent.js";
+import {
+  canonicalFrameworkId,
+  canonicalIdForRegulatoryOption,
+  canonicalCovers,
+} from "./frameworkMapping/frameworkCatalogMap.js";
 
 /** Exact values from frontend `VENDOR_COTS_REGULATORY_REQUIREMENTS_OPTIONS`. */
 const REGULATORY_OPTION_TO_ROW: Record<
@@ -135,32 +140,23 @@ export function getVendorCotsRegulatoryFrameworkNamesFromPayload(
   return out;
 }
 
-function normalizeFrameworkMatchKey(s: string): string {
-  return String(s ?? "")
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /**
- * True if some attestation mapping row appears to cover the regulatory framework (name / version variants).
+ * True if some attestation mapping row covers the required regulatory framework, compared by
+ * CANONICAL ID (not fuzzy name). NIST CSF != NIST AI RMF != NIST SP 800-53; ISO 42001 != ISO 27001;
+ * SOC 3 != SOC 2 except via the configured basis equivalence. A gap row is produced whenever the
+ * exact required framework id is not covered.
  */
 export function attestationFrameworkRowsCoverRegulatoryFramework(
   attestationRows: FrameworkMappingTableRow[],
   regulatoryFrameworkName: string,
 ): boolean {
-  const req = normalizeFrameworkMatchKey(regulatoryFrameworkName);
-  if (!req) return false;
+  const requiredId =
+    canonicalIdForRegulatoryOption(regulatoryFrameworkName) ??
+    canonicalFrameworkId(regulatoryFrameworkName);
+  if (!requiredId) return false;
   for (const r of attestationRows) {
-    const lbl = normalizeFrameworkMatchKey(String(r.framework ?? ""));
-    if (!lbl) continue;
-    if (lbl.includes(req) || req.includes(lbl)) return true;
-    const reqParts = req.split(" ").filter((p) => p.length >= 3);
-    if (reqParts.some((p) => lbl.includes(p))) return true;
-    const lblParts = lbl.split(" ").filter((p) => p.length >= 3);
-    if (lblParts.some((p) => req.includes(p))) return true;
+    const presentId = canonicalFrameworkId(String(r.framework ?? ""));
+    if (presentId && canonicalCovers(requiredId, presentId)) return true;
   }
   return false;
 }

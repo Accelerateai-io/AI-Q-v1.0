@@ -26,10 +26,10 @@ const updateOrganization = async (req: Request, res: Response) => {
   const organizationStatus = typeof data.isStatus === "string" ? data.isStatus.trim().toLowerCase() : "";
   const reason = typeof data.isReason === "string" ? data.isReason.trim() : "";
 
-  if (orgId === 1 && organizationStatus === "archived") {
+  if (orgId === 1 && (organizationStatus === "archived" || organizationStatus === "inactive")) {
     return res.status(403).json({
       success: false,
-      message: "The platform organization cannot be archived.",
+      message: "The platform organization cannot be set inactive or archived.",
     });
   }
 
@@ -50,9 +50,9 @@ const updateOrganization = async (req: Request, res: Response) => {
     });
   }
 
-  const userIdFromBody = data.userId != null && String(data.userId).trim() !== "" ? String(data.userId).trim() : null;
+  // Audit actor comes from the authenticated session token, never the request body.
   const userIdFromToken = (req as { user?: { id?: number } }).user?.id;
-  const updatedBy = userIdFromBody ?? (userIdFromToken != null ? String(userIdFromToken) : null);
+  const updatedBy = userIdFromToken != null ? String(userIdFromToken) : null;
   if (!updatedBy) {
     return res.status(400).json({
       success: false,

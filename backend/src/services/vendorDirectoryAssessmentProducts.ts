@@ -172,7 +172,9 @@ export async function resolveProductByOrgAndProductName(
     })
     .from(vendors)
     .innerJoin(createOrganization, joinOrg)
-    .innerJoin(vendorSelfAttestations, eq(vendorSelfAttestations.user_id, vendors.userId))
+    // Match attestations to the vendor by ORGANIZATION, not the original author,
+    // so any teammate in the owning org surfaces in the directory.
+    .innerJoin(vendorSelfAttestations, eq(vendorSelfAttestations.organization_id, vendors.organizationId))
     .where(
       and(
         sql`trim(lower(${createOrganization.organizationName})) = trim(lower(${vName}))`,
@@ -217,11 +219,14 @@ export async function resolveProductByAttestationForVendorUser(
       hipaa_baa: vendorSelfAttestations.hipaa_baa,
     })
     .from(vendorSelfAttestations)
-    .innerJoin(vendors, eq(vendors.userId, vendorSelfAttestations.user_id))
+    // Match the vendor to the attestation by ORGANIZATION, and identify the vendor
+    // by the given user, so an attestation authored by any teammate in that org is
+    // resolved (not only the attestation's original author).
+    .innerJoin(vendors, eq(vendors.organizationId, vendorSelfAttestations.organization_id))
     .leftJoin(createOrganization, joinOrg)
     .where(
       and(
-        eq(vendorSelfAttestations.user_id, vendorUserId),
+        eq(vendors.userId, vendorUserId),
         or(eq(vendorSelfAttestations.id, ref), eq(vendorSelfAttestations.vendor_self_attestation_id, ref)),
         sql`upper(trim(coalesce(${vendorSelfAttestations.status}, ''))) = 'COMPLETED'`,
         isNull(vendorSelfAttestations.user_archived_at)

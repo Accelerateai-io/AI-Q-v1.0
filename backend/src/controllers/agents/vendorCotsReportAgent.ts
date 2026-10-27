@@ -15,6 +15,7 @@ import {
   scoreCotsVendorWithPython,
   type PythonCotsVendorScoreResult,
 } from "../../services/pythonScoringClient.js";
+import { ScoringUnavailableError } from "../../utils/scoringUnavailable.js";
 
 export interface RecommendationWithPriority {
   priority: "High" | "Medium" | "Low";
@@ -137,17 +138,16 @@ export interface GeneratedVendorCotsReport {
   raw?: string;
 }
 
-const VENDOR_COTS_REPORT_PROMPT = `You are a risk analyst. Using ONLY the vendor COTS (Commercial Off-The-Shelf) assessment data provided below, generate a structured Analysis Report.
+export const VENDOR_COTS_REPORT_PROMPT = `You are a risk analyst. Using ONLY the vendor COTS (Commercial Off-The-Shelf) assessment data provided below, generate a structured Analysis Report.
 
 Output the report in the following sections with clear headings. Use the exact section titles below.
 
 ## 0. Risk Score
-- **Overall Risk Score:** [0-100] (higher = higher risk)
-- **Risk Level:** [Low | Moderate | High]
-- **Summary:** 2–4 sentences summarizing the overall risk posture for this customer engagement.
+Do NOT output a numeric overall risk score or a risk-level label. The authoritative Overall Risk Score and grade for this engagement are computed separately by a deterministic scoring formula and are inserted into the final report — any number or level you state here would be discarded and could contradict the real score.
+- **Summary:** 2–4 sentences describing the qualitative risk posture for this customer engagement, grounded strictly in the assessment data. Do not assert that overall risk is low or high, and do not recommend proceeding, unless the data clearly supports it.
 
 ## 1. Executive Summary
-Write 2–5 paragraphs as a narrative executive summary. Include: deployment context, key benefits or outcomes, infrastructure/security highlights, risk conclusion (e.g. low overall risk with manageable mitigations), and a brief recommendation (e.g. recommend proceeding with deployment). Use professional tone.
+Write 2–5 paragraphs as a narrative executive summary. Include: deployment context, key benefits or outcomes, infrastructure/security highlights, and the key risks together with their mitigations. Base every statement on the assessment data — do NOT pre-judge the outcome with a canned conclusion (do not default to wording like "low overall risk with manageable mitigations" or "recommend proceeding with deployment"); let the findings and the computed score speak. Use professional tone.
 
 ## 2. Key Risks
 List 3–6 key risks as bullet points. Each line: "- [risk description]". Base these on: identified_risks, customer_specific_risks, data_sensitivity, regulatory_requirements, integration_complexity, and risk_domain_scores if provided. When linking a risk to a compliance framework, reference only frameworks that appear in the "Product attestation: compliance framework mappings" block below; if that block is only a "Not provided" placeholder, say compliance framework evidence was not provided rather than inferring frameworks from regulatory_requirements alone.
@@ -250,6 +250,16 @@ function buildAssessmentContext(
   return lines.join("\n");
 }
 
+/** Ignore markdown-only leftovers such as `**` so they are not stored as the narrative. */
+function meaningfulReportText(raw: string): boolean {
+  const text = raw
+    .replace(/\*\*/g, "")
+    .replace(/[_`#>*-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 40;
+}
+
 function parseReportSections(rawReply: string): GeneratedVendorCotsReport {
   let overallRiskScore = 0;
   let riskLevel = "Moderate";
@@ -276,25 +286,29 @@ function parseReportSections(rawReply: string): GeneratedVendorCotsReport {
     if (levelMatch) riskLevel = levelMatch[1].trim().slice(0, 50) || "Moderate";
     const summaryMatch =
       section0.match(
-        /\*\*Summary\*\*:\s*([\s\S]*?)(?=\n\s*##|\n\s*[-*]\s*\*\*[A-Za-z]|$)/im,
+        /\*\*Summary\*\*:\s*([\s\S]*?)(?=\n\s*#{1,3}\s|\n\s*[-*]\s+\*\*[A-Za-z]|$)/i,
       ) ??
-      section0.match(/Summary:\s*([\s\S]*?)(?=\n\s*##|\n\s*[-*]\s*\*\*|$)/im);
+      section0.match(/Summary:\s*([\s\S]*?)(?=\n\s*#{1,3}\s|\n\s*[-*]\s+\*\*|$)/i);
     if (summaryMatch) summary = summaryMatch[1].replace(/\n+/g, " ").trim();
   }
 
-  const section1 =
-    rawReply.match(
-      /##\s*1\.?\s*Executive Summary[\s\S]*?(?=\n\s*##\s*2|$)/i,
-    )?.[0] ?? "";
-  if (section1) {
-    const content = section1
-      .replace(/##\s*1\.?\s*Executive Summary\s*/i, "")
+  const execHeading =
+    /(?:^|\n)\s*#{1,3}\s*(?:1[.)]\s*)?executive summary\b[^\n]*/i.exec(rawReply);
+  if (execHeading && execHeading.index != null) {
+    const from = execHeading.index + execHeading[0].length;
+    const rest = rawReply.slice(from);
+    const nextHeading = /(?:^|\n)\s*#{1,3}\s*(?:2[.)]\s*)?key risks\b/i.exec(rest);
+    const content = (nextHeading ? rest.slice(0, nextHeading.index) : rest)
+      .replace(/^\s*\*+\s*/, "")
       .trim();
     executiveSummary = content
       .split(/\n/)
       .map((l) => l.trim())
-      .filter(Boolean)
+      .filter((l) => l.length > 0 && !/^-{3,}$/.test(l) && !/^\*+$/.test(l))
       .join("\n\n");
+  }
+  if (!meaningfulReportText(executiveSummary)) {
+    executiveSummary = meaningfulReportText(summary) ? summary : "";
   }
 
   let section2 =
@@ -1249,107 +1263,12 @@ function calculateCompetitiveRisk(p: any) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 4 – FINAL SALES RISK SCORE
 // ─────────────────────────────────────────────────────────────────────────────
-
-function interpretSalesRiskScore(dealProbability: number) {
-  if (dealProbability >= 90)
-    return {
-      grade: "A",
-      classification: "High Confidence Deal",
-      deal_characteristics: "Low friction; strong fit; weak competition",
-      recommended_actions:
-        "Standard sales process; focus on value demonstration",
-    };
-  if (dealProbability >= 80)
-    return {
-      grade: "B",
-      classification: "Favorable Deal",
-      deal_characteristics: "Minor friction; good fit; manageable competition",
-      recommended_actions:
-        "Standard sales process; executive sponsorship helpful",
-    };
-  if (dealProbability >= 70)
-    return {
-      grade: "C",
-      classification: "Moderate Deal",
-      deal_characteristics: "Some friction; gaps present; competitive pressure",
-      recommended_actions:
-        "Extended sales cycle; custom proposal with mitigation roadmap",
-    };
-  if (dealProbability >= 60)
-    return {
-      grade: "D",
-      classification: "Review Deal Strategy",
-      deal_characteristics:
-        "Strategy High friction; notable gaps; strong competition",
-      recommended_actions:
-        "Executive engagement required; review resource investment before pursuing",
-    };
-  return {
-    grade: "F",
-    classification: "Reassess Opportunity",
-    deal_characteristics: "Critical friction; major gaps; intense competition",
-    recommended_actions:
-      "Reassess deal viability; only pursue if strategically critical ",
-  };
-}
-
-/**
- * LEGACY — Sales Risk Score formula now runs in Python
- * (`python/services/sales_risk_formula.py` via POST /assessment/cots-vendor/score).
- * Kept for reference; runtime uses scoreCotsVendorWithPython.
- */
-function calculateSalesRiskScore(userInput: any) {
-  // ── Customer Friction Risk ────────────────────────────────────────────────
-  const CFR = calculateCustomerFrictionRisk(userInput);
-
-  // ── Implementation Risk ───────────────────────────────────────────────────
-  const IR = calculateImplementationRisk(userInput);
-
-  // ── Competitive Risk ──────────────────────────────────────────────────────
-  const CR = calculateCompetitiveRisk(userInput);
-
-  // ── Final SRS ─────────────────────────────────────────────────────────────
-  const weightedScore = CFR.value * 0.35 + IR.value * 0.35 + CR.value * 0.3;
-  const srs = parseFloat(Math.min(100, Math.max(0, weightedScore)).toFixed(2));
-  const dealProbability = parseFloat(Math.max(0, 100 - srs).toFixed(2));
-  const dealProbabilityRounded = Math.max(0, Math.min(100, Math.round(dealProbability)));
-  const interpretation = interpretSalesRiskScore(dealProbabilityRounded);
-
-  console.log("srs",srs)
-  console.log("dealProbability",dealProbability)
-
-  // ── DB-ready result ───────────────────────────────────────────────────────
-  return {
-    // ── Primary columns ──────────────────────────────────────────────────────
-    sales_risk_score: srs,
-    deal_probability_pct: dealProbability,
-    customer_friction_risk: CFR.value,
-    implementation_risk: IR.value,
-    competitive_risk: CR.value,
-    grade: interpretation.grade,
-    classification: interpretation.classification,
-    deal_characteristics: interpretation.deal_characteristics,
-    recommended_actions: interpretation.recommended_actions,
-
-    // ── Full breakdown (store as JSONB) ───────────────────────────────────
-    detail: {
-      customer_friction_risk: CFR,
-      implementation_risk: IR,
-      competitive_risk: CR,
-      final_formula: {
-        expression: "SRS = min(100, ((CFR × 0.35) + (IR × 0.35) + (CR × 0.30)) × Intent)",
-        customer_friction_contribution: parseFloat(
-          (CFR.value * 0.35).toFixed(4),
-        ),
-        implementation_risk_contribution: parseFloat(
-          (IR.value * 0.35).toFixed(4),
-        ),
-        competitive_risk_contribution: parseFloat((CR.value * 0.3).toFixed(4)),
-        weighted_sum: parseFloat(weightedScore.toFixed(4)),
-      },
-    },
-  };
-}
+//
+// The Node backup SRS formula (interpretSalesRiskScore / calculateSalesRiskScore,
+// scoring_version "srs-node-1.0") has been REMOVED. The authoritative Sales Risk
+// Score is computed only by the Python formula
+// (`python/services/sales_risk_formula.py` via POST /assessment/cots-vendor/score).
+// When Python cannot score, the report is marked failed — never Node-scored.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS
@@ -1795,6 +1714,44 @@ function riskLevelFromFormulaScore(score: number): "Low" | "Moderate" | "High" {
   return "High";
 }
 
+/** Persist the formula score when the narrative call fails or returns no text. */
+function reportFromFormula(
+  formulaResult: PythonCotsVendorScoreResult,
+): GeneratedVendorCotsReport {
+  const score = clampScore2(formulaResult.sales_risk_score);
+  const finalFormula =
+    formulaResult.detail?.final_formula &&
+    typeof formulaResult.detail.final_formula === "object"
+      ? (formulaResult.detail.final_formula as Record<string, unknown>)
+      : undefined;
+  return {
+    overallRiskScore: score,
+    riskLevel: riskLevelFromFormulaScore(score),
+    summary: "",
+    keyRisks: [],
+    recommendations: [],
+    scoreRationale: formulaResult.rationale?.trim() || undefined,
+    scoreRationaleType: "SCS",
+    fullReport: {
+      appendix: {
+        salesRiskFormula: finalFormula,
+        salesRiskBreakdown: {
+          sales_risk_score: formulaResult.sales_risk_score,
+          customer_friction_risk: formulaResult.customer_friction_risk,
+          implementation_risk: formulaResult.implementation_risk,
+          competitive_risk: formulaResult.competitive_risk,
+          deal_probability_pct: formulaResult.deal_probability_pct,
+          grade: formulaResult.grade,
+          classification: formulaResult.classification,
+          deal_characteristics: formulaResult.deal_characteristics,
+          recommended_actions: formulaResult.recommended_actions,
+          detail: formulaResult.detail ?? undefined,
+        },
+      },
+    },
+  };
+}
+
 function buildFormulaInputFromPayload(payload: Record<string, unknown>) {
   const sector = normalizeSectorForFormula(
     toStringValue(payload.customer_sector ?? payload.customerSector),
@@ -2003,6 +1960,7 @@ export async function generateVendorCotsReport(
   payload: Record<string, unknown>,
   top5RisksWithMitigations?: Top5RisksWithMitigations | null,
   attestationFrameworkRows?: FrameworkMappingTableRow[],
+  presetFormula?: PythonCotsVendorScoreResult | null,
 ): Promise<GeneratedVendorCotsReport | null> {
   try {
     let top5: Top5RisksWithMitigations | null =
@@ -2028,6 +1986,7 @@ export async function generateVendorCotsReport(
 
     // Formula score does not depend on LLM text — overlap it with Bedrock.
     const scorePromise = (async (): Promise<PythonCotsVendorScoreResult | null> => {
+      if (presetFormula) return presetFormula;
       try {
         const formulaResult = await scoreCotsVendorWithPython(scoringPayload);
         console.log("srs", formulaResult.sales_risk_score);
@@ -2049,105 +2008,41 @@ export async function generateVendorCotsReport(
         }
         return formulaResult;
       } catch (scoreErr) {
-        console.error(
-          "Python sales-risk formula failed; using local Node SRS fallback:",
+        // Scoring integrity: the authoritative SCS is the Python formula. There is
+        // deliberately NO Node backup formula, NO fixed fallback, and the LLM's own
+        // "Overall Risk Score" is never used as the score. When Python cannot produce
+        // a real score the result is surfaced as unavailable so the report is marked
+        // failed instead of showing a fabricated number.
+        if (scoreErr instanceof ScoringUnavailableError) throw scoreErr;
+        throw new ScoringUnavailableError(
+          "Python sales-risk formula failed",
+          "scorer_failed",
           scoreErr,
         );
-        try {
-          const formulaInput = buildFormulaInputFromPayload(scoringPayload);
-          const local = calculateSalesRiskScore(formulaInput);
-          const intentRaw = Number(
-            scoringPayload.intent_multiplier_value ??
-              scoringPayload.intentMultiplierValue ??
-              1,
-          );
-          const intent =
-            Number.isFinite(intentRaw) && intentRaw > 0
-              ? Math.min(1.5, Math.max(0.5, intentRaw))
-              : 1;
-          const srs = Math.min(
-            100,
-            Math.max(0, Number((local.sales_risk_score * intent).toFixed(2))),
-          );
-          const deal = Math.max(0, Number((100 - srs).toFixed(2)));
-          const interpretation = interpretSalesRiskScore(deal);
-          const formulaResult: PythonCotsVendorScoreResult = {
-            sales_risk_score: srs,
-            deal_probability_pct: deal,
-            customer_friction_risk: local.customer_friction_risk,
-            implementation_risk: local.implementation_risk,
-            competitive_risk: local.competitive_risk,
-            grade: interpretation.grade,
-            classification: interpretation.classification,
-            deal_characteristics: interpretation.deal_characteristics,
-            recommended_actions: interpretation.recommended_actions,
-            detail: {
-              ...(local.detail ?? {}),
-              intent_multiplier: {
-                value: intent,
-                profile: String(
-                  scoringPayload.intent_profile ??
-                    scoringPayload.intentProfile ??
-                    "Mixed",
-                ),
-              },
-              final_formula: {
-                ...((local.detail as { final_formula?: Record<string, unknown> })
-                  ?.final_formula ?? {}),
-                intent_multiplier: intent,
-                weighted_sum: srs,
-              },
-            },
-            scoring_source: "node-fallback",
-            scoring_version: "srs-node-1.0",
-          };
-          console.log("srs", formulaResult.sales_risk_score, "(node fallback)");
-          console.log(
-            "SRS FORMULA CALCULATION (console)  [Vendor COTS / Type 2] (node fallback)",
-          );
-          console.log(
-            JSON.stringify(
-              {
-                hardcoded: {
-                  expression:
-                    "SRS = min(100, max(0, ((CFR x 0.35) + (IR x 0.35) + (CR x 0.30)) x Intent))",
-                  CFR_WEIGHT: 0.35,
-                  IR_WEIGHT: 0.35,
-                  CR_WEIGHT: 0.3,
-                  SCORE_CAP: 100,
-                  SCORE_FLOOR: 0,
-                  intent,
-                },
-                formula_input: formulaInput,
-                result: {
-                  sales_risk_score: srs,
-                  deal_probability_pct: deal,
-                  customer_friction_risk: local.customer_friction_risk,
-                  implementation_risk: local.implementation_risk,
-                  competitive_risk: local.competitive_risk,
-                  grade: interpretation.grade,
-                  classification: interpretation.classification,
-                },
-                detail: formulaResult.detail,
-              },
-              null,
-              2,
-            ),
-          );
-          return formulaResult;
-        } catch (localErr) {
-          console.error("Local Node SRS fallback also failed:", localErr);
-          return null;
-        }
       }
     })();
 
-    const rawReply = await invokeModel(userInput);
-    if (!rawReply.trim()) return null;
+    // Overlap the LLM narrative with the formula score. Promise.all also ensures
+    // the score promise is always awaited, so a ScoringUnavailableError can never
+    // become an unhandled rejection when the LLM call settles first.
+    const [rawReply, formulaResult] = await Promise.all([
+      invokeModel(userInput),
+      scorePromise,
+    ]);
+    if (!rawReply.trim()) {
+      if (formulaResult) return reportFromFormula(formulaResult);
+      return null;
+    }
     const parsed = parseReportSections(rawReply);
-    const formulaResult = await scorePromise;
 
-    if (!formulaResult) return { ...parsed, raw: rawReply };
+    // The LLM's own "Overall Risk Score" is never used as the SCS. If the formula
+    // score is missing, the report is unavailable rather than LLM-scored.
+    if (!formulaResult) {
+      throw new ScoringUnavailableError(
+        "Vendor COTS score unavailable",
+        "scorer_failed",
+      );
+    }
 
     const score = clampScore2(formulaResult.sales_risk_score);
     const riskLevel = riskLevelFromFormulaScore(score);
@@ -2190,7 +2085,17 @@ export async function generateVendorCotsReport(
       raw: rawReply,
     };
   } catch (err) {
+    if (presetFormula) {
+      console.error(
+        "generateVendorCotsReport narrative failed; keeping formula score:",
+        err instanceof Error ? err.message : err,
+      );
+      return reportFromFormula(presetFormula);
+    }
     if (isTokenQuotaExceededError(err)) throw err;
+    // Propagate score-unavailable so the caller can mark the report failed
+    // (never silently return a report without an authoritative score).
+    if (err instanceof ScoringUnavailableError) throw err;
     console.error("generateVendorCotsReport error:", err);
     return null;
   }

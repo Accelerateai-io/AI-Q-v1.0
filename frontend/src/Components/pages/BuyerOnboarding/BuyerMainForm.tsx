@@ -444,9 +444,21 @@ const BuyerMainForm = ({ type }: { type: string }) => {
         body: bodyJson,
       })
       if (response.ok) setAllStepsFilled(true)
-      else console.warn("[Buyer onboarding] Submit failed — see status/body above")
+      else {
+        console.warn("[Buyer onboarding] Submit failed — see status/body above")
+        const serverMsg =
+          bodyJson && typeof bodyJson === "object" && "message" in bodyJson
+            ? String((bodyJson as { message?: unknown }).message ?? "")
+            : ""
+        toast.error(serverMsg || "Submitting your onboarding failed. Please try again.", {
+          autoClose: 5000,
+        })
+      }
     } catch (err) {
       console.error("[Buyer onboarding] Submit fetch error", err)
+      toast.error("Something went wrong submitting your onboarding. Please try again.", {
+        autoClose: 5000,
+      })
     }
   }
 

@@ -7,12 +7,11 @@ import {
 import { invokePythonLlmWithVector } from "../../services/pythonAssessmentLlmClient.js";
 import { scoreCotsBuyerWithPython } from "../../services/pythonScoringClient.js";
 import {
-  calculateBuyerImplementationRiskScore,
   extractVendorTrustScore,
-  irsFinalScoreFromParts,
 } from "../../services/buyerImplementationRiskScore.js";
 import { invokeBedrockAnthropicText } from "../../utils/invokeBedrockWithUsage.js";
 import { isTokenQuotaExceededError } from "../../services/admin/featureTokenQuota.service.js";
+import { ScoringUnavailableError } from "../../utils/scoringUnavailable.js";
 
 export type VendorRiskRecommendation = {
   priority: "High" | "Medium" | "Low";
@@ -847,129 +846,17 @@ export async function generateBuyerVendorRiskReport(
         productName,
       });
     } catch (scoreErr) {
-      console.error(
-        "Python buyer IRS formula failed; using local Node IRS fallback:",
+      // Scoring integrity: the authoritative IRS is the Python formula. There is
+      // deliberately NO Node backup formula (irs-node-1.0) and NO fixed neutral
+      // 50 / grade B / "PROCEED WITH CAUTION" fallback. When Python cannot produce
+      // a real score the result is surfaced as unavailable so the report is marked
+      // failed instead of showing a fabricated number.
+      if (scoreErr instanceof ScoringUnavailableError) throw scoreErr;
+      throw new ScoringUnavailableError(
+        "Python buyer IRS formula failed",
+        "scorer_failed",
         scoreErr,
       );
-      try {
-        const local = calculateBuyerImplementationRiskScore(
-          scoringBuyerPayload,
-          attestationRow,
-          vendorName,
-          productName,
-        );
-        const intentRaw = Number(
-          scoringBuyerPayload.intent_multiplier_value ??
-            scoringBuyerPayload.intentMultiplierValue ??
-            1,
-        );
-        const intent =
-          Number.isFinite(intentRaw) && intentRaw > 0
-            ? Math.min(1.5, Math.max(0.5, intentRaw))
-            : 1;
-        const parts = irsFinalScoreFromParts(
-          local.breakdown.vendorRisk,
-          local.breakdown.organizationalReadinessGap,
-          local.breakdown.integrationRisk,
-          intent,
-        );
-        const grade =
-          parts.score >= 76
-            ? "A"
-            : parts.score >= 51
-              ? "B"
-              : parts.score >= 26
-                ? "C"
-                : "D";
-        const classification =
-          grade === "A"
-            ? "High Readiness"
-            : grade === "B"
-              ? "Moderate Readiness"
-              : grade === "C"
-                ? "Low Readiness"
-                : "Readiness Review Required";
-        const decision =
-          grade === "A"
-            ? "PROCEED"
-            : grade === "D"
-              ? "DO NOT PROCEED"
-              : "PROCEED WITH CAUTION";
-        const formula =
-          "IRS = 100 - (((Vendor_Risk × 0.35) + (Organizational_Readiness_Gap × 0.35) + (Integration_Risk × 0.30)) × Intent)";
-        const vrC = parts.vendorRisk * 0.35;
-        const orgC = parts.orgGap * 0.35;
-        const integC = parts.integrationRisk * 0.3;
-        const baseW = vrC + orgC + integC;
-        const riskTerm = baseW * intent;
-        return {
-          implementationRiskScore: parts.score,
-          grade,
-          classification,
-          decision,
-          readiness_profile: local.readiness_profile,
-          recommendedAction: local.recommendedAction,
-          formula,
-          formula_console: [
-            "IRS FORMULA CALCULATION (console)  [Buyer COTS / Type 3] (node fallback)",
-            formula,
-            `  Vendor_Trust_Score = ${local.breakdown.vendorTrustScore}`,
-            `  Vendor_Risk        = ${parts.vendorRisk}   (100 - VTS)`,
-            `  OrgGap             = ${parts.orgGap}`,
-            `  Integration_Risk   = ${parts.integrationRisk}`,
-            `  Intent             = ${intent}`,
-            `  VR x 0.35          = ${vrC.toFixed(4)}`,
-            `  OrgGap x 0.35      = ${orgC.toFixed(4)}`,
-            `  Integ x 0.30       = ${integC.toFixed(4)}`,
-            `  base_weighted_sum  = ${baseW.toFixed(4)}`,
-            `  x Intent           = ${riskTerm.toFixed(4)}`,
-            `  IRS                = 100 - ${riskTerm.toFixed(4)} = ${parts.score}`,
-            `  Grade              = ${grade} - ${classification}`,
-          ].join("\n"),
-          breakdown: {
-            vendorRisk: parts.vendorRisk,
-            organizationalReadinessGap: parts.orgGap,
-            integrationRisk: parts.integrationRisk,
-            vendorTrustScore: local.breakdown.vendorTrustScore,
-            intentMultiplier: intent,
-            intentProfile: String(
-              scoringBuyerPayload.intent_profile ??
-                scoringBuyerPayload.intentProfile ??
-                "Mixed",
-            ),
-          },
-          source: local.source,
-          scoring_source: "node-fallback",
-          scoring_version: "irs-node-1.0",
-        };
-      } catch (localErr) {
-        console.error("Local Node IRS fallback also failed; using neutral 50:", localErr);
-        return {
-          implementationRiskScore: 50,
-          grade: "B",
-          classification: "Moderate Readiness",
-          decision: "PROCEED WITH CAUTION",
-          readiness_profile: "Score temporarily unavailable — using neutral fallback.",
-          recommendedAction: "Re-run scoring after the scoring service is available.",
-          formula:
-            "IRS = 100 - ((Vendor_Risk × 0.35) + (Organizational_Readiness_Gap × 0.35) + (Integration_Risk × 0.30))",
-          breakdown: {
-            vendorRisk: 50,
-            organizationalReadinessGap: 50,
-            integrationRisk: 50,
-            vendorTrustScore: 50,
-            intentMultiplier: 1,
-            intentProfile: "Mixed",
-          },
-          source: {
-            vendorName: vendorName || "Vendor",
-            productName: productName || "Product",
-            usedAttestation: attestationRow != null,
-          },
-          scoring_source: "fallback",
-          scoring_version: "irs-fallback",
-        };
-      }
     }
   })();
   const attestationSlice: Record<string, unknown> = attestationRow
@@ -1054,6 +941,10 @@ export async function generateBuyerVendorRiskReport(
     }
   } catch (e) {
     if (isTokenQuotaExceededError(e)) throw e;
+    // A score-unavailable error must fail the report (never fall back to a
+    // fabricated score); only genuine LLM-narrative errors fall through to the
+    // scored narrative fallback below.
+    if (e instanceof ScoringUnavailableError) throw e;
     console.error("generateBuyerVendorRiskReport LLM error:", e);
   }
   const implementationRisk = await scorePromise;

@@ -1,6 +1,6 @@
 """Vendor attestation / LLM trust-score prompt — ported from Node vendorAttestation.ts."""
 
-VENDOR_ATTESTATION_PROMPT = """You are a vendor attestation analyst. Generate a structured vendor attestation report from the vendor data below. For factual details not in the vendor data, infer reasonably or write "Not specified".
+VENDOR_ATTESTATION_PROMPT = """You are a vendor attestation analyst. Generate a structured vendor attestation report from the vendor data below. For any factual detail not present in the vendor data, write "Not specified" — do not infer, guess, or invent values.
 
 Output the report in the following sections with clear headings and bullet points. Use the exact section titles and item labels below. Write one concise sentence per item unless a field needs two. Use Markdown bold only for the exact item labels shown below; never put `**` inside generated values.
 
@@ -104,6 +104,6 @@ Use only vendor attestation facts for this section. Do NOT include score calcula
 - **Model / Safety Testing Results (Under NDA):** [availability under NDA]
 
 ---
-Vendor data to use (use only this information; infer only when reasonable):
+Vendor data to use (use only this information; write "Not specified" for anything missing — do not infer or invent):
 
 """

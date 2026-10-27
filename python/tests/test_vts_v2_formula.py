@@ -212,6 +212,38 @@ def test_certification_tier_uses_structured_evidence_not_nearby_text():
     assert expired["iso_27001_points"] == 0
 
 
+def test_soc2_file_name_alone_earns_no_credit():
+    # A readiness-plan file whose name merely contains "soc 2 type 2" is not an
+    # audited certificate — it must earn nothing (no structured, in-date evidence).
+    file_name_only = calc_certifications_score({
+        "certificationsSearchBlob": "soc2_type2_readiness_plan.pdf",
+        "buyerIndustrySegment": "technology & software",
+    })
+    detected = [r["framework"] for r in file_name_only["all_detected_breakdown"]]
+    assert not any(f.startswith("SOC 2") for f in detected)
+    assert file_name_only["soc2_points"] == 0
+
+    # A structured, in-date SOC 2 Type 2 certificate still earns credit.
+    structured = calc_certifications_score({
+        "certificationsSearchBlob": "soc 2 type 2",
+        "buyerIndustrySegment": "technology & software",
+        "certificates": [{"name": "SOC 2 Type 2 report", "expiryDate": "2099-01-01"}],
+    })
+    structured_detected = [r["framework"] for r in structured["all_detected_breakdown"]]
+    assert "SOC 2 Type 2" in structured_detected
+
+
+def test_cmmc_and_pci_require_structured_evidence():
+    # Keyword / file-name only — no structured certificate record.
+    keyword_only = calc_certifications_score({
+        "certificationsSearchBlob": "cmmc level 2 pci dss 4.0 attestation.pdf",
+        "buyerIndustrySegment": "government & public sector",
+    })
+    detected = [r["framework"] for r in keyword_only["all_detected_breakdown"]]
+    assert "CMMC v2 Level 2+" not in detected
+    assert "PCI DSS 4.0" not in detected
+
+
 MEASURED_VENDOR = {
     "likelihoodScores": [3, 3, 3],
     "impactScores": [3, 3, 3],

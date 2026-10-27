@@ -29,6 +29,7 @@ export type CrsPayload = {
   }>;
   vendorValidationNotes?: string;
   methodologyEvidenceTrail?: string;
+  isFallback?: boolean;
 };
 
 export function parseComplianceRiskSummaryJson(
@@ -113,6 +114,22 @@ export default function ComplianceRiskSummaryReportBody({ data }: { data: CrsPay
 
   return (
     <div className="report_vcm_wrap crs_wrap">
+      {data.isFallback && (
+        <div
+          role="status"
+          style={{
+            margin: "0 0 16px",
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid #f0c36d",
+            background: "#fff8e6",
+            color: "#7a5b00",
+            fontSize: 14,
+          }}
+        >
+          AI analysis unavailable — showing assessment data only.
+        </div>
+      )}
       <section className="bvr_card">
         <h2 className="bvr_section_title bvr_title_with_icon">
           <Scale className="bvr_title_icon" size={22} strokeWidth={2} aria-hidden />

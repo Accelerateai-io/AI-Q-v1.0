@@ -925,7 +925,21 @@ export default function ScoreTracePanel({
                     {(["Product", "Governance", "Operational"] as const).map((cat) => {
                       const key = CATEGORY_TO_SUBSCORE_KEY[cat];
                       const score = key ? trace.rawSubScores[key] : undefined;
-                      if (score === undefined) return null;
+                      // Unmeasured pillar: show "Not measured" rather than a
+                      // fabricated 100 − risk number.
+                      if (score === undefined) {
+                        return (
+                          <div key={cat} className="stp_cat_card stp_cat_na">
+                            <div className="stp_cat_card_header">
+                              <span className="stp_cat_name">{cat}</span>
+                              <span className="stp_cat_score stp_cat_score_na">Not measured</span>
+                            </div>
+                            <span className="stp_cat_rating_label">
+                              No attestation evidence for this category yet.
+                            </span>
+                          </div>
+                        );
+                      }
                       const pct   = Math.max(0, Math.min(100, score));
                       const rKey  = categoryRatingKey(pct);
                       const rLabel = categoryRatingLabel(pct);
@@ -967,7 +981,21 @@ export default function ScoreTracePanel({
                     {(["CustomerFriction", "Implementation", "Competitive"] as const).map((cat) => {
                       const key = SCS_CATEGORY_TO_SUBSCORE_KEY[cat];
                       const score = key ? trace.rawSubScores[key] : undefined;
-                      if (score === undefined) return null;
+                      // Unmeasured pillar: show "Not measured" rather than a
+                      // fabricated readiness number.
+                      if (score === undefined) {
+                        return (
+                          <div key={cat} className="stp_cat_card stp_cat_na">
+                            <div className="stp_cat_card_header">
+                              <span className="stp_cat_name">{SCS_CATEGORY_DISPLAY[cat]}</span>
+                              <span className="stp_cat_score stp_cat_score_na">Not measured</span>
+                            </div>
+                            <span className="stp_cat_rating_label">
+                              Not enough answers in this area yet.
+                            </span>
+                          </div>
+                        );
+                      }
                       const pct = Math.max(0, Math.min(100, score));
                       const rKey = categoryRatingKey(pct);
                       const rLabel = categoryRatingLabel(pct);

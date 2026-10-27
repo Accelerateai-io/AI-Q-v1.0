@@ -145,6 +145,13 @@ export default function BuyerVendorRiskReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  /** True when report generation failed server-side; offer a Retry. */
+  const [failed, setFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  /** True when the score was withheld for insufficient data; offer "Complete missing answers". */
+  const [insufficient, setInsufficient] = useState(false);
+  const [insufficientMsg, setInsufficientMsg] = useState("");
+  const [reopening, setReopening] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [productName, setProductName] = useState("");
   const [orgName, setOrgName] = useState("");
@@ -200,11 +207,31 @@ export default function BuyerVendorRiskReport() {
               "This assessment has expired and no archived vendor comparison report is available.",
           ),
         );
+      } else if (data.insufficient || data.reportStatus === "insufficient_data") {
+        setPending(false);
+        setFailed(false);
+        setInsufficient(true);
+        setInsufficientMsg(
+          String(
+            data.message ??
+              "Insufficient data — complete the missing answers to generate a score.",
+          ),
+        );
+        setReport(null);
+      } else if (data.failed || data.reportStatus === "failed") {
+        setPending(false);
+        setFailed(true);
+        setInsufficient(false);
+        setReport(null);
       } else if (data.pending) {
         setPending(true);
+        setFailed(false);
+        setInsufficient(false);
         setReport(null);
       } else if (data.report && typeof data.report === "object") {
         setPending(false);
+        setFailed(false);
+        setInsufficient(false);
         setReport(data.report as ReportPayload);
         setLlmModelId(
           resolveStoredLlmModelId({
@@ -222,6 +249,64 @@ export default function BuyerVendorRiskReport() {
       setLoading(false);
     }
   }, [assessmentId]);
+
+  const retry = useCallback(async () => {
+    if (!assessmentId || retrying) return;
+    const token = sessionStorage.getItem("bearerToken");
+    if (!token) {
+      setError("Please log in.");
+      return;
+    }
+    setRetrying(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `${BASE_URL.replace(/\/$/, "")}/buyerCotsAssessment/${encodeURIComponent(assessmentId)}/regenerate`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || "Could not restart report generation");
+        return;
+      }
+      // Regeneration queued — resume polling for the fresh report.
+      setFailed(false);
+      setReport(null);
+      setPending(true);
+    } catch {
+      setError("Network error");
+    } finally {
+      setRetrying(false);
+    }
+  }, [assessmentId, retrying]);
+
+  const completeMissingAnswers = useCallback(async () => {
+    if (!assessmentId || reopening) return;
+    const token = sessionStorage.getItem("bearerToken");
+    if (!token) {
+      setError("Please log in.");
+      return;
+    }
+    setReopening(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `${BASE_URL.replace(/\/$/, "")}/buyerCotsAssessment/${encodeURIComponent(assessmentId)}/reopen-for-edit`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || "Could not reopen the assessment");
+        return;
+      }
+      // Assessment is back to draft — go edit it.
+      navigate(`/buyerAssessment/${encodeURIComponent(assessmentId)}`);
+    } catch {
+      setError("Network error");
+    } finally {
+      setReopening(false);
+    }
+  }, [assessmentId, reopening, navigate]);
 
   useEffect(() => {
     load();
@@ -364,10 +449,79 @@ export default function BuyerVendorRiskReport() {
     );
   }
 
+  if (insufficient && !report) {
+    return (
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
+        <div className="bvr_pending">
+          <h1>More answers needed</h1>
+          <p>
+            {insufficientMsg ||
+              "Some scoring areas were not answered, so a score cannot be produced yet."}{" "}
+            Your answers are saved — complete the missing areas to generate the report.
+          </p>
+          {error && <div className="bvr_error">{error}</div>}
+          <button
+            type="button"
+            className="report_assessment_back"
+            onClick={completeMissingAnswers}
+            disabled={reopening}
+          >
+            {reopening ? "Opening…" : "Complete missing answers"}
+          </button>
+        </div>
+        <Link
+          to="/reports"
+          state={{ tab: "assessment" as const }}
+          className="report_assessment_back"
+        >
+          <CircleChevronLeft size={20} aria-hidden /> Back to Reports
+        </Link>
+      </div>
+    );
+  }
+
+  if (failed && !report) {
+    return (
+      <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
+        <div className="bvr_pending">
+          <h1>Report generation failed</h1>
+          <p>
+            We couldn&apos;t generate a risk score for this assessment. No score
+            was saved. You can retry — your answers are preserved.
+          </p>
+          {error && <div className="bvr_error">{error}</div>}
+          <button
+            type="button"
+            className="report_assessment_back"
+            onClick={retry}
+            disabled={retrying}
+          >
+            {retrying ? "Retrying…" : "Retry report generation"}
+          </button>
+        </div>
+        <Link
+          to="/reports"
+          state={{ tab: "assessment" as const }}
+          className="report_assessment_back"
+        >
+          <CircleChevronLeft size={20} aria-hidden /> Back to Reports
+        </Link>
+      </div>
+    );
+  }
+
   if (error && !report) {
     return (
       <div className="sec_user_page org_settings_page reports_page report_detail_page report_assessment_layout bvr_page">
         <div className="bvr_error">{error}</div>
+        <button
+          type="button"
+          className="report_assessment_back"
+          onClick={retry}
+          disabled={retrying}
+        >
+          {retrying ? "Retrying…" : "Retry report generation"}
+        </button>
         <Link
           to="/reports"
           state={{ tab: "assessment" as const }}

@@ -1,0 +1,274 @@
+{
+  "mode": "offline",
+  "generatedAt": null,
+  "note": "Offline baseline. Risk/framework scoring formulas and weights are reproduced read-only, not modified. Offline mode calls the real exported product functions (extractContext/extractMappingIds/intent); only the SQL ILIKE match-score ranking is reproduced in TS. Full DB baseline (per-assessment stored scores, compliance-doc classes/controls/gaps) is PENDING dev env access.",
+  "catalogSource": {
+    "type": "sql_dump",
+    "file": "DataBase/11Aug2026_aiq_db.sql",
+    "rowCount": 1248
+  },
+  "liSeverityNote": "Risk Intellect not called offline -> likelihood/impact/severity use the product's static fallback (L=3, I=3, S=9, source=default).",
+  "results": [
+    {
+      "assessmentId": "A",
+      "label": "Hospital clinical chatbot",
+      "assessmentType": "buyer_cots",
+      "isType01Attestation": false,
+      "extractedContext": {
+        "domain": "Healthcare - Hospitals & Health Systems",
+        "intent": "Patients wait too long for answers to medication and appointment questions",
+        "timing": "",
+        "primary_risk": "Patients wait too long for answers to medication and appointment questions",
+        "secondary_risks": ""
+      },
+      "explicitMappingIds": [],
+      "usedExplicitMappingPath": false,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 1,
+          "risk_id": "RISK-1",
+          "risk_title": "LLM-based Conversational Agent Anthropomorphization Risk",
+          "domains": "Human-Computer Interaction",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 2,
+          "risk_id": "RISK-10",
+          "risk_title": "Inadequate AI Governance Frameworks Expose High-Stakes Domains to Systemic Harms",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "intent": "Intentional",
+          "timing": "Other",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 3,
+          "risk_id": "RISK-100",
+          "risk_title": "AI System Controls Insufficient for Socioeconomic and Environmental Risks",
+          "domains": "Socioeconomic and Environmental",
+          "intent": "Unintentional",
+          "timing": "Other",
+          "primary_risk": "Operational Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 4,
+          "risk_id": "RISK-1000",
+          "risk_title": "Misinformation Risk from LLMs in Mental Health Contexts",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 5,
+          "risk_id": "RISK-1001",
+          "risk_title": "LLM Hallucinations Cause Dignity Risks Through Misinformation",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        }
+      ],
+      "intentMultiplier": {
+        "intentionalCount": 1,
+        "unintentionalCount": 4,
+        "profile": "Unintentional",
+        "value": 0.7,
+        "source": "local_db",
+        "label": "Intent: Unintentional (0.7)"
+      },
+      "likelihoodImpactSeverity": {
+        "likelihood": 3,
+        "impact": 3,
+        "severity": 9,
+        "source": "default"
+      },
+      "storedScore": null
+    },
+    {
+      "assessmentId": "B",
+      "label": "Bank fraud model",
+      "assessmentType": "vendor_cots",
+      "isType01Attestation": false,
+      "extractedContext": {
+        "domain": "Financial Services - Banking",
+        "intent": "GLBA (Financial Privacy) PCI DSS (Payment Cards)",
+        "timing": "",
+        "primary_risk": "Card fraud losses and false declines",
+        "secondary_risks": ""
+      },
+      "explicitMappingIds": [],
+      "usedExplicitMappingPath": false,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 1,
+          "risk_id": "RISK-1",
+          "risk_title": "LLM-based Conversational Agent Anthropomorphization Risk",
+          "domains": "Human-Computer Interaction",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 2,
+          "risk_id": "RISK-10",
+          "risk_title": "Inadequate AI Governance Frameworks Expose High-Stakes Domains to Systemic Harms",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "intent": "Intentional",
+          "timing": "Other",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 3,
+          "risk_id": "RISK-100",
+          "risk_title": "AI System Controls Insufficient for Socioeconomic and Environmental Risks",
+          "domains": "Socioeconomic and Environmental",
+          "intent": "Unintentional",
+          "timing": "Other",
+          "primary_risk": "Operational Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 4,
+          "risk_id": "RISK-1000",
+          "risk_title": "Misinformation Risk from LLMs in Mental Health Contexts",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 5,
+          "risk_id": "RISK-1001",
+          "risk_title": "LLM Hallucinations Cause Dignity Risks Through Misinformation",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        }
+      ],
+      "intentMultiplier": {
+        "intentionalCount": 1,
+        "unintentionalCount": 4,
+        "profile": "Unintentional",
+        "value": 0.7,
+        "source": "local_db",
+        "label": "Intent: Unintentional (0.7)"
+      },
+      "likelihoodImpactSeverity": {
+        "likelihood": 3,
+        "impact": 3,
+        "severity": 9,
+        "source": "default"
+      },
+      "storedScore": null
+    },
+    {
+      "assessmentId": "C",
+      "label": "HR resume screener",
+      "assessmentType": "buyer_cots",
+      "isType01Attestation": false,
+      "extractedContext": {
+        "domain": "Professional Services",
+        "intent": "Screening thousands of job applicants for open roles",
+        "timing": "",
+        "primary_risk": "Screening thousands of job applicants for open roles",
+        "secondary_risks": ""
+      },
+      "explicitMappingIds": [],
+      "usedExplicitMappingPath": false,
+      "top5": [
+        {
+          "rank": 1,
+          "risk_mapping_id": 1,
+          "risk_id": "RISK-1",
+          "risk_title": "LLM-based Conversational Agent Anthropomorphization Risk",
+          "domains": "Human-Computer Interaction",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 2,
+          "risk_mapping_id": 2,
+          "risk_id": "RISK-10",
+          "risk_title": "Inadequate AI Governance Frameworks Expose High-Stakes Domains to Systemic Harms",
+          "domains": "AI System Safety, Failures, and Limitations",
+          "intent": "Intentional",
+          "timing": "Other",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 3,
+          "risk_mapping_id": 3,
+          "risk_id": "RISK-100",
+          "risk_title": "AI System Controls Insufficient for Socioeconomic and Environmental Risks",
+          "domains": "Socioeconomic and Environmental",
+          "intent": "Unintentional",
+          "timing": "Other",
+          "primary_risk": "Operational Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 4,
+          "risk_mapping_id": 4,
+          "risk_id": "RISK-1000",
+          "risk_title": "Misinformation Risk from LLMs in Mental Health Contexts",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Technical Risks",
+          "match_score": 0
+        },
+        {
+          "rank": 5,
+          "risk_mapping_id": 5,
+          "risk_id": "RISK-1001",
+          "risk_title": "LLM Hallucinations Cause Dignity Risks Through Misinformation",
+          "domains": "Misinformation",
+          "intent": "Unintentional",
+          "timing": "Post-deployment",
+          "primary_risk": "Business Risks",
+          "match_score": 0
+        }
+      ],
+      "intentMultiplier": {
+        "intentionalCount": 1,
+        "unintentionalCount": 4,
+        "profile": "Unintentional",
+        "value": 0.7,
+        "source": "local_db",
+        "label": "Intent: Unintentional (0.7)"
+      },
+      "likelihoodImpactSeverity": {
+        "likelihood": 3,
+        "impact": 3,
+        "severity": 9,
+        "source": "default"
+      },
+      "storedScore": null
+    }
+  ]
+}

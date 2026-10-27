@@ -32,6 +32,7 @@ import Toaster from "./Components/Toaster/Toaster";
 import LayoutWithoutNav from "./Components/layout/LayoutWithoutNav";
 import VendorMainForm from "./Components/pages/VendorOnboarding/VendorMainForm";
 import Onboarding from "./Components/pages/OnBoarding/Onboarding";
+import OnboardingRedirect from "./Components/pages/OnBoarding/OnboardingRedirect";
 import BuyerMainForm from "./Components/pages/BuyerOnboarding/BuyerMainForm";
 import SignUp from "./Components/Authentication/SignUp/SignUp";
 import PageNotFound from "./Components/PageNotFound/PageNotFound";
@@ -115,6 +116,7 @@ function App() {
           {/* This Routing layout is for Vendor and Buyer onboarding without the side navigation bar  */}
           {/* <Route element={<OnboardingAccess />}> */}
           <Route element={<LayoutWithoutNav />}>
+            <Route path="/onBoarding" element={<OnboardingRedirect />} />
             <Route path="/onBoarding/:token" element={<Onboarding />} />
             <Route
               path="/onBoarding/vendorOnboarding/:token"

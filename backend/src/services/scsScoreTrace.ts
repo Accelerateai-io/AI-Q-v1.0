@@ -72,6 +72,8 @@ export type ScsTraceInput = {
   detail?: Record<string, unknown> | null;
   /** When the stored sales-risk score was calculated (report created_at). */
   generatedAt?: string | Date | null;
+  /** Stored formula version (e.g. "scs-2.0"); falls back to the local constant. */
+  scoringVersion?: string | null;
 };
 
 export function buildScsScoreTrace(input: ScsTraceInput): ScoreTrace {
@@ -217,7 +219,9 @@ export function buildScsScoreTrace(input: ScsTraceInput): ScoreTrace {
     scoreType: "sales_confidence",
     finalScore: salesConfidence,
     formula: "",
-    scoringVersion: SCORING_VERSION,
+    // Prefer the version stored with the score (the real running formula version)
+    // over the local display constant.
+    scoringVersion: input.scoringVersion?.trim() || SCORING_VERSION,
     rawSubScores: {
       customerFrictionScore,
       implementationScore,

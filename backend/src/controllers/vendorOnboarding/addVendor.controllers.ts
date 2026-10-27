@@ -4,6 +4,7 @@ import { db } from "../../database/db.js";
 import { createOrganization, usersTable, vendors } from "../../schema/schema.js";
 import { and, eq, sql } from "drizzle-orm";
 import { getJwtExpiry, getJwtSecret } from "../../config/auth.js";
+import { pickSafeUser } from "../../utils/safeUser.js";
 import {
   normalizeVendorOnboardingBusinessFields,
   persistVendorOnboardingBusinessFields,
@@ -79,8 +80,8 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
 
     const alreadyCompleted = user.user_onboarding_completed === "true";
 
-    const organizationIdRaw = bodyOrgId ?? bodyOrgIdCamel ?? user.organization_id;
-    const organizationId = String(organizationIdRaw ?? "").trim();
+    // Organization id comes from the authenticated onboarding user (token), never the body.
+    const organizationId = String(user.organization_id ?? "").trim();
     if (!organizationId) {
       return res.status(400).json({
         error: "Organization ID is required",
@@ -194,14 +195,15 @@ const insertVendorOnboarding = async (req: Request, res: Response) => {
     const organizationName = updatedRow?.organizationName ?? "";
 
     const token = jwt.sign(
-      { id: u?.id, email: u?.email, userRole: u?.role },
+      { id: u?.id, email: u?.email, userRole: u?.role, type: "session" },
       getJwtSecret(),
       { expiresIn: getJwtExpiry() } as jwt.SignOptions,
     );
 
+    // Never return the bcrypt hash (user_password) to the client.
     const userDetails = [
       {
-        ...u,
+        ...pickSafeUser(u),
         organization_name: organizationName,
         organization_id: u?.organization_id,
       },

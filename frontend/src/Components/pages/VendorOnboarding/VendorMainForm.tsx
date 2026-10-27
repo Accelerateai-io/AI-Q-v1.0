@@ -687,9 +687,18 @@ export default function VendorMainForm({ type }: { type: string }) {
         }
         setAttestationPath("/vendorSelfAttestation");
         setAllStepsFilled(true);
+      } else {
+        toast.error(
+          (result && (result.message as string)) ||
+            "Submitting your onboarding failed. Please try again.",
+          { autoClose: 5000 },
+        );
       }
     } catch (error) {
       console.log(error);
+      toast.error("Something went wrong submitting your onboarding. Please try again.", {
+        autoClose: 5000,
+      });
     }
   };
 

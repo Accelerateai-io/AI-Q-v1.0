@@ -364,9 +364,12 @@ def test_type02_uses_new_cots_fields_instead_of_hardcoded():
     assert large["vendorStage"] is None
     assert small["proposedMitigationsCount"] is None
 
-    srs_small = calculate_sales_risk_score(small)["sales_risk_score"]
-    srs_large = calculate_sales_risk_score(large)["sales_risk_score"]
-    assert srs_small != srs_large
+    # These fixtures exercise the competitive/implementation pillars (the new COTS
+    # fields) but leave customer-friction unmeasured, so the headline score is
+    # withheld. Assert the mapped fields still drive a measured pillar differently.
+    small_scored = calculate_sales_risk_score(small)
+    large_scored = calculate_sales_risk_score(large)
+    assert small_scored["competitive_risk"] != large_scored["competitive_risk"]
 
 
 def test_type01_nested_sector_maps_to_healthcare_not_technology():
@@ -543,11 +546,25 @@ def test_doc2_blank_groups_do_not_deflate_scs():
             "customerRiskTolerance": "Very_Low",
         }
     )
+    # Within the (partially) measured customer-friction pillar, a risk-averse
+    # signal still raises that pillar's risk; blank groups inside it don't deflate.
     assert public_only["customer_friction_risk"] < public_and_averse["customer_friction_risk"]
-    assert public_only["sales_confidence_score"] > public_and_averse["sales_confidence_score"]
+    # Only one of three pillars is measured here, so the headline score/grade are
+    # withheld (insufficient data) instead of being inflated to ~100.
+    assert public_only["scoring_source"] == "insufficient_data"
+    assert public_only["sales_confidence_score"] is None
+    assert public_only["grade"] is None
+    assert public_only["pillars_measured"] == 1
+
     empty = calculate_sales_risk_score({})
     assert empty["detail"]["customer_friction_risk"]["not_implemented"] is True
-    assert empty["sales_confidence_score"] == 100
+    # Regression: an empty payload must NOT score 100 / grade A.
+    assert empty["sales_confidence_score"] is None
+    assert empty["sales_risk_score"] is None
+    assert empty["grade"] is None
+    assert empty["scoring_source"] == "insufficient_data"
+    assert empty["pillars_measured"] == 0
+    assert "Insufficient data" in empty["classification"]
     assert empty["detail"]["final_formula"]["pillar_weights"] == {
         "customer_friction": 0.35,
         "implementation": 0.35,
@@ -568,7 +585,9 @@ def test_doc2_empty_payload_does_not_score_full_coverage_gap():
     assert gap["has_input"] is False
     scored = calculate_sales_risk_score(built)
     assert scored["detail"]["implementation_risk"]["control_coverage_gap"]["has_input"] is False
-    assert scored["sales_confidence_score"] == 100
+    # An empty payload leaves pillars unmeasured, so no confidence score is produced.
+    assert scored["sales_confidence_score"] is None
+    assert scored["scoring_source"] == "insufficient_data"
 
 
 def test_doc2_key_advantages_map_to_registry_categories():

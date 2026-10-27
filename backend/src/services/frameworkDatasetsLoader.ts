@@ -40,6 +40,36 @@ const CISO_FRAMEWORKS_DIR = path.join(DATA_DIR, "ciso-frameworks");
 
 let frameworkCache: FrameworkDataset[] | null = null;
 
+/** Collapse duplicate controlIds within a dataset to one row per id (prefer category "Requirement"). */
+function dedupeControlsById(ds: FrameworkDataset, filePath: string): FrameworkDataset {
+  const out: FrameworkControl[] = [];
+  const idxById = new Map<string, number>();
+  let merges = 0;
+  for (const c of ds.controls) {
+    const id = String(c.controlId ?? "").trim();
+    if (!id) {
+      out.push(c);
+      continue;
+    }
+    if (!idxById.has(id)) {
+      idxById.set(id, out.length);
+      out.push(c);
+      continue;
+    }
+    merges++;
+    const idx = idxById.get(id)!;
+    const cat = String((c as unknown as { category?: string }).category ?? "").toLowerCase();
+    const prevCat = String((out[idx] as unknown as { category?: string }).category ?? "").toLowerCase();
+    if (cat === "requirement" && prevCat !== "requirement") out[idx] = c;
+  }
+  if (merges > 0) {
+    console.log(
+      `[frameworkDatasets] ${ds.framework?.name ?? path.basename(filePath)}: merged ${merges} duplicate controlId(s) -> ${out.length} unique`,
+    );
+  }
+  return { ...ds, controls: out };
+}
+
 function parseFrameworkDatasetFile(filePath: string): FrameworkDataset | null {
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown;
@@ -47,7 +77,7 @@ function parseFrameworkDatasetFile(filePath: string): FrameworkDataset | null {
     const o = raw as Record<string, unknown>;
     if (!Array.isArray(o.controls) || o.controls.length === 0) return null;
     if (!o.framework || typeof o.framework !== "object") return null;
-    return raw as FrameworkDataset;
+    return dedupeControlsById(raw as FrameworkDataset, filePath);
   } catch {
     return null;
   }
@@ -174,78 +204,60 @@ export function findDatasetForMappingRowLabel(rowLabel: string): FrameworkDatase
   return null;
 }
 
+import { buildBm25Index, bm25Query, normalizeScores } from "./frameworkMapping/bm25.js";
+
 export type AttestationControlHint = { controlId: string; relevanceScore?: number };
 
 const SLIM_CONTROL_DESC_CAP = 4000;
+/** Minimum normalised BM25 relevance for a control to be shown for a framework row (risks + evidence). */
+const PICK_CONTROL_RELEVANCE_THRESHOLD = 0.2;
 
 /**
- * Up to `limit` controls for a framework row: prefer attestation IDs (by relevance), filtered by
- * catalog `aiRiskDomains` when `focusDomains` is non-empty; fill from catalog order when needed.
+ * Up to `limit` controls for a framework row, ranked by BM25 relevance to the assessment's risks +
+ * the vendor's evidence (`queryText`). There is NO AI-risk-domain filter (every control is tagged
+ * "Privacy and Security", so it filters nothing) and NEVER an id/alphabetical fallback: if nothing is
+ * relevant, returns [] (the caller shows "No control matched"). Vendor-attested controls are boosted
+ * so the vendor's own evidence surfaces among the relevant controls.
  */
 export function pickTopControlsForFrameworkAndAiDomains(
   rowFrameworkLabel: string,
-  focusDomains: string[],
+  queryText: string,
   limit: number,
   attestationHints: AttestationControlHint[] | undefined,
 ): Array<{ controlId: string; title: string; description: string }> {
   const cap = Math.min(99, Math.max(1, limit));
   const hints = attestationHints ?? [];
-  const relByNorm = new Map<string, number>();
-  for (const h of hints) {
-    const id = String(h.controlId ?? "").trim();
-    if (!id) continue;
-    const k = normalizeControlIdKey(id);
-    const r = typeof h.relevanceScore === "number" && Number.isFinite(h.relevanceScore) ? h.relevanceScore : 0;
-    relByNorm.set(k, Math.max(relByNorm.get(k) ?? 0, r));
-  }
+  const hintKeys = new Set(
+    hints.map((h) => normalizeControlIdKey(String(h.controlId ?? "").trim())).filter(Boolean),
+  );
 
   const ds = findDatasetForMappingRowLabel(rowFrameworkLabel);
   if (!ds) {
+    // No catalogue for this framework row — keep the vendor's own attestation-listed controls by relevance.
     const out: Array<{ controlId: string; title: string; description: string }> = [];
-    const sortedHints = [...hints].sort(
-      (a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0),
-    );
-    for (const h of sortedHints) {
+    for (const h of [...hints].sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0))) {
       if (out.length >= cap) break;
       const controlId = String(h.controlId ?? "").trim();
       if (!controlId) continue;
       let description = lookupControlDescription(rowFrameworkLabel, controlId);
-      if (description.length > SLIM_CONTROL_DESC_CAP) {
-        description = `${description.slice(0, SLIM_CONTROL_DESC_CAP)}…`;
-      }
-      out.push({
-        controlId,
-        title: controlId,
-        description: description || "—",
-      });
+      if (description.length > SLIM_CONTROL_DESC_CAP) description = `${description.slice(0, SLIM_CONTROL_DESC_CAP)}…`;
+      out.push({ controlId, title: controlId, description: description || "—" });
     }
     return out;
   }
 
-  const sortKey = (c: FrameworkControl): [number, number, number, string] => {
-    const id = String(c.controlId ?? "").trim();
-    const nk = normalizeControlIdKey(id);
-    const inAtt = relByNorm.has(nk) ? 1 : 0;
-    const rel = relByNorm.get(nk) ?? -1;
-    const tagged = c.aiRiskDomains && c.aiRiskDomains.length > 0 ? 1 : 0;
-    return [inAtt, rel, tagged, id];
-  };
-
-  const compare = (a: FrameworkControl, b: FrameworkControl): number => {
-    const [ia, ra, ta, ida] = sortKey(a);
-    const [ib, rb, tb, idb] = sortKey(b);
-    if (ia !== ib) return ib - ia;
-    if (ra !== rb) return rb - ra;
-    if (ta !== tb) return tb - ta;
-    return ida.localeCompare(idb);
-  };
-
-  let pool = ds.controls.filter((c) => controlMatchesAiRiskDomains(c, focusDomains));
-  if (pool.length === 0) {
-    pool = ds.controls.filter((c) => controlMatchesAiRiskDomains(c, []));
-  }
-  pool = [...pool].sort(compare);
-  return pool.slice(0, cap).map((c) => slimFieldsFromCatalogControl(c));
+  const index = buildBm25Index(
+    ds.controls.map((c) => ({
+      id: String(c.controlId ?? "").trim(),
+      text: `${c.controlId ?? ""} ${c.title ?? ""} ${c.description ?? ""} ${c.implementationGuidance ?? ""}`,
+    })),
+  );
+  const byId = new Map(ds.controls.map((c) => [String(c.controlId ?? "").trim(), c]));
+  const ranked = normalizeScores(bm25Query(index, queryText))
+    .map((r) => ({ ...r, score: hintKeys.has(normalizeControlIdKey(r.id)) ? r.score + 1 : r.score }))
+    .filter((r) => r.id && byId.has(r.id) && r.score >= PICK_CONTROL_RELEVANCE_THRESHOLD)
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  return ranked.slice(0, cap).map((r) => slimFieldsFromCatalogControl(byId.get(r.id)!));
 }
 
 const MAX_LOOKUP_DESCRIPTION_LEN = 4000;

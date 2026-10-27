@@ -2,7 +2,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
+ * True when a value is safe to write as a dotenv KEY=value line.
+ * Newline / carriage-return would inject extra lines; "=" would corrupt the key/value split.
+ */
+export function isSafeEnvValue(value: string): boolean {
+  return !/[\n\r=]/.test(value);
+}
+
+/**
  * Update or append KEY=value lines in a dotenv file, preserving comments and order.
+ * Rejects values containing newline, carriage return, or "=" (env-file line injection).
  */
 export function upsertEnvFile(
   filePath: string,
@@ -10,6 +19,15 @@ export function upsertEnvFile(
 ): void {
   const keys = Object.keys(updates);
   if (keys.length === 0) return;
+
+  for (const key of keys) {
+    const value = updates[key];
+    if (typeof value !== "string" || !isSafeEnvValue(value)) {
+      throw new Error(
+        `Refusing to write env value for ${key}: value must not contain newline, carriage return, or "=".`,
+      );
+    }
+  }
 
   let lines: string[] = [];
   try {

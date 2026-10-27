@@ -63,9 +63,6 @@ export type RiExportParams = {
   updatedSince?: string;
 };
 
-const TIMEOUT_MS = 15_000;
-const MAX_RETRIES = 1;
-const RETRY_DELAY_MS = 150;
 const MAX_SECTOR_QUERY_LEN = 80;
 
 /** RI `sector` must be a short name (e.g. Healthcare). JSON blobs match nothing. */
@@ -155,8 +152,15 @@ export function isRiskIntellectConfigured(): boolean {
  * /api/v1/risks/export fallback only ever 404'd after auth, costing every fetch an
  * extra request plus retry, and it was the only path filters were sent on — so
  * filtering was dead in both directions.
+ *
+ * GET /api/v1/risks ignores sector, limit, and offset and returns the whole
+ * register. One successful read is about 95s, so the list timeout is longer
+ * than a normal request and it is not retried.
  */
 const RI_RISKS_PATH = "/api/v1/risks";
+const TIMEOUT_MS = 150_000;
+const MAX_RETRIES = 0;
+const RETRY_DELAY_MS = 150;
 
 export function buildExportUrl(
   baseUrl: string,

@@ -1,0 +1,14 @@
+CERTIFICATE OF REGISTRATION
+
+Artificial Intelligence Management System
+
+This is to certify that the organisation operates an Artificial Intelligence
+Management System assessed against the requirements of ISO/IEC 42001:2023.
+
+Scope: Governance, risk management, and lifecycle controls for the design,
+development, and deployment of artificial intelligence systems.
+
+Certificate Number: AIMS-4200117
+Original Certification Date: February 1, 2026
+This certificate is valid until January 31, 2029, subject to annual
+surveillance audits.

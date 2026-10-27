@@ -1,0 +1,199 @@
+{
+  "lookup_version": "v1",
+  "catalogueDomains": [
+    "AI System Safety, Failures, and Limitations",
+    "Socioeconomic and Environmental",
+    "Malicious Actors and Misuse",
+    "Privacy and Security",
+    "Discrimination and Toxicity",
+    "Human-Computer Interaction",
+    "Misinformation"
+  ],
+  "textContributionCap": 3,
+  "maxPerDomain": 2,
+  "topN": 5,
+  "insufficientContextReason": "insufficient_assessment_context",
+  "riskDomainScores": {
+    "comment": "Per-assessment domain scores (e.g. Type-1 derive_applicable_domains). Normalised 0-3; primary signal when present. NOT used for COTS payloads, whose riskDomainScores is a catalogue-wide count identical for every assessment.",
+    "normalizedMax": 3,
+    "onlyWhenType1": true
+  },
+  "type1DomainNormalization": {
+    "AI System Safety, Failures and Limitations": "AI System Safety, Failures, and Limitations",
+    "AI System Safety Failures and Limitations": "AI System Safety, Failures, and Limitations",
+    "Socioeconomic and Environmental Risks": "Socioeconomic and Environmental"
+  },
+  "useCaseKeywordExpansion": [
+    {
+      "triggers": ["hiring", "screening", "screen", "applicant", "resume", "résumé", "candidate", "recruit", "hr "],
+      "expand": ["hiring", "employment", "recruitment", "candidate", "bias", "fairness", "discrimination"]
+    },
+    {
+      "triggers": ["fraud", "card", "transaction", "decline", "payment", "anomaly"],
+      "expand": ["fraud", "financial", "transaction", "payment", "false positive", "adversarial", "evasion", "evade", "manipulation", "manipulate", "fraudster"]
+    },
+    {
+      "triggers": ["clinical", "patient", "medication", "hospital"],
+      "expand": ["medical", "clinical", "patient", "health"]
+    }
+  ],
+  "contentHarmGuard": {
+    "comment": "If the product has no generative/conversational/content-creation feature, exclude risks whose catalogue text is about generated content.",
+    "featureTokensThatAllowContentRisks": ["conversational", "chatbot", "generative", "content", "natural language", "nlp", "answer questions", "draft or generate", "speech", "image", "transcrib", "summar"],
+    "excludeRiskTerms": ["toxic", "self-harm", "self harm", "deepfake", "impersonation", "synthetic media", "generated content", "generative content", "hate speech", "disinformation", "identity theft"]
+  },
+  "nearDuplicateTitleOverlap": {
+    "comment": "Two selected risks may not share most of their significant title words; keep the higher-ranked one. ratio = |shared| / |smaller significant-title set|.",
+    "minSharedTokens": 3,
+    "ratio": 0.6
+  },
+  "capabilityGuards": [
+    {
+      "id": "llm-generative-conversational",
+      "comment": "LLM/prompt-specific risks only apply when the product has an LLM/generative/conversational feature.",
+      "featureTokens": ["llm", "large language model", "language model", "generative", "gen ai", "genai", "gpt", "chatbot", "conversational", "natural language", "nlp", "answer questions", "draft or generate", "text generation", "summar", "dialogue", "chat ", "prompt"],
+      "excludeRiskTerms": ["jailbreak", "prompt injection", "prompt engineering", "rlhf", "llm", "large language model", "hallucinat"]
+    },
+    {
+      "id": "reinforcement-exploratory-robotics",
+      "comment": "Reinforcement/exploratory-learning/robotics risks only apply when the product has those capabilities.",
+      "featureTokens": ["reinforcement learning", "reinforcement", "exploratory", "exploration", "reward", "robot", "robotics", "autonomous vehicle", "self-driving", "continuous learning", "online learning"],
+      "excludeRiskTerms": ["reinforcement learning", "exploratory learning", "exploratory", "reward hacking", "reward-hacking", "robotics", "robotic", "robot "]
+    },
+    {
+      "id": "agentic-autonomous",
+      "comment": "Agentic / multi-agent / recursive self-improvement / autonomous-replication risks only apply when the product declares an agent or autonomous capability.",
+      "featureTokens": ["agent", "agentic", "multi-agent", "multi agent", "autonomous", "autonomy", "fully autonomous", "operates independently", "self-improv", "self improv", "self-replicat", "self replicat", "orchestrat", "tool use", "tool-use"],
+      "excludeRiskTerms": ["agentic", "multi-agent", "multi agent", "multiagent", "recursive self-improvement", "recursive self improvement", "recursive improvement", "recursively self-improv", "self-improving ai", "autonomous replication", "self-replicat", "self replication"]
+    }
+  ],
+  "signals": [
+    {
+      "id": "dataSensitivity",
+      "readKeys": ["dataSensitivity", "data_sensitivity", "pii_handling", "pii_information"],
+      "rules": [
+        {
+          "label": "sensitive-data",
+          "anyToken": ["phi", "pci", "financial", "health info", "biometric", "ssn", "names, emails", "sensitive - ", "extensive (", "moderate (", "pii or", "cardholder"],
+          "notToken": ["no pii", "anonymous", "no sensitive", "public -", "internal -"],
+          "domains": { "Privacy and Security": 3 },
+          "secondaryKeywords": { "Privacy Risk": 1, "Data Risk": 1 }
+        },
+        {
+          "label": "extreme-sensitivity",
+          "anyToken": ["extremely sensitive", "national security", "itar", " cui", "critical ("],
+          "domains": { "Malicious Actors and Misuse": 1 }
+        }
+      ]
+    },
+    {
+      "id": "regulatoryRequirements",
+      "readKeys": ["regulatoryRequirements", "regulatory_requirements", "hipaa_baa", "security_certifications"],
+      "rules": [
+        {
+          "label": "regulated",
+          "anyToken": ["hipaa", "hitech", "gdpr", "ccpa", "glba", "pci", "21 cfr", "nist ai", "sox", "fisma", "ferpa", "fedramp", "iso 27001", "soc 2", "eu ai act", "ll144", "local law 144"],
+          "notToken": ["none", "not applicable", "not_applicable"],
+          "secondaryKeywords": { "Compliance/Regulatory Risk": 2 }
+        }
+      ]
+    },
+    {
+      "id": "impactedStakeholders",
+      "readKeys": ["impactedStakeholders", "impacted_stakeholders"],
+      "rules": [
+        {
+          "label": "vulnerable-public",
+          "anyToken": ["patient", "vulnerable", "student", "general public"],
+          "domains": { "AI System Safety, Failures, and Limitations": 1, "Discrimination and Toxicity": 1 }
+        },
+        {
+          "label": "employees",
+          "anyToken": ["employee"],
+          "domains": { "Socioeconomic and Environmental": 1 }
+        }
+      ]
+    },
+    {
+      "id": "decisionStakes",
+      "readKeys": ["decisionStakes", "decision_stakes"],
+      "rules": [
+        {
+          "label": "life-or-death",
+          "anyToken": ["life or death"],
+          "domains": { "AI System Safety, Failures, and Limitations": 3 }
+        },
+        {
+          "label": "major-financial",
+          "anyToken": ["major financial"],
+          "domains": { "AI System Safety, Failures, and Limitations": 2, "Malicious Actors and Misuse": 1 }
+        }
+      ]
+    },
+    {
+      "id": "productFeatures",
+      "readKeys": ["productFeatures", "product_features", "ai_capabilities", "useCaseTypes", "use_case_types", "ai_model_types"],
+      "rules": [
+        {
+          "label": "conversational",
+          "anyToken": ["conversational", "chatbot", "natural language", "nlp", "generative ai (text", "generative ai (images", "answer questions", "draft or generate"],
+          "domains": { "Human-Computer Interaction": 2, "Misinformation": 2 }
+        },
+        {
+          "label": "automated-decision",
+          "anyToken": ["automated decision", "autonomous decision", "take an action automatically"],
+          "domains": { "Discrimination and Toxicity": 2, "AI System Safety, Failures, and Limitations": 2 }
+        },
+        {
+          "label": "predictive-recommendation",
+          "anyToken": ["predictive analytics", "recommendation", "recommend an action", "classify or route"],
+          "domains": { "Discrimination and Toxicity": 1 }
+        },
+        {
+          "label": "anomaly-detection",
+          "anyToken": ["anomaly detection"],
+          "domains": { "Malicious Actors and Misuse": 2 }
+        },
+        {
+          "label": "vision-speech-ocr",
+          "anyToken": ["computer vision", "speech", "document processing", "ocr", "extract data from documents", "transcribe"],
+          "domains": { "Privacy and Security": 1 }
+        },
+        {
+          "label": "workflow-automation",
+          "anyToken": ["workflow automation"],
+          "domains": { "Socioeconomic and Environmental": 1 }
+        }
+      ]
+    },
+    {
+      "id": "decisionAutonomy",
+      "readKeys": ["decision_autonomy", "ai_autonomy_level"],
+      "rules": [
+        {
+          "label": "no-human-review",
+          "anyToken": ["fully autonomous", "autonomous (ai decides, human monitors", "operates independently", "no human"],
+          "domains": { "AI System Safety, Failures, and Limitations": 2 }
+        }
+      ]
+    },
+    {
+      "id": "timing",
+      "readKeys": ["currentlyUsing", "currently_using", "currentUsageState", "current_usage_state", "product_stage", "stage_product", "development_stage"],
+      "rules": [
+        {
+          "label": "post-deployment",
+          "exact": ["yes"],
+          "anyToken": ["production", "officially in use", "expanding", "unsanctioned", "mature"],
+          "timingKeywords": { "Post-deployment": 1 }
+        },
+        {
+          "label": "pre-deployment",
+          "exact": ["no"],
+          "anyToken": ["trial", "poc", "evaluat", "not in use", "design", "development", "beta", "planning"],
+          "timingKeywords": { "Pre-deployment": 1 }
+        }
+      ]
+    }
+  ]
+}

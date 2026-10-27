@@ -5,6 +5,7 @@
  */
 
 import { resolveActorSnapshot } from "./observability/llmUsage.service.js";
+import { pythonServiceHeaders } from "./pythonServiceHeaders.js";
 import { getActiveBedrockModelId } from "../utils/bedrockModelId.js";
 import { getRequestActor } from "../utils/requestActorContext.js";
 import {
@@ -65,7 +66,7 @@ export async function invokePythonLlmWithVector(options: {
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: pythonServiceHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
       body: JSON.stringify({
         assessment_type: options.assessmentType,
         user_prompt: options.userPrompt,

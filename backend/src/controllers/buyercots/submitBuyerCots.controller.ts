@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
-import { db } from "../../database/db.js";
+import { db, pool } from "../../database/db.js";
+import { hasReportStatusColumn } from "../../services/reportStatusColumn.js";
+import { isScoringUnavailableError } from "../../utils/scoringUnavailable.js";
+import { assessmentUserArchiveLog } from "../../schema/assessments/assessmentUserArchiveLog.js";
 import { usersTable } from "../../schema/schema.js";
 import { assessments } from "../../schema/assessments/assessments.js";
 import { cotsBuyerAssessments } from "../../schema/assessments/cotsBuyerAssessments.js";
@@ -142,10 +145,12 @@ async function persistVendorRiskReport(
     } as unknown as Record<string, unknown>);
     const irsRationale =
       typeof report.scoreRationale === "string" ? report.scoreRationale.trim() : "";
+    const includeStatusColumn = await hasReportStatusColumn(pool, "cots_buyer_assessments");
     await db
       .update(cotsBuyerAssessments)
       .set({
         vendor_risk_assessment_report: reportStored,
+        ...(includeStatusColumn ? { report_status: "done" } : {}),
         score_rationale: irsRationale || undefined,
         score_rationale_type: irsRationale ? "IRS" : undefined,
         llm_model_id: llmMeta.modelId,
@@ -157,6 +162,23 @@ async function persistVendorRiskReport(
   } catch (e) {
     if (isTokenQuotaExceededError(e)) throw e;
     console.error("persistVendorRiskReport:", e);
+    // Scoring integrity: mark the report so it is not left stuck "Generating".
+    // insufficient_data => user must complete answers (not retryable);
+    // otherwise failed => retryable. No fabricated score is stored either way.
+    const status =
+      isScoringUnavailableError(e) && e.reason === "insufficient_data"
+        ? "insufficient_data"
+        : "failed";
+    try {
+      if (await hasReportStatusColumn(pool, "cots_buyer_assessments")) {
+        await db
+          .update(cotsBuyerAssessments)
+          .set({ report_status: status, updated_at: new Date() })
+          .where(eq(cotsBuyerAssessments.assessment_id, assessmentId));
+      }
+    } catch (markErr) {
+      console.error("persistVendorRiskReport status update:", markErr);
+    }
     return false;
   }
 }
@@ -278,6 +300,194 @@ const submitBuyerCotsAssessment = async (req: Request, res: Response) => {
     if (sendIfTokenQuotaExceeded(res, error)) return;
     const message = error instanceof Error ? error.message : String(error);
     console.error("Error in submitBuyerCotsAssessment:", message);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * POST /buyerCotsAssessment/:id/regenerate
+ * Re-run Vendor Risk Report generation for an assessment the caller's org owns
+ * (e.g. after a failed or stuck "Generating" report). Authenticated and
+ * org-scoped. Rebuilds the report inputs from the stored assessment row.
+ */
+export const regenerateBuyerVendorRiskReport = async (req: Request, res: Response) => {
+  try {
+    const decoded = req.user as { id?: number } | undefined;
+    const userId = decoded?.id;
+    if (userId == null) {
+      return res.status(401).json({ message: "User not found from token" });
+    }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, Number(userId)))
+      .limit(1);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const organizationId = String((user as Record<string, unknown>).organization_id ?? "").trim();
+    if (!organizationId) {
+      return res.status(400).json({ message: "User has no organization." });
+    }
+
+    const assessmentId =
+      typeof req.params?.id === "string" ? req.params.id.trim() : "";
+    if (!assessmentId) {
+      return res.status(400).json({ message: "Invalid assessment id" });
+    }
+
+    const [assessment] = await db
+      .select({ id: assessments.id })
+      .from(assessments)
+      .where(
+        and(
+          eq(assessments.id, assessmentId),
+          eq(assessments.organization_id, organizationId),
+          eq(assessments.type, "cots_buyer"),
+        ),
+      )
+      .limit(1);
+    if (!assessment) {
+      return res.status(404).json({ message: "Assessment not found or access denied" });
+    }
+
+    const [row] = await db
+      .select()
+      .from(cotsBuyerAssessments)
+      .where(eq(cotsBuyerAssessments.assessment_id, assessmentId))
+      .limit(1);
+    if (!row) {
+      return res.status(404).json({ message: "Assessment data not found" });
+    }
+
+    await assertFeatureTokenQuota("assessment");
+
+    // Rebuild a camelCase form body from the stored snake_case row (buildPayloadCots
+    // persisted camelCase body fields under snake_case columns, so this round-trips).
+    const stored = row as Record<string, unknown>;
+    const body: Record<string, unknown> = { ...stored };
+    for (const [k, v] of Object.entries(stored)) {
+      const camel = k.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
+      if (!(camel in body)) body[camel] = v;
+    }
+    body.organizationId = organizationId;
+
+    // Clear any stale failed state so the getter shows "generating" during the re-run.
+    try {
+      if (await hasReportStatusColumn(pool, "cots_buyer_assessments")) {
+        await db
+          .update(cotsBuyerAssessments)
+          .set({ report_status: "generating", updated_at: new Date() })
+          .where(eq(cotsBuyerAssessments.assessment_id, assessmentId));
+      }
+    } catch (markErr) {
+      console.error("regenerateBuyerVendorRiskReport status reset:", markErr);
+    }
+
+    res.status(202).json({
+      message: "Report regeneration started",
+      assessmentId,
+      reportGenerating: true,
+    });
+    queueVendorRiskReport(
+      assessmentId,
+      body,
+      String(stored.vendor_name ?? ""),
+      String(stored.specific_product ?? ""),
+    );
+    return;
+  } catch (error) {
+    if (sendIfTokenQuotaExceeded(res, error)) return;
+    console.error(
+      "regenerateBuyerVendorRiskReport:",
+      error instanceof Error ? error.message : error,
+    );
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * POST /buyerCotsAssessment/:id/reopen-for-edit
+ * Reopen a submitted buyer assessment for editing (status → draft) so the user
+ * can complete missing answers. Authenticated, org-scoped, audit-logged.
+ */
+export const reopenBuyerCotsForEdit = async (req: Request, res: Response) => {
+  try {
+    const decoded = req.user as { id?: number } | undefined;
+    const userId = decoded?.id;
+    if (userId == null) {
+      return res.status(401).json({ message: "User not found from token" });
+    }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, Number(userId)))
+      .limit(1);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const organizationId = String((user as Record<string, unknown>).organization_id ?? "").trim();
+    if (!organizationId) {
+      return res.status(400).json({ message: "User has no organization." });
+    }
+
+    const assessmentId =
+      typeof req.params?.id === "string" ? req.params.id.trim() : "";
+    if (!assessmentId) {
+      return res.status(400).json({ message: "Invalid assessment id" });
+    }
+
+    const [assessment] = await db
+      .select({ id: assessments.id })
+      .from(assessments)
+      .where(
+        and(
+          eq(assessments.id, assessmentId),
+          eq(assessments.organization_id, organizationId),
+          eq(assessments.type, "cots_buyer"),
+        ),
+      )
+      .limit(1);
+    if (!assessment) {
+      return res.status(404).json({ message: "Assessment not found or access denied" });
+    }
+
+    const reasonRaw =
+      typeof req.body?.reason === "string" && req.body.reason.trim()
+        ? req.body.reason.trim().slice(0, 4000)
+        : "Reopened to complete missing answers (insufficient data)";
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(assessments)
+        .set({ status: "draft", updated_at: new Date() })
+        .where(eq(assessments.id, assessmentId));
+      await tx.insert(assessmentUserArchiveLog).values({
+        assessment_id: assessmentId,
+        user_id: Number(userId),
+        action: "reopen_for_edit",
+        reason: reasonRaw,
+      });
+      // Clear the stale report + status so it is regenerated on resubmit.
+      const setReportCleared: Record<string, unknown> = {
+        vendor_risk_assessment_report: null,
+        updated_at: new Date(),
+      };
+      if (await hasReportStatusColumn(pool, "cots_buyer_assessments")) {
+        setReportCleared.report_status = null;
+      }
+      await tx
+        .update(cotsBuyerAssessments)
+        .set(setReportCleared)
+        .where(eq(cotsBuyerAssessments.assessment_id, assessmentId));
+    });
+
+    return res.status(200).json({
+      message: "Assessment reopened for editing",
+      assessmentId,
+      status: "draft",
+    });
+  } catch (error) {
+    console.error(
+      "reopenBuyerCotsForEdit:",
+      error instanceof Error ? error.message : error,
+    );
     return res.status(500).json({ message: "Internal server error" });
   }
 };

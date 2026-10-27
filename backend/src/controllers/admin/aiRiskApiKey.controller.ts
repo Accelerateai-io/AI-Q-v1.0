@@ -2,12 +2,26 @@ import type { Request, Response } from "express";
 import {
   getAiRiskApiKeyConfig,
   setAiRiskApiKey,
+  type AiRiskApiKeyConfig,
 } from "../../services/admin/aiRiskApiKeyConfig.service.js";
+import { maskSecret } from "../../utils/maskSecret.js";
 
 function readApiKey(body: unknown): string {
   if (body == null || typeof body !== "object" || Array.isArray(body)) return "";
   const apiKey = (body as Record<string, unknown>).apiKey;
   return typeof apiKey === "string" ? apiKey.trim() : "";
+}
+
+/** Public view of the config: the raw API key is replaced with a masked (last-4) value. */
+function toPublicConfig(config: AiRiskApiKeyConfig) {
+  const masked = maskSecret(config.apiKey);
+  return {
+    configured: config.configured,
+    apiKey: masked,
+    apiKeyMasked: masked,
+    baseUrlConfigured: config.baseUrlConfigured,
+    baseUrl: config.baseUrl,
+  };
 }
 
 /** GET /admin/services/ai-risk-api-key */
@@ -17,7 +31,7 @@ export async function getAiRiskApiKeyHandler(
 ): Promise<void> {
   try {
     const config = getAiRiskApiKeyConfig();
-    res.status(200).json({ ok: true, ...config });
+    res.status(200).json({ ok: true, ...toPublicConfig(config) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("getAiRiskApiKeyHandler:", message);
@@ -44,7 +58,7 @@ export async function setAiRiskApiKeyHandler(
     res.status(200).json({
       ok: true,
       message: "AI Risk API key saved.",
-      ...config,
+      ...toPublicConfig(config),
     });
   } catch (err) {
     const message =

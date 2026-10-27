@@ -1,10 +1,9 @@
-import dotenv from "dotenv";
-
-// dotenv.config({ path: ".env" });
-dotenv.config({ path: ".env.local" });
+// Load env FIRST so db.ts and config/auth.ts see .env.local when they evaluate.
+import "./loadEnv.js";
 
 import express from "express";
 import cors from "cors";
+import { assertServerEnv } from "./config/requireEnv.js";
 import { initDB } from "./database/db.js";
 import orgrouter from "./routes/organization.routes.js";
 import userRoutes from "./routes/userRoutes.routes.js";
@@ -43,7 +42,8 @@ app.use(
       ) {
         return cb(null, true);
       }
-      return cb(null, true);
+      // Enforce the allowlist: do NOT reflect arbitrary origins.
+      return cb(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -105,6 +105,8 @@ console.log("Starting server…");
 logger.info("Starting server…");
 
 try {
+  // Refuse to boot when a required secret / DB var is missing (no silent fallbacks).
+  assertServerEnv();
   //** Calling database function
   await initDB();
   app.listen(PORT, () => {
