@@ -6,7 +6,24 @@ Keeps the classic VTS RATIONALE layout, with clear plain-language explanations.
 
 from __future__ import annotations
 
+import sys
 from typing import Any
+
+
+def safe_print(text: str) -> None:
+    """Print to the console without failing the scoring HTTP response.
+
+    On Windows a closed or non-UTF8 console turns print(..., flush=True) into
+    OSError [Errno 22] Invalid argument. That must not discard a computed score.
+    """
+    try:
+        print(text, flush=True)
+    except (OSError, UnicodeEncodeError, ValueError):
+        try:
+            sys.stderr.write(text + "\n")
+            sys.stderr.flush()
+        except (OSError, UnicodeEncodeError, ValueError):
+            return
 
 
 def _bar(char: str = "=", width: int = 72) -> str:
@@ -16,7 +33,7 @@ def _bar(char: str = "=", width: int = 72) -> str:
 def _emit(lines: list[str]) -> str:
     """Print rationale lines (flushed) and return the same text for Node/API."""
     text = "\n".join(lines)
-    print(text, flush=True)
+    safe_print(text)
     return text
 
 

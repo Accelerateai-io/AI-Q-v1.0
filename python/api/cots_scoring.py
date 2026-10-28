@@ -21,7 +21,7 @@ from services.sales_risk_formula import (
     build_sales_risk_formula_input,
     calculate_sales_risk_score,
 )
-from services.score_rationale import print_irs_rationale, print_srs_rationale
+from services.score_rationale import print_irs_rationale, print_srs_rationale, safe_print
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class CotsBuyerScoreRequest(BaseModel):
 @router.post("/cots-vendor/score")
 async def score_cots_vendor(body: CotsVendorScoreRequest) -> dict[str, Any]:
     """Sales Risk Score (Type 2) — deterministic formula owned by Python."""
-    print("[cots-vendor] scoring request", flush=True)
+    safe_print("[cots-vendor] scoring request")
     try:
         if body.formula_input and isinstance(body.formula_input, dict):
             formula_input = body.formula_input
@@ -57,7 +57,7 @@ async def score_cots_vendor(body: CotsVendorScoreRequest) -> dict[str, Any]:
 
         result = calculate_sales_risk_score(formula_input)
         srs = float(result.get("sales_risk_score") or 0)
-        print(f"srs {srs}", flush=True)
+        safe_print(f"srs {srs}")
         rationale = print_srs_rationale(
             result=result,
             formula_input=formula_input,
@@ -88,7 +88,7 @@ async def score_cots_buyer(body: CotsBuyerScoreRequest) -> dict[str, Any]:
             body.product_name or "Product",
         )
         irs = float(result.get("implementationRiskScore") or 0)
-        print(f"irs {irs}", flush=True)
+        safe_print(f"irs {irs}")
         rationale = print_irs_rationale(result=result, buyer_payload=buyer_payload)
         return {
             **result,
