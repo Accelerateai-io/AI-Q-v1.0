@@ -274,12 +274,12 @@ export const VENDOR_SELF_ATTESTATION = {
       placeholder: "Select your contractual uptime commitment",
       required: true,
     },
-    1: {
-      label: "What are your support response SLAs by severity (P1 / P2 / P3)?",
-      placeholder:
-        "Example: P1: within 1 hour, P2: within 4 hours, P3: within 1 business day",
-      required: true,
-    },
+    // 1: {
+    //   label: "What are your support response SLAs by severity (P1 / P2 / P3)?",
+    //   placeholder:
+    //     "Example: P1: within 1 hour, P2: within 4 hours, P3: within 1 business day",
+    //   required: true,
+    // },
     2: {
       label: "Describe your change management / release cadence",
       placeholder:

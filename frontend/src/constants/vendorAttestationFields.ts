@@ -58,7 +58,7 @@ export const ATTESTATION_SECTION_FIELDS: Record<string, (AttestationFieldMapping
   ],
   operations_reliability: [
     { key: "uptime_sla", type: "string" },
-    { key: "support_slas", type: "string" },
+    null, // support_slas — commented out
     { key: "change_management", type: "string" },
     { key: "incident_response_plan", type: "string" },
     { key: "rollback_capability", type: "string" },
